@@ -19,18 +19,19 @@ export default defineConfig({
 				{
 					label: 'Guides',
 					items: [
-						// Each item here is one entry in the navigation menu.
-						{ label: 'Example Guide', slug: 'guides/example' },
+						{ label: 'Getting Started', slug: 'guides/getting-started' },
+						{ label: 'Installation', slug: 'guides/installation' },
+						{ label: 'Hooks Overview', slug: 'guides/hooks' },
 					],
 				},
 				{
 					label: 'Reference',
 					items: [
-						{ label: 'Example', slug: 'reference/example' },
+						{ label: 'CLI Reference', slug: 'reference/cli' },
 						{
-							label: 'Configuration Reference',
+							label: 'Configuration',
 							items: [
-								{ label: 'Configuration Overview', slug: 'reference/config/configuration' },
+								{ label: 'Overview', slug: 'reference/config/configuration' },
 								{ label: 'Stop Hook', slug: 'reference/config/stop' },
 								{ label: 'Subagent Stop Hook', slug: 'reference/config/subagent-stop' },
 								{ label: 'Pre Tool Use Hook', slug: 'reference/config/pre-tool-use' },

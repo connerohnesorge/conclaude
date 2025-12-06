@@ -7,7 +7,20 @@
 stop:
   # Structured command format with optional custom error messages
   # Each command can have its own error message, and control output display
-  commands: []
+  commands:
+    - run: "nix develop -c lint"
+      showStdout: true
+      showStderr: true
+      message: "Linting failed - please fix errors before continuing"
+      maxOutputLines: 100
+    - run: "nix develop -c tests"
+      showStdout: true
+      showStderr: true
+      message: "Tests failed - please fix failing tests"
+    - run: "cd docs && bun run build"
+      showStdout: true
+      showStderr: true
+      message: "Docs build (cd docs && bun run build) failed - please fix errors"
   # Examples:
   # commands:
   #   - run: "echo 'Starting build...'"
@@ -31,7 +44,6 @@ stop:
 
   # Message to send when infinite mode is enabled
   infiniteMessage: "continue working on the task"
-
 
 # Subagent stop hook configuration - runs when subagents are about to stop
 # This hook allows configuring different commands for different subagent names
@@ -106,8 +118,8 @@ preToolUse:
   # 1. Simple string patterns: "*.lock"
   # 2. Detailed objects with custom messages: { pattern: "*.lock", message: "..." }
   uneditableFiles:
-    - ".conclaude.yml"   # Protect conclaude config from AI modification
-    - ".conclaude.yaml"  # Alternative config extension
+    - ".conclaude.yml" # Protect conclaude config from AI modification
+    - ".conclaude.yaml" # Alternative config extension
   # Additional examples:
   # uneditableFiles:
   #   # Simple patterns (backward compatible)
@@ -184,7 +196,6 @@ notifications:
 
   # Show system event notifications (session start/end, configuration loaded)
   showSystemEvents: true
-
 # Permission request hook configuration - controls tool permission decisions
 # This hook is fired when Claude requests permission to use a tool
 # Use this to automatically approve or deny tool usage based on rules
