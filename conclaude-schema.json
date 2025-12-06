@@ -5,16 +5,16 @@
   "definitions": {
     "NotificationsConfig": {
       "additionalProperties": false,
-      "description": "Configuration for system notifications",
+      "description": "Configuration for system notifications.\n\nControls desktop notifications for hook execution, errors, successes, and system events. Notifications help you stay informed about what conclaude is doing in the background.\n\n# Examples\n\n```yaml # Enable notifications for all hooks notifications: enabled: true hooks: [\"*\"] showErrors: true showSuccess: true showSystemEvents: true ```\n\n```yaml # Enable notifications only for Stop hook notifications: enabled: true hooks: [\"Stop\"] showErrors: true showSuccess: false showSystemEvents: false ```\n\n```yaml # Enable notifications for specific hooks notifications: enabled: true hooks: [\"Stop\", \"PreToolUse\"] showErrors: true showSuccess: true showSystemEvents: true ```",
       "properties": {
         "enabled": {
           "default": false,
-          "description": "Whether notifications are enabled",
+          "description": "Enable system notifications for hook execution.\n\nWhen enabled, conclaude will send desktop notifications based on the configured notification types (errors, successes, system events) and hook filters.\n\nDefault: `false`",
           "type": "boolean"
         },
         "hooks": {
           "default": [],
-          "description": "List of hook names that should trigger notifications. Use [\"*\"] for all hooks",
+          "description": "List of hook names that should trigger notifications.\n\nUse `[\"*\"]` to receive notifications for all hooks, or specify individual hook names to filter which hooks generate notifications.\n\nCommon hook names: - `\"Stop\"` - When Claude is about to stop - `\"PreToolUse\"` - Before tools are executed - `\"PostToolUse\"` - After tools are executed - `\"SessionStart\"` - When a session starts - `\"UserPromptSubmit\"` - When user submits a prompt - `\"Notification\"` - General notifications - `\"SubagentStop\"` - When subagents stop - `\"PreCompact\"` - Before transcript compaction\n\nExamples: - `[\"*\"]` - All hooks - `[\"Stop\", \"PreToolUse\"]` - Only specific hooks - `[\"Stop\"]` - Only stop hook notifications\n\nDefault: `[]` (no hooks)",
           "items": {
             "type": "string"
           },
@@ -22,17 +22,17 @@
         },
         "showErrors": {
           "default": false,
-          "description": "Whether to show error notifications",
+          "description": "Show error notifications (hook failures, system errors).\n\nWhen enabled, you'll receive desktop notifications when hooks fail or system errors occur. Useful for catching issues early.\n\nDefault: `false`",
           "type": "boolean"
         },
         "showSuccess": {
           "default": false,
-          "description": "Whether to show success notifications",
+          "description": "Show success notifications (hook completion, successful operations).\n\nWhen enabled, you'll receive desktop notifications when hooks complete successfully and operations finish without errors.\n\nDefault: `false`",
           "type": "boolean"
         },
         "showSystemEvents": {
           "default": true,
-          "description": "Whether to show system event notifications",
+          "description": "Show system event notifications (session start/end, configuration loaded).\n\nWhen enabled, you'll receive desktop notifications for system-level events like session initialization, configuration loading, and session termination.\n\nDefault: `true`",
           "type": "boolean"
         }
       },
@@ -40,11 +40,11 @@
     },
     "PermissionRequestConfig": {
       "additionalProperties": false,
-      "description": "Configuration for permission request hooks",
+      "description": "Configuration for permission request hooks that control tool permission decisions.\n\nThis hook is fired when Claude requests permission to use a tool. Use this to automatically approve or deny tool usage based on configurable rules.\n\n# Pattern Matching\n\nBoth `allow` and `deny` fields support glob patterns for flexible tool matching: - `\"Bash\"` - Exact match (only \"Bash\") - `\"*\"` - Wildcard (matches any tool) - `\"Edit*\"` - Prefix match (matches \"Edit\", \"EditFile\", etc.) - `\"*Read\"` - Suffix match (matches \"Read\", \"FileRead\", etc.)\n\n**Important**: Deny patterns take precedence over allow patterns.\n\n# Security Recommendations\n\n- **Whitelist approach (recommended)**: Set `default: \"deny\"` and explicitly list allowed tools - **Blacklist approach (more permissive)**: Set `default: \"allow\"` and explicitly list denied tools\n\n# Examples\n\n## Whitelist approach (recommended for security)\n\n```yaml permissionRequest: default: deny allow: - \"Read\"       # Allow reading files - \"Glob\"       # Allow file pattern matching - \"Grep\"       # Allow content search - \"Edit\"       # Allow file editing - \"Write\"      # Allow file writing - \"Task\"       # Allow subagent tasks - \"Bash\"       # Allow bash commands ```\n\n## Blacklist approach (more permissive)\n\n```yaml permissionRequest: default: allow deny: - \"BashOutput\"   # Block reading background process output - \"KillShell\"    # Block terminating background shells ```\n\n## Mixed approach with patterns\n\n```yaml permissionRequest: default: deny allow: - \"Read\" - \"Write\" - \"Edit*\"      # Allow all Edit-based tools deny: - \"Bash\"       # Explicitly deny even though default is deny ```",
       "properties": {
         "allow": {
           "default": null,
-          "description": "Tools to explicitly allow (supports glob patterns)",
+          "description": "Tools to explicitly allow using glob patterns.\n\nThese patterns are checked AFTER deny patterns. If a tool matches both an allow and a deny pattern, the deny pattern takes precedence.\n\n# Pattern Examples\n\n- `\"Read\"` - Exact match for the Read tool - `\"*\"` - Match all tools (use with caution) - `\"Edit*\"` - Match any tool starting with \"Edit\" - `\"*Read\"` - Match any tool ending with \"Read\"\n\n# Common Tools\n\n- `\"Read\"` - Read files - `\"Write\"` - Write files - `\"Edit\"` - Edit files - `\"Bash\"` - Execute bash commands - `\"Glob\"` - File pattern matching - `\"Grep\"` - Content search - `\"Task\"` - Subagent tasks\n\nDefault: `None` (no tools explicitly allowed)",
           "items": {
             "type": "string"
           },
@@ -54,12 +54,12 @@
           ]
         },
         "default": {
-          "description": "Default action when a tool is requested: \"allow\" or \"deny\"",
+          "description": "Default decision when a tool doesn't match any allow or deny rule.\n\nValid values: - `\"allow\"` - Permit tools by default (blacklist approach) - `\"deny\"` - Block tools by default (whitelist approach, recommended for security)\n\nThe default action is applied when a tool is requested that doesn't match any patterns in the `allow` or `deny` lists.",
           "type": "string"
         },
         "deny": {
           "default": null,
-          "description": "Tools to explicitly deny (supports glob patterns)",
+          "description": "Tools to explicitly deny using glob patterns.\n\nDeny patterns take precedence over allow patterns. If a tool matches both an allow and a deny pattern, it will be denied.\n\n# Pattern Examples\n\n- `\"BashOutput\"` - Block reading background process output - `\"KillShell\"` - Block terminating background shells - `\"Bash\"` - Block all bash command execution - `\"*\"` - Block all tools (use with specific allow rules)\n\nDefault: `None` (no tools explicitly denied)",
           "items": {
             "type": "string"
           },
@@ -76,10 +76,11 @@
     },
     "PreToolUseConfig": {
       "additionalProperties": false,
-      "description": "Configuration for pre tool use hooks",
+      "description": "Configuration for pre-tool-use hooks that run before tools are executed.\n\nAll file protection rules are consolidated in this section to prevent Claude from making unintended modifications to protected files, directories, or executing dangerous commands.\n\n# Examples\n\n```yaml preToolUse: # Prevent root-level file creation preventRootAdditions: true\n\n# Protect specific files with glob patterns uneditableFiles: - \".conclaude.yml\" - \"*.lock\" - pattern: \".env*\" message: \"Environment files contain secrets\"\n\n# Prevent modifications to git-ignored files preventUpdateGitIgnored: false\n\n# Fine-grained tool control toolUsageValidation: - tool: \"Bash\" commandPattern: \"git push --force*\" action: \"block\" message: \"Force push is not allowed\"\n\n# Block additions to specific directories preventAdditions: - \"dist\" - \"build\"\n\n# Protect generated files preventGeneratedFileEdits: true generatedFileMessage: \"Cannot modify {file_path} - it contains '{marker}'\" ```",
       "properties": {
         "generatedFileMessage": {
           "default": null,
+          "description": "Custom message when blocking file edits with generation markers.\n\nAvailable placeholders: - `{file_path}` - The path to the file being blocked - `{marker}` - The generation marker that was detected\n\n# Example\n\n```yaml generatedFileMessage: \"Cannot modify {file_path} - it contains '{marker}' marker\" ```\n\nDefault: `null` (uses a generic error message)",
           "type": [
             "string",
             "null"
@@ -87,6 +88,7 @@
         },
         "preventAdditions": {
           "default": [],
+          "description": "Directories where file additions are prevented (in addition to root if `preventRootAdditions` is enabled).\n\nList of directory paths where new files cannot be created. Useful for protecting build output directories or other generated content.\n\n# Examples\n\n```yaml preventAdditions: - \"dist\" - \"build\" - \"node_modules\" ```",
           "items": {
             "type": "string"
           },
@@ -94,19 +96,22 @@
         },
         "preventGeneratedFileEdits": {
           "default": true,
+          "description": "Prevent editing of files with generation markers (enabled by default).\n\nWhen enabled, checks for common markers like \"DO NOT EDIT\", \"Code generated by\", \"@generated\", etc. in file contents before allowing edits.\n\nDefault: `true`",
           "type": "boolean"
         },
         "preventRootAdditions": {
           "default": true,
+          "description": "Prevent Claude from creating or modifying files at the repository root.\n\nHelps maintain clean project structure by preventing clutter at the root level. This is a security best practice to avoid accidental modification of important configuration files.\n\nDefault: `true`",
           "type": "boolean"
         },
         "preventUpdateGitIgnored": {
           "default": false,
-          "description": "Block Claude from modifying or creating files that match .gitignore patterns",
+          "description": "Block Claude from modifying or creating files that match .gitignore patterns.\n\nWhen enabled, files matching patterns in .gitignore will be protected. Uses your existing .gitignore as the source of truth for file protection.\n\nDefault: `false`",
           "type": "boolean"
         },
         "toolUsageValidation": {
           "default": [],
+          "description": "Tool usage validation rules for fine-grained control over tool usage.\n\nAllows controlling which tools can be used on which files or with which command patterns. Rules are evaluated in order.\n\n# Examples\n\n```yaml toolUsageValidation: # Allow writing to JavaScript files - tool: \"Write\" pattern: \"**/*.js\" action: \"allow\"\n\n# Block environment file modifications - tool: \"*\" pattern: \".env*\" action: \"block\" message: \"Environment files cannot be modified\"\n\n# Block dangerous git operations - tool: \"Bash\" commandPattern: \"git push --force*\" action: \"block\" message: \"Force push is not allowed\" ```\n\nDefault: `[]` (no validation rules)",
           "items": {
             "$ref": "#/definitions/ToolUsageRule"
           },
@@ -114,6 +119,7 @@
         },
         "uneditableFiles": {
           "default": [],
+          "description": "Files that Claude cannot edit, using glob patterns.\n\nSupports various glob patterns for flexible file protection. By default, conclaude's own config files are protected to prevent the AI from modifying guardrail settings - this is a security best practice.\n\nSupports two formats: 1. Simple string patterns: `\"*.lock\"` 2. Detailed objects with custom messages: `{pattern: \"*.lock\", message: \"...\"}`\n\n# Examples\n\n```yaml uneditableFiles: - \".conclaude.yml\"    # Protect config - \".conclaude.yaml\"   # Alternative extension - \"*.lock\"            # Lock files - pattern: \".env*\" message: \"Environment files contain secrets. Use .env.example instead.\" ```\n\nDefault: `[\".conclaude.yml\", \".conclaude.yaml\"]`",
           "items": {
             "$ref": "#/definitions/UnEditableFileRule"
           },
@@ -128,6 +134,7 @@
       "properties": {
         "maxOutputLines": {
           "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
           "format": "uint32",
           "maximum": 10000.0,
           "minimum": 1.0,
@@ -138,16 +145,19 @@
         },
         "message": {
           "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
           "type": [
             "string",
             "null"
           ]
         },
         "run": {
+          "description": "The shell command to execute",
           "type": "string"
         },
         "showStderr": {
           "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
           "type": [
             "boolean",
             "null"
@@ -155,6 +165,7 @@
         },
         "showStdout": {
           "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
           "type": [
             "boolean",
             "null"
@@ -162,6 +173,7 @@
         },
         "timeout": {
           "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated and the hook is blocked.",
           "format": "uint64",
           "maximum": 3600.0,
           "minimum": 1.0,
@@ -178,10 +190,11 @@
     },
     "StopConfig": {
       "additionalProperties": false,
-      "description": "Configuration interface for stop hook commands",
+      "description": "Configuration for stop hook commands that run when Claude is about to stop",
       "properties": {
         "commands": {
           "default": [],
+          "description": "List of commands to execute when Claude is about to stop. Commands run in order and can provide custom error messages and control output display.",
           "items": {
             "$ref": "#/definitions/StopCommand"
           },
@@ -189,10 +202,12 @@
         },
         "infinite": {
           "default": false,
+          "description": "Infinite mode - when enabled, allows Claude to continue automatically instead of ending the session after stop hook commands succeed. Default: false",
           "type": "boolean"
         },
         "infiniteMessage": {
           "default": null,
+          "description": "Message to send to Claude when infinite mode is enabled and stop hook commands succeed. Claude receives this message to continue working.",
           "type": [
             "string",
             "null"
@@ -207,6 +222,7 @@
       "properties": {
         "maxOutputLines": {
           "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
           "format": "uint32",
           "maximum": 10000.0,
           "minimum": 1.0,
@@ -217,16 +233,19 @@
         },
         "message": {
           "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
           "type": [
             "string",
             "null"
           ]
         },
         "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_AGENT_ID, CONCLAUDE_AGENT_TRANSCRIPT_PATH, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD",
           "type": "string"
         },
         "showStderr": {
           "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
           "type": [
             "boolean",
             "null"
@@ -234,6 +253,7 @@
         },
         "showStdout": {
           "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
           "type": [
             "boolean",
             "null"
@@ -241,6 +261,7 @@
         },
         "timeout": {
           "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated and the hook is blocked.",
           "format": "uint64",
           "maximum": 3600.0,
           "minimum": 1.0,
@@ -257,7 +278,7 @@
     },
     "SubagentStopConfig": {
       "additionalProperties": false,
-      "description": "Configuration for subagent stop hooks with pattern-based command execution",
+      "description": "Configuration for subagent stop hooks with pattern-based command execution.\n\nThis hook allows configuring different commands for different subagent names using pattern matching. Commands run when a subagent finishes its work.\n\n# Pattern Matching Rules\n\n- Patterns are matched in the order they appear in the configuration - First matching pattern's commands are executed - Use \"*\" to match all subagents (put last as fallback) - Glob patterns support: *, ?, \\[abc\\], \\[a-z\\], {foo,bar}\n\n# Environment Variables\n\nThe following environment variables are available in subagent stop commands: - `CONCLAUDE_AGENT_ID` - The subagent's identifier - `CONCLAUDE_AGENT_TRANSCRIPT_PATH` - Path to subagent's transcript - `CONCLAUDE_SESSION_ID` - Current session ID - `CONCLAUDE_TRANSCRIPT_PATH` - Main transcript file path - `CONCLAUDE_HOOK_EVENT` - Always \"SubagentStop\" - `CONCLAUDE_CWD` - Current working directory\n\n# Examples\n\n```yaml subagentStop: commands: # Exact match - only runs for subagent named \"coder\" coder: - run: \"npm run lint\" showStdout: true message: \"Linting failed\"\n\n# Glob pattern - runs for any subagent name starting with \"test\" test*: - run: \"npm test\" timeout: 600\n\n# Wildcard - runs for ALL subagents \"*\": - run: \"echo 'Subagent completed'\" ```",
       "properties": {
         "commands": {
           "additionalProperties": {
@@ -267,7 +288,7 @@
             "type": "array"
           },
           "default": {},
-          "description": "Map of agent ID patterns to lists of commands to execute when matching subagents stop. Patterns support glob syntax: \"*\" matches all, \"coder\" exact match, \"test*\" prefix, \"*coder\" suffix.",
+          "description": "Map of subagent name patterns to command configurations.\n\nEach key is a glob pattern that matches against the subagent name. Commands are executed in the order they appear when the pattern matches.\n\nPattern examples: - `\"*\"` - Matches all subagents (wildcard) - `\"coder\"` - Exact match for subagent named \"coder\" - `\"test*\"` - Matches any subagent name starting with \"test\" - `\"*coder\"` - Matches any subagent name ending with \"coder\"\n\nCommand options (same as stop hook): - `run`: (required) Command to execute - `showStdout`: (optional) Show stdout to user/Claude. Default: false - `showStderr`: (optional) Show stderr to user/Claude. Default: false - `message`: (optional) Custom error message on non-zero exit - `maxOutputLines`: (optional) Limit output lines. Range: 1-10000 - `timeout`: (optional) Command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, command is terminated and hook is blocked.",
           "type": "object"
         }
       },
@@ -275,33 +296,39 @@
     },
     "ToolUsageRule": {
       "additionalProperties": false,
-      "description": "Tool usage validation rule",
+      "description": "Tool usage validation rule for fine-grained control over tool usage based on file patterns.\n\nAllows controlling which tools can be used on which files or with which command patterns. Rules are evaluated in order and the first matching rule determines the action.",
       "properties": {
         "action": {
+          "description": "Action to take when the rule matches: \"allow\" or \"block\"",
           "type": "string"
         },
         "commandPattern": {
+          "description": "Optional command pattern to match for Bash tool. Uses glob syntax (e.g., \"git push --force*\", \"git *\")",
           "type": [
             "string",
             "null"
           ]
         },
         "matchMode": {
+          "description": "Optional match mode for pattern matching (reserved for future use)",
           "type": [
             "string",
             "null"
           ]
         },
         "message": {
+          "description": "Optional custom message to display when the rule blocks an action",
           "type": [
             "string",
             "null"
           ]
         },
         "pattern": {
+          "description": "File path pattern to match. Uses glob syntax (e.g., \"**/*.js\", \".env*\")",
           "type": "string"
         },
         "tool": {
+          "description": "The tool name to match against. Supports glob patterns (e.g., \"*\" for all tools, \"Write\", \"Bash\")",
           "type": "string"
         }
       },
@@ -315,16 +342,18 @@
     "UnEditableFileRule": {
       "anyOf": [
         {
-          "description": "Detailed format with pattern and optional custom message",
+          "description": "Detailed format with pattern and optional custom message.\n\nAllows providing a custom error message that will be shown when Claude attempts to edit a file matching this pattern.",
           "properties": {
             "message": {
               "default": null,
+              "description": "Optional custom message to display when blocking edits to matching files",
               "type": [
                 "string",
                 "null"
               ]
             },
             "pattern": {
+              "description": "Glob pattern matching files to protect (e.g., \"*.lock\", \".env*\", \"src/**/*.ts\")",
               "type": "string"
             }
           },
@@ -334,11 +363,11 @@
           "type": "object"
         },
         {
-          "description": "Simple format: just a glob pattern string",
+          "description": "Simple format: just a glob pattern string.\n\nUses a generic error message when blocking file edits. Backward compatible with existing configurations.",
           "type": "string"
         }
       ],
-      "description": "Configuration for an uneditable file rule.\n\nSupports two formats: - Simple: `\"*.lock\"` - Matches files with generic error message - Detailed: `{pattern: \"*.lock\", message: \"...\"}` - Custom error message\n\nThe `#[serde(untagged)]` attribute allows serde to automatically handle both plain string patterns and detailed object configurations."
+      "description": "Configuration for an uneditable file rule.\n\nFiles that Claude cannot edit, using glob patterns. Supports various glob patterns for flexible file protection.\n\n# Formats\n\nTwo formats are supported for backward compatibility:\n\n1. **Simple string patterns**: `\"*.lock\"` - Just the glob pattern as a string - Uses a generic error message when blocking\n\n2. **Detailed objects with custom messages**: `{pattern: \"*.lock\", message: \"...\"}` - Allows specifying a custom error message - More descriptive feedback when files are blocked\n\n# Examples\n\n```yaml uneditableFiles: # Simple patterns (backward compatible) - \"./package.json\"      # specific file - \"*.md\"                # file extension - \"src/**/*.ts\"         # nested patterns - \"docs/**\"             # entire directories\n\n# Detailed patterns with custom error messages - pattern: \"*.lock\" message: \"Lock files are automatically created. Run 'npm install' to update.\" - pattern: \".env*\" message: \"Environment files contain secrets. Use .env.example instead.\" - pattern: \"{package,tsconfig}.json\" message: \"Configuration files require team review before changes.\" ```\n\nThe `#[serde(untagged)]` attribute allows serde to automatically handle both plain string patterns and detailed object configurations."
     }
   },
   "description": "Configuration schema for Conclaude - Claude Code hook handler",

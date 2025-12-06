@@ -1,256 +1,90 @@
-# Conclaude YAML Configuration - Complete Default Configuration
-# This configuration defines how conclaude handles Claude Code hook events
-# All supported options are shown below with their default values
+# Conclaude Configuration Template
+#
+# This is a minimal example configuration file.
+# For full documentation of all options, run: conclaude config --docs
+# Or see the generated documentation from `cargo doc --open`
 
-# Stop hook configuration - runs when Claude is about to stop
+# Stop hook - runs when Claude is about to stop
 stop:
-  # Structured command format with optional custom error messages
-  # Each command can have its own error message, and control output display
   commands: []
-  # Examples:
-  # commands:
-  #   - run: "echo 'Starting build...'"
-  #     showStdout: true    # User/Claude sees: "Starting build..."
-  #
-  #   - run: "npm test"
-  #     showStdout: true    # Show test results to user/Claude
-  #     showStderr: true    # Show test errors to user/Claude
-  #     message: "Tests failed - please fix failing tests before continuing"
-  #     maxOutputLines: 100 # Limit output to last 100 lines (1-10000)
-  #
-  #   - run: "npm run build"
-  #     showStderr: true    # Only show build errors to user/Claude, hide stdout
-  #     message: "Build failed - please fix compilation errors"
-  #     maxOutputLines: 50  # Limit build output to last 50 lines
-  #
-  #   - run: "npm run long-running-task"
-  #     showStderr: true
-  #     timeout: 300        # Optional: terminate command after 300 seconds (5 minutes)
-  #                         # Range: 1-3600 seconds (1 second to 1 hour)
-  #                         # When timeout occurs, command is terminated and hook is blocked
+  # Example:
+  # - run: "npm test"
+  #   showStdout: true
+  #   showStderr: true
+  #   message: "Tests failed"
+  #   maxOutputLines: 100
+  #   timeout: 300
 
-  # Infinite mode - allows Claude to continue automatically
-  # When enabled, Claude receives the infiniteMessage to continue working
-  # instead of ending the session after stop hook commands succeed
   infinite: false
-
-  # Message to send when infinite mode is enabled
   infiniteMessage: "continue working on the task"
 
-# Subagent stop hook configuration - runs when subagents are about to stop
-# This hook allows configuring different commands for different subagent names
-# using pattern matching. Commands run when a subagent finishes its work.
+# Subagent stop hook - runs when subagents finish
 subagentStop:
-  # Map of subagent name patterns to command configurations
-  # Each key is a glob pattern that matches against the subagent name
-  # Commands are executed in the order they appear when pattern matches
   commands: {}
-  # Examples:
-  # commands:
-  #   # Exact match - only runs for subagent named "coder"
-  #   coder:
-  #     - run: "npm run lint"
-  #       showStdout: true
-  #       showStderr: true
-  #       message: "Linting failed - please fix errors before continuing"
-  #       maxOutputLines: 100
-  #
-  #   # Glob pattern - runs for any subagent name starting with "test"
-  #   test*:
-  #     - run: "npm test"
-  #       showStdout: true
-  #       showStderr: true
-  #       message: "Tests failed - please fix failing tests"
-  #       timeout: 600      # Optional: terminate command after 600 seconds (10 minutes)
-  #                         # Range: 1-3600 seconds (1 second to 1 hour)
-  #                         # When timeout occurs, command is terminated and hook is blocked
-  #
-  #   # Wildcard - runs for ALL subagents
-  #   "*":
-  #     - run: "echo 'Subagent {subagent_name} completed'"
-  #       showStdout: true
-  #
-  # Pattern matching rules:
-  #   - Patterns are matched in the order they appear in the configuration
-  #   - First matching pattern's commands are executed
-  #   - Use "*" to match all subagents (put last as fallback)
-  #   - Glob patterns support: *, ?, [abc], [a-z], {foo,bar}
-  #
-  # Command options (same as stop hook):
-  #   - run: (required) Command to execute
-  #   - showStdout: (optional) Show stdout to user/Claude (default: false)
-  #   - showStderr: (optional) Show stderr to user/Claude (default: false)
-  #   - message: (optional) Custom error message on non-zero exit
-  #   - maxOutputLines: (optional) Limit output lines (1-10000)
-  #   - timeout: (optional) Command timeout in seconds (1-3600)
-  #
-  # Environment variables available in commands:
-  #   - CONCLAUDE_AGENT_ID             - The subagent's identifier
-  #   - CONCLAUDE_AGENT_TRANSCRIPT_PATH - Path to subagent's transcript
-  #   - CONCLAUDE_SESSION_ID           - Current session ID
-  #   - CONCLAUDE_TRANSCRIPT_PATH      - Main transcript file path
-  #   - CONCLAUDE_HOOK_EVENT           - Always "SubagentStop"
-  #   - CONCLAUDE_CWD                  - Current working directory
-  #
-  # Example with environment variable:
-  # commands:
-  #   coder:
-  #     - run: "echo 'Coder subagent ${CONCLAUDE_AGENT_ID} finished'"
-  #       showStdout: true
+  # Example:
+  # coder:
+  #   - run: "npm run lint"
+  #     showStdout: true
+  #     message: "Linting failed"
+  # test*:
+  #   - run: "npm test"
+  #     showStderr: true
 
-# Pre-tool-use hook configuration - runs before tools are executed
-# All file protection rules are consolidated in this section
+# Pre-tool-use hook - file protection and tool validation
 preToolUse:
-  # Prevent Claude from creating or modifying files at the repository root
-  # Helps maintain clean project structure
+  # Prevent files at repository root
   preventRootAdditions: true
 
-  # Files that Claude cannot edit, using glob patterns
-  # Supports various glob patterns for flexible file protection
-  # By default, conclaude's own config files are protected to prevent the AI
-  # from modifying guardrail settings - this is a security best practice
-  #
-  # Two formats are supported:
-  # 1. Simple string patterns: "*.lock"
-  # 2. Detailed objects with custom messages: { pattern: "*.lock", message: "..." }
+  # Protected files (glob patterns)
   uneditableFiles:
-    - ".conclaude.yml"   # Protect conclaude config from AI modification
-    - ".conclaude.yaml"  # Alternative config extension
-  # Additional examples:
-  # uneditableFiles:
-  #   # Simple patterns (backward compatible)
-  #   - "./package.json"      # specific file
-  #   - "*.md"                # file extension
-  #   - "src/**/*.ts"         # nested patterns
-  #   - "docs/**"             # entire directories
-  #
-  #   # Detailed patterns with custom error messages
-  #   - pattern: "*.lock"
-  #     message: "Lock files are automatically created. Run 'npm install' to update."
-  #   - pattern: ".env*"
-  #     message: "Environment files contain secrets. Use .env.example instead."
-  #   - pattern: "{package,tsconfig}.json"
-  #     message: "Configuration files require team review before changes."
+    - ".conclaude.yml"
+    - ".conclaude.yaml"
+  # Examples:
+  # - "*.lock"
+  # - pattern: ".env*"
+  #   message: "Environment files contain secrets"
 
-  # Prevent Claude from creating or modifying files that are git-ignored
-  # When enabled, files matching patterns in .gitignore will be protected
-  # Uses your existing .gitignore as the source of truth for file protection
+  # Prevent editing git-ignored files
   preventUpdateGitIgnored: false
 
-  # Tool usage validation rules - control which tools can be used on which files
-  # Allows fine-grained control over tool usage based on file patterns
+  # Tool usage rules
   toolUsageValidation: []
-  # Examples:
-  # toolUsageValidation:
-  #   - tool: "Write"
-  #     pattern: "**/*.js"
-  #     action: "allow"
-  #     message: "Writing to JavaScript files is allowed"
-  #   - tool: "*"
-  #     pattern: ".env*"
-  #     action: "block"
-  #     message: "Environment files cannot be modified"
-  #
-  #   # Block dangerous git force push operations
-  #   - tool: "Bash"
-  #     commandPattern: "git push --force*"
-  #     action: "block"
-  #     message: "Force push is not allowed - please use regular push"
-  #
-  #   # Block all git commands (uncomment to completely disable git via Bash tool)
-  #   # - tool: "Bash"
-  #   #   commandPattern: "git *"
-  #   #   action: "block"
-  #   #   message: "Git commands are not permitted in this session"
-
-  # Directories where file additions are prevented (in addition to root)
-  # List of directory paths where new files cannot be created
-  preventAdditions: []
-  # Examples:
-  # preventAdditions:
-  #   - "dist"
-  #   - "build"
-  #   - "node_modules"
-
-  # Prevent editing of files with generation markers (enabled by default)
-  # Checks for common markers like "DO NOT EDIT", "Code generated by", etc.
-  preventGeneratedFileEdits: true
-
-  # Custom message when blocking file edits with generation markers
-  # Available placeholders: {file_path}, {marker}
-  generatedFileMessage: null
   # Example:
-  # generatedFileMessage: "Cannot modify {file_path} - it contains '{marker}' marker"
+  # - tool: "Write"
+  #   pattern: "**/*.js"
+  #   action: "allow"
+  # - tool: "Bash"
+  #   commandPattern: "git push --force*"
+  #   action: "block"
+  #   message: "Force push not allowed"
 
-# System notifications configuration
+  # Directories where additions are prevented
+  preventAdditions: []
+  # Example: ["dist", "build"]
+
+  # Prevent editing generated files
+  preventGeneratedFileEdits: true
+  generatedFileMessage: null
+
+# System notifications
 notifications:
-  # Enable system notifications for hook execution
   enabled: false
-
-  # List of hook names that should trigger notifications
-  # Use ["*"] to receive notifications for all hooks
-  # Common hook names: "Stop", "PreToolUse", "PostToolUse", "SessionStart", "UserPromptSubmit", "Notification", "SubagentStop", "PreCompact"
-  hooks: []
-  # Examples:
-  # hooks: ["*"]                    # All hooks
-  # hooks: ["Stop", "PreToolUse"]   # Only specific hooks
-  # hooks: ["Stop"]                 # Only stop hook notifications
-
-  # Show error notifications (hook failures, system errors)
+  hooks: []  # ["*"] for all, or ["Stop", "PreToolUse"]
   showErrors: false
-
-  # Show success notifications (hook completion, successful operations)
   showSuccess: false
-
-  # Show system event notifications (session start/end, configuration loaded)
   showSystemEvents: true
 
-# Permission request hook configuration - controls tool permission decisions
-# This hook is fired when Claude requests permission to use a tool
-# Use this to automatically approve or deny tool usage based on rules
+# Permission request hook - auto-approve/deny tools
+# Uncomment to enable:
 #
 # permissionRequest:
-#   # Default decision when a tool doesn't match any rule: "allow" or "deny"
-#   # Recommended: "deny" for security (whitelist approach)
-#   default: deny
-#
-#   # Tools to explicitly allow (supports glob patterns)
-#   # These patterns are checked AFTER deny patterns
-#   allow:
-#     - "Read"       # Exact match - allows only "Read" tool
-#     - "Glob"       # Exact match - allows only "Glob" tool
-#     - "Grep"       # Exact match - allows file content search
-#     - "Edit"       # Exact match - allows file editing
-#     - "Write"      # Exact match - allows file writing
-#     - "Task"       # Exact match - allows subagent tasks
-#     - "Bash"       # Exact match - allows bash commands
-#
-#   # Tools to explicitly deny (supports glob patterns)
-#   # Deny patterns take precedence over allow patterns
-#   deny:
-#     - "BashOutput"   # Block reading background process output
-#     - "KillShell"    # Block terminating background shells
-#
-# Pattern examples:
-#   - "Bash"      # Exact match - only "Bash"
-#   - "*"         # Wildcard - matches any tool
-#   - "Edit*"     # Prefix match - matches "Edit", "EditFile", etc.
-#   - "*Read"     # Suffix match - matches "Read", "FileRead", etc.
-#
-# Common configurations:
-#
-# Whitelist approach (recommended for security):
-# permissionRequest:
-#   default: deny
+#   default: deny  # "allow" or "deny"
 #   allow:
 #     - "Read"
 #     - "Glob"
 #     - "Grep"
 #     - "Edit"
-#
-# Blacklist approach (more permissive):
-# permissionRequest:
-#   default: allow
+#     - "Write"
 #   deny:
 #     - "BashOutput"
 #     - "KillShell"

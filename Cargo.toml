@@ -26,6 +26,10 @@ path = "src/main.rs"
 name = "generate-schema"
 path = "scripts/generate-schema.rs"
 
+[[bin]]
+name = "generate-docs"
+path = "src/bin/generate-docs.rs"
+
 [dependencies]
 clap = { version = "4.5", features = ["derive", "env"] }
 serde = { version = "1.0", features = ["derive"] }

@@ -11,16 +11,22 @@ use std::process::{Command, Stdio};
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
 #[serde(deny_unknown_fields)]
 pub struct StopCommand {
+    /// The shell command to execute
     pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
     #[serde(default)]
     pub message: Option<String>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
     #[serde(default, rename = "showStdout")]
     pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
     #[serde(default, rename = "showStderr")]
     pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
     #[serde(default, rename = "maxOutputLines")]
     #[schemars(range(min = 1, max = 10000))]
     pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated and the hook is blocked.
     #[serde(default)]
     #[schemars(range(min = 1, max = 3600))]
     pub timeout: Option<u64>,
@@ -30,76 +36,189 @@ pub struct StopCommand {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
 #[serde(deny_unknown_fields)]
 pub struct SubagentStopCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_AGENT_ID, CONCLAUDE_AGENT_TRANSCRIPT_PATH, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD
     pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
     #[serde(default)]
     pub message: Option<String>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
     #[serde(default, rename = "showStdout")]
     pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
     #[serde(default, rename = "showStderr")]
     pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
     #[serde(default, rename = "maxOutputLines")]
     #[schemars(range(min = 1, max = 10000))]
     pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated and the hook is blocked.
     #[serde(default)]
     #[schemars(range(min = 1, max = 3600))]
     pub timeout: Option<u64>,
 }
 
-/// Configuration for subagent stop hooks with pattern-based command execution
+/// Configuration for subagent stop hooks with pattern-based command execution.
+///
+/// This hook allows configuring different commands for different subagent names
+/// using pattern matching. Commands run when a subagent finishes its work.
+///
+/// # Pattern Matching Rules
+///
+/// - Patterns are matched in the order they appear in the configuration
+/// - First matching pattern's commands are executed
+/// - Use "*" to match all subagents (put last as fallback)
+/// - Glob patterns support: *, ?, \[abc\], \[a-z\], {foo,bar}
+///
+/// # Environment Variables
+///
+/// The following environment variables are available in subagent stop commands:
+/// - `CONCLAUDE_AGENT_ID` - The subagent's identifier
+/// - `CONCLAUDE_AGENT_TRANSCRIPT_PATH` - Path to subagent's transcript
+/// - `CONCLAUDE_SESSION_ID` - Current session ID
+/// - `CONCLAUDE_TRANSCRIPT_PATH` - Main transcript file path
+/// - `CONCLAUDE_HOOK_EVENT` - Always "SubagentStop"
+/// - `CONCLAUDE_CWD` - Current working directory
+///
+/// # Examples
+///
+/// ```yaml
+/// subagentStop:
+///   commands:
+///     # Exact match - only runs for subagent named "coder"
+///     coder:
+///       - run: "npm run lint"
+///         showStdout: true
+///         message: "Linting failed"
+///
+///     # Glob pattern - runs for any subagent name starting with "test"
+///     test*:
+///       - run: "npm test"
+///         timeout: 600
+///
+///     # Wildcard - runs for ALL subagents
+///     "*":
+///       - run: "echo 'Subagent completed'"
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
 #[serde(deny_unknown_fields)]
 pub struct SubagentStopConfig {
-    /// Map of agent ID patterns to lists of commands to execute when matching subagents stop.
-    /// Patterns support glob syntax: "*" matches all, "coder" exact match, "test*" prefix, "*coder" suffix.
+    /// Map of subagent name patterns to command configurations.
+    ///
+    /// Each key is a glob pattern that matches against the subagent name.
+    /// Commands are executed in the order they appear when the pattern matches.
+    ///
+    /// Pattern examples:
+    /// - `"*"` - Matches all subagents (wildcard)
+    /// - `"coder"` - Exact match for subagent named "coder"
+    /// - `"test*"` - Matches any subagent name starting with "test"
+    /// - `"*coder"` - Matches any subagent name ending with "coder"
+    ///
+    /// Command options (same as stop hook):
+    /// - `run`: (required) Command to execute
+    /// - `showStdout`: (optional) Show stdout to user/Claude. Default: false
+    /// - `showStderr`: (optional) Show stderr to user/Claude. Default: false
+    /// - `message`: (optional) Custom error message on non-zero exit
+    /// - `maxOutputLines`: (optional) Limit output lines. Range: 1-10000
+    /// - `timeout`: (optional) Command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, command is terminated and hook is blocked.
     #[serde(default)]
     pub commands: std::collections::HashMap<String, Vec<SubagentStopCommand>>,
 }
 
-/// Configuration interface for stop hook commands
+/// Configuration for stop hook commands that run when Claude is about to stop
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
 #[serde(deny_unknown_fields)]
 pub struct StopConfig {
+    /// List of commands to execute when Claude is about to stop. Commands run in order and can provide custom error messages and control output display.
     #[serde(default)]
     pub commands: Vec<StopCommand>,
+    /// Infinite mode - when enabled, allows Claude to continue automatically instead of ending the session after stop hook commands succeed. Default: false
     #[serde(default)]
     pub infinite: bool,
+    /// Message to send to Claude when infinite mode is enabled and stop hook commands succeed. Claude receives this message to continue working.
     #[serde(default, rename = "infiniteMessage")]
     pub infinite_message: Option<String>,
 }
 
-/// Tool usage validation rule
+/// Tool usage validation rule for fine-grained control over tool usage based on file patterns.
+///
+/// Allows controlling which tools can be used on which files or with which command patterns.
+/// Rules are evaluated in order and the first matching rule determines the action.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ToolUsageRule {
+    /// The tool name to match against. Supports glob patterns (e.g., "*" for all tools, "Write", "Bash")
     pub tool: String,
+    /// File path pattern to match. Uses glob syntax (e.g., "**/*.js", ".env*")
     pub pattern: String,
-    pub action: String, // "block" or "allow"
+    /// Action to take when the rule matches: "allow" or "block"
+    pub action: String,
+    /// Optional custom message to display when the rule blocks an action
     pub message: Option<String>,
+    /// Optional command pattern to match for Bash tool. Uses glob syntax (e.g., "git push --force*", "git *")
     #[serde(rename = "commandPattern")]
     pub command_pattern: Option<String>,
+    /// Optional match mode for pattern matching (reserved for future use)
     #[serde(rename = "matchMode")]
     pub match_mode: Option<String>,
 }
 
 /// Configuration for an uneditable file rule.
 ///
-/// Supports two formats:
-/// - Simple: `"*.lock"` - Matches files with generic error message
-/// - Detailed: `{pattern: "*.lock", message: "..."}` - Custom error message
+/// Files that Claude cannot edit, using glob patterns. Supports various glob patterns
+/// for flexible file protection.
+///
+/// # Formats
+///
+/// Two formats are supported for backward compatibility:
+///
+/// 1. **Simple string patterns**: `"*.lock"`
+///    - Just the glob pattern as a string
+///    - Uses a generic error message when blocking
+///
+/// 2. **Detailed objects with custom messages**: `{pattern: "*.lock", message: "..."}`
+///    - Allows specifying a custom error message
+///    - More descriptive feedback when files are blocked
+///
+/// # Examples
+///
+/// ```yaml
+/// uneditableFiles:
+///   # Simple patterns (backward compatible)
+///   - "./package.json"      # specific file
+///   - "*.md"                # file extension
+///   - "src/**/*.ts"         # nested patterns
+///   - "docs/**"             # entire directories
+///
+///   # Detailed patterns with custom error messages
+///   - pattern: "*.lock"
+///     message: "Lock files are automatically created. Run 'npm install' to update."
+///   - pattern: ".env*"
+///     message: "Environment files contain secrets. Use .env.example instead."
+///   - pattern: "{package,tsconfig}.json"
+///     message: "Configuration files require team review before changes."
+/// ```
 ///
 /// The `#[serde(untagged)]` attribute allows serde to automatically handle both
 /// plain string patterns and detailed object configurations.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum UnEditableFileRule {
-    /// Detailed format with pattern and optional custom message
+    /// Detailed format with pattern and optional custom message.
+    ///
+    /// Allows providing a custom error message that will be shown when Claude
+    /// attempts to edit a file matching this pattern.
     #[serde(rename_all = "camelCase")]
     Detailed {
+        /// Glob pattern matching files to protect (e.g., "*.lock", ".env*", "src/**/*.ts")
         pattern: String,
+        /// Optional custom message to display when blocking edits to matching files
         #[serde(default)]
         message: Option<String>,
     },
-    /// Simple format: just a glob pattern string
+    /// Simple format: just a glob pattern string.
+    ///
+    /// Uses a generic error message when blocking file edits.
+    /// Backward compatible with existing configurations.
     Simple(String),
 }
 
@@ -130,23 +249,155 @@ fn default_true() -> bool {
     true
 }
 
-/// Configuration for pre tool use hooks
+/// Configuration for pre-tool-use hooks that run before tools are executed.
+///
+/// All file protection rules are consolidated in this section to prevent Claude from
+/// making unintended modifications to protected files, directories, or executing
+/// dangerous commands.
+///
+/// # Examples
+///
+/// ```yaml
+/// preToolUse:
+///   # Prevent root-level file creation
+///   preventRootAdditions: true
+///
+///   # Protect specific files with glob patterns
+///   uneditableFiles:
+///     - ".conclaude.yml"
+///     - "*.lock"
+///     - pattern: ".env*"
+///       message: "Environment files contain secrets"
+///
+///   # Prevent modifications to git-ignored files
+///   preventUpdateGitIgnored: false
+///
+///   # Fine-grained tool control
+///   toolUsageValidation:
+///     - tool: "Bash"
+///       commandPattern: "git push --force*"
+///       action: "block"
+///       message: "Force push is not allowed"
+///
+///   # Block additions to specific directories
+///   preventAdditions:
+///     - "dist"
+///     - "build"
+///
+///   # Protect generated files
+///   preventGeneratedFileEdits: true
+///   generatedFileMessage: "Cannot modify {file_path} - it contains '{marker}'"
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
 #[serde(deny_unknown_fields)]
 pub struct PreToolUseConfig {
+    /// Directories where file additions are prevented (in addition to root if `preventRootAdditions` is enabled).
+    ///
+    /// List of directory paths where new files cannot be created. Useful for protecting
+    /// build output directories or other generated content.
+    ///
+    /// # Examples
+    ///
+    /// ```yaml
+    /// preventAdditions:
+    ///   - "dist"
+    ///   - "build"
+    ///   - "node_modules"
+    /// ```
     #[serde(default, rename = "preventAdditions")]
     pub prevent_additions: Vec<String>,
+    /// Prevent editing of files with generation markers (enabled by default).
+    ///
+    /// When enabled, checks for common markers like "DO NOT EDIT", "Code generated by",
+    /// "@generated", etc. in file contents before allowing edits.
+    ///
+    /// Default: `true`
     #[serde(default = "default_true", rename = "preventGeneratedFileEdits")]
     pub prevent_generated_file_edits: bool,
+    /// Custom message when blocking file edits with generation markers.
+    ///
+    /// Available placeholders:
+    /// - `{file_path}` - The path to the file being blocked
+    /// - `{marker}` - The generation marker that was detected
+    ///
+    /// # Example
+    ///
+    /// ```yaml
+    /// generatedFileMessage: "Cannot modify {file_path} - it contains '{marker}' marker"
+    /// ```
+    ///
+    /// Default: `null` (uses a generic error message)
     #[serde(default, rename = "generatedFileMessage")]
     pub generated_file_message: Option<String>,
+    /// Prevent Claude from creating or modifying files at the repository root.
+    ///
+    /// Helps maintain clean project structure by preventing clutter at the root level.
+    /// This is a security best practice to avoid accidental modification of important
+    /// configuration files.
+    ///
+    /// Default: `true`
     #[serde(default = "default_true", rename = "preventRootAdditions")]
     pub prevent_root_additions: bool,
+    /// Files that Claude cannot edit, using glob patterns.
+    ///
+    /// Supports various glob patterns for flexible file protection. By default,
+    /// conclaude's own config files are protected to prevent the AI from modifying
+    /// guardrail settings - this is a security best practice.
+    ///
+    /// Supports two formats:
+    /// 1. Simple string patterns: `"*.lock"`
+    /// 2. Detailed objects with custom messages: `{pattern: "*.lock", message: "..."}`
+    ///
+    /// # Examples
+    ///
+    /// ```yaml
+    /// uneditableFiles:
+    ///   - ".conclaude.yml"    # Protect config
+    ///   - ".conclaude.yaml"   # Alternative extension
+    ///   - "*.lock"            # Lock files
+    ///   - pattern: ".env*"
+    ///     message: "Environment files contain secrets. Use .env.example instead."
+    /// ```
+    ///
+    /// Default: `[".conclaude.yml", ".conclaude.yaml"]`
     #[serde(default, rename = "uneditableFiles")]
     pub uneditable_files: Vec<UnEditableFileRule>,
-    /// Block Claude from modifying or creating files that match .gitignore patterns
+    /// Block Claude from modifying or creating files that match .gitignore patterns.
+    ///
+    /// When enabled, files matching patterns in .gitignore will be protected.
+    /// Uses your existing .gitignore as the source of truth for file protection.
+    ///
+    /// Default: `false`
     #[serde(default, rename = "preventUpdateGitIgnored")]
     pub prevent_update_git_ignored: bool,
+    /// Tool usage validation rules for fine-grained control over tool usage.
+    ///
+    /// Allows controlling which tools can be used on which files or with which
+    /// command patterns. Rules are evaluated in order.
+    ///
+    /// # Examples
+    ///
+    /// ```yaml
+    /// toolUsageValidation:
+    ///   # Allow writing to JavaScript files
+    ///   - tool: "Write"
+    ///     pattern: "**/*.js"
+    ///     action: "allow"
+    ///
+    ///   # Block environment file modifications
+    ///   - tool: "*"
+    ///     pattern: ".env*"
+    ///     action: "block"
+    ///     message: "Environment files cannot be modified"
+    ///
+    ///   # Block dangerous git operations
+    ///   - tool: "Bash"
+    ///     commandPattern: "git push --force*"
+    ///     action: "block"
+    ///     message: "Force push is not allowed"
+    /// ```
+    ///
+    /// Default: `[]` (no validation rules)
     #[serde(default, rename = "toolUsageValidation")]
     pub tool_usage_validation: Vec<ToolUsageRule>,
 }
@@ -165,37 +416,211 @@ impl Default for PreToolUseConfig {
     }
 }
 
-/// Configuration for system notifications
+/// Configuration for system notifications.
+///
+/// Controls desktop notifications for hook execution, errors, successes, and system events.
+/// Notifications help you stay informed about what conclaude is doing in the background.
+///
+/// # Examples
+///
+/// ```yaml
+/// # Enable notifications for all hooks
+/// notifications:
+///   enabled: true
+///   hooks: ["*"]
+///   showErrors: true
+///   showSuccess: true
+///   showSystemEvents: true
+/// ```
+///
+/// ```yaml
+/// # Enable notifications only for Stop hook
+/// notifications:
+///   enabled: true
+///   hooks: ["Stop"]
+///   showErrors: true
+///   showSuccess: false
+///   showSystemEvents: false
+/// ```
+///
+/// ```yaml
+/// # Enable notifications for specific hooks
+/// notifications:
+///   enabled: true
+///   hooks: ["Stop", "PreToolUse"]
+///   showErrors: true
+///   showSuccess: true
+///   showSystemEvents: true
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
 #[serde(deny_unknown_fields)]
 pub struct NotificationsConfig {
-    /// Whether notifications are enabled
+    /// Enable system notifications for hook execution.
+    ///
+    /// When enabled, conclaude will send desktop notifications based on the configured
+    /// notification types (errors, successes, system events) and hook filters.
+    ///
+    /// Default: `false`
     #[serde(default)]
     pub enabled: bool,
-    /// List of hook names that should trigger notifications. Use ["*"] for all hooks
+    /// List of hook names that should trigger notifications.
+    ///
+    /// Use `["*"]` to receive notifications for all hooks, or specify individual hook
+    /// names to filter which hooks generate notifications.
+    ///
+    /// Common hook names:
+    /// - `"Stop"` - When Claude is about to stop
+    /// - `"PreToolUse"` - Before tools are executed
+    /// - `"PostToolUse"` - After tools are executed
+    /// - `"SessionStart"` - When a session starts
+    /// - `"UserPromptSubmit"` - When user submits a prompt
+    /// - `"Notification"` - General notifications
+    /// - `"SubagentStop"` - When subagents stop
+    /// - `"PreCompact"` - Before transcript compaction
+    ///
+    /// Examples:
+    /// - `["*"]` - All hooks
+    /// - `["Stop", "PreToolUse"]` - Only specific hooks
+    /// - `["Stop"]` - Only stop hook notifications
+    ///
+    /// Default: `[]` (no hooks)
     #[serde(default)]
     pub hooks: Vec<String>,
-    /// Whether to show error notifications
+    /// Show error notifications (hook failures, system errors).
+    ///
+    /// When enabled, you'll receive desktop notifications when hooks fail or system
+    /// errors occur. Useful for catching issues early.
+    ///
+    /// Default: `false`
     #[serde(default, rename = "showErrors")]
     pub show_errors: bool,
-    /// Whether to show success notifications
+    /// Show success notifications (hook completion, successful operations).
+    ///
+    /// When enabled, you'll receive desktop notifications when hooks complete successfully
+    /// and operations finish without errors.
+    ///
+    /// Default: `false`
     #[serde(default, rename = "showSuccess")]
     pub show_success: bool,
-    /// Whether to show system event notifications
+    /// Show system event notifications (session start/end, configuration loaded).
+    ///
+    /// When enabled, you'll receive desktop notifications for system-level events like
+    /// session initialization, configuration loading, and session termination.
+    ///
+    /// Default: `true`
     #[serde(default = "default_show_system_events", rename = "showSystemEvents")]
     pub show_system_events: bool,
 }
 
-/// Configuration for permission request hooks
+/// Configuration for permission request hooks that control tool permission decisions.
+///
+/// This hook is fired when Claude requests permission to use a tool. Use this to
+/// automatically approve or deny tool usage based on configurable rules.
+///
+/// # Pattern Matching
+///
+/// Both `allow` and `deny` fields support glob patterns for flexible tool matching:
+/// - `"Bash"` - Exact match (only "Bash")
+/// - `"*"` - Wildcard (matches any tool)
+/// - `"Edit*"` - Prefix match (matches "Edit", "EditFile", etc.)
+/// - `"*Read"` - Suffix match (matches "Read", "FileRead", etc.)
+///
+/// **Important**: Deny patterns take precedence over allow patterns.
+///
+/// # Security Recommendations
+///
+/// - **Whitelist approach (recommended)**: Set `default: "deny"` and explicitly list allowed tools
+/// - **Blacklist approach (more permissive)**: Set `default: "allow"` and explicitly list denied tools
+///
+/// # Examples
+///
+/// ## Whitelist approach (recommended for security)
+///
+/// ```yaml
+/// permissionRequest:
+///   default: deny
+///   allow:
+///     - "Read"       # Allow reading files
+///     - "Glob"       # Allow file pattern matching
+///     - "Grep"       # Allow content search
+///     - "Edit"       # Allow file editing
+///     - "Write"      # Allow file writing
+///     - "Task"       # Allow subagent tasks
+///     - "Bash"       # Allow bash commands
+/// ```
+///
+/// ## Blacklist approach (more permissive)
+///
+/// ```yaml
+/// permissionRequest:
+///   default: allow
+///   deny:
+///     - "BashOutput"   # Block reading background process output
+///     - "KillShell"    # Block terminating background shells
+/// ```
+///
+/// ## Mixed approach with patterns
+///
+/// ```yaml
+/// permissionRequest:
+///   default: deny
+///   allow:
+///     - "Read"
+///     - "Write"
+///     - "Edit*"      # Allow all Edit-based tools
+///   deny:
+///     - "Bash"       # Explicitly deny even though default is deny
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
 #[serde(deny_unknown_fields)]
 pub struct PermissionRequestConfig {
-    /// Default action when a tool is requested: "allow" or "deny"
+    /// Default decision when a tool doesn't match any allow or deny rule.
+    ///
+    /// Valid values:
+    /// - `"allow"` - Permit tools by default (blacklist approach)
+    /// - `"deny"` - Block tools by default (whitelist approach, recommended for security)
+    ///
+    /// The default action is applied when a tool is requested that doesn't match
+    /// any patterns in the `allow` or `deny` lists.
     pub default: String,
-    /// Tools to explicitly allow (supports glob patterns)
+    /// Tools to explicitly allow using glob patterns.
+    ///
+    /// These patterns are checked AFTER deny patterns. If a tool matches both an allow
+    /// and a deny pattern, the deny pattern takes precedence.
+    ///
+    /// # Pattern Examples
+    ///
+    /// - `"Read"` - Exact match for the Read tool
+    /// - `"*"` - Match all tools (use with caution)
+    /// - `"Edit*"` - Match any tool starting with "Edit"
+    /// - `"*Read"` - Match any tool ending with "Read"
+    ///
+    /// # Common Tools
+    ///
+    /// - `"Read"` - Read files
+    /// - `"Write"` - Write files
+    /// - `"Edit"` - Edit files
+    /// - `"Bash"` - Execute bash commands
+    /// - `"Glob"` - File pattern matching
+    /// - `"Grep"` - Content search
+    /// - `"Task"` - Subagent tasks
+    ///
+    /// Default: `None` (no tools explicitly allowed)
     #[serde(default)]
     pub allow: Option<Vec<String>>,
-    /// Tools to explicitly deny (supports glob patterns)
+    /// Tools to explicitly deny using glob patterns.
+    ///
+    /// Deny patterns take precedence over allow patterns. If a tool matches both
+    /// an allow and a deny pattern, it will be denied.
+    ///
+    /// # Pattern Examples
+    ///
+    /// - `"BashOutput"` - Block reading background process output
+    /// - `"KillShell"` - Block terminating background shells
+    /// - `"Bash"` - Block all bash command execution
+    /// - `"*"` - Block all tools (use with specific allow rules)
+    ///
+    /// Default: `None` (no tools explicitly denied)
     #[serde(default)]
     pub deny: Option<Vec<String>>,
 }
