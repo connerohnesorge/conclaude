@@ -95,4 +95,4 @@ permissionRequest: default: deny allow: - "Read" - "Write" - "Edit*"      # Allo
 
 ## See Also
 
-- [Configuration Overview](./configuration) - Complete reference for all configuration options
+- [Configuration Overview](/reference/config/configuration/) - Complete reference for all configuration options
