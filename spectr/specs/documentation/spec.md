@@ -3,6 +3,7 @@
 ## Purpose
 TBD - created by archiving change add-automated-changelog. Update Purpose after archive.
 ## Requirements
+
 ### Requirement: Automated Changelog Generation
 
 The system SHALL automatically generate a CHANGELOG.md file from git commit history when version tags are pushed to the repository.
@@ -84,3 +85,181 @@ The system SHALL integrate with the existing cargo-dist release workflow without
 - **WHEN** cargo-dist creates a GitHub release
 - **THEN** the updated CHANGELOG.md is available in the repository
 
+### Requirement: Starlight Changelogs Plugin Integration
+
+The documentation site SHALL integrate the starlight-changelogs plugin to display project release history from GitHub releases.
+
+#### Scenario: Plugin is installed and configured
+
+- **WHEN** the documentation site is built
+- **THEN** the starlight-changelogs plugin is loaded and active in the Astro configuration
+
+#### Scenario: Changelogs collection is available
+
+- **WHEN** the site content is processed
+- **THEN** a changelogs collection is defined in the content configuration using changelogsLoader
+
+### Requirement: GitHub Provider Configuration
+
+The documentation site SHALL use the GitHub provider to fetch and display releases from the conclaude repository.
+
+#### Scenario: GitHub releases are fetched
+
+- **WHEN** the documentation site builds or the changelog page is accessed
+- **THEN** the plugin fetches release data from the conclaude GitHub repository
+
+#### Scenario: Repository owner and name are configured
+
+- **WHEN** the GitHub provider is initialized
+- **THEN** it uses the correct repository owner and repository name for the conclaude project
+
+#### Scenario: Changelog base path is configured
+
+- **WHEN** a user navigates to changelog pages
+- **THEN** changelog routes are available under the configured base path (e.g., /changelog/)
+
+### Requirement: Documentation Site Branding
+
+The documentation site SHALL be properly branded with the conclaude project name and repository link.
+
+#### Scenario: Site title reflects project name
+
+- **WHEN** the documentation site is loaded
+- **THEN** the site title displays 'conclaude' instead of generic placeholder text
+
+#### Scenario: GitHub social link points to conclaude repository
+
+- **WHEN** a user clicks the GitHub social icon
+- **THEN** they are directed to the conclaude GitHub repository
+
+### Requirement: Changelog Navigation
+
+The documentation site SHALL provide navigation access to the changelog section.
+
+#### Scenario: Changelog appears in sidebar
+
+- **WHEN** a user views the documentation site
+- **THEN** a changelog navigation entry is visible in the sidebar
+
+#### Scenario: Changelog link routes correctly
+
+- **WHEN** a user clicks the changelog navigation entry
+- **THEN** they are taken to the changelog index or overview page
+### Requirement: LLM Context File Generation
+
+The documentation site SHALL automatically generate machine-readable context files (`llms.txt`, `llms-full.txt`, `llms-small.txt`) that enable AI systems to learn from documentation content.
+
+#### Scenario: Plugin installed and configured
+
+- **WHEN** the `starlight-llms-txt` plugin is added to the Starlight configuration
+- **THEN** the plugin is registered in the Starlight plugins array in `astro.config.mjs`
+
+#### Scenario: Build generates llms.txt files
+
+- **WHEN** the documentation site is built
+- **THEN** three files are generated: `llms.txt`, `llms-full.txt`, and `llms-small.txt` at the site root
+
+#### Scenario: Generated files contain documentation content
+
+- **WHEN** the llms.txt files are generated
+- **THEN** they contain formatted documentation content from all pages in the site
+
+#### Scenario: Files accessible via HTTP
+
+- **WHEN** the built documentation is served
+- **THEN** `/llms.txt`, `/llms-full.txt`, and `/llms-small.txt` are accessible at their respective URLs
+
+### Requirement: Site URL Configuration
+
+The documentation site SHALL have a configured site URL required for proper plugin operation.
+
+#### Scenario: Site URL present in config
+
+- **WHEN** the `starlight-llms-txt` plugin is configured
+- **THEN** the `site` property is set in the Astro configuration
+### Requirement: Conclaude-Branded Homepage
+
+The documentation site homepage SHALL display conclaude branding and content instead of generic Starlight placeholder text.
+
+#### Scenario: User visits documentation homepage
+- **WHEN** a user navigates to the documentation site root
+- **THEN** they see a hero section with conclaude branding
+- **AND** the tagline communicates conclaude's value proposition ("Guardrails for Claude Code sessions")
+- **AND** quick installation commands are displayed
+- **AND** feature cards highlight key capabilities (Hook System, YAML Configuration, File Protection, Session Logging)
+- **AND** call-to-action buttons link to Getting Started guide and Configuration Reference
+
+### Requirement: Getting Started Guide
+
+The documentation site SHALL include a Getting Started guide that helps new users configure conclaude for the first time.
+
+#### Scenario: User follows getting started guide
+- **WHEN** a user reads the Getting Started guide
+- **THEN** they understand how to install conclaude
+- **AND** they can create their first `.conclaude.yaml` configuration
+- **AND** they understand how to run `conclaude init`
+- **AND** they know how to verify their configuration with `conclaude validate`
+
+### Requirement: CLI Reference Documentation
+
+The documentation site SHALL include a CLI reference page documenting all available commands and their options.
+
+#### Scenario: User looks up CLI command
+- **WHEN** a user accesses the CLI reference
+- **THEN** they find documentation for all commands: init, validate, and hook commands
+- **AND** each command includes description, options, and examples
+- **AND** exit codes are documented
+- **AND** environment variables are listed
+
+### Requirement: Installation Guide
+
+The documentation site SHALL include a comprehensive installation guide covering all supported installation methods.
+
+#### Scenario: User chooses installation method
+- **WHEN** a user reads the installation guide
+- **THEN** they find instructions for shell script installation
+- **AND** they find instructions for PowerShell installation on Windows
+- **AND** they find instructions for npm package installation
+- **AND** they find instructions for manual binary download
+- **AND** they find instructions for Nix flake installation
+- **AND** they find instructions for building from source
+
+### Requirement: Hooks Overview Guide
+
+The documentation site SHALL include a guide explaining the hook system and how to configure each hook type.
+
+#### Scenario: User learns about hooks
+- **WHEN** a user reads the hooks overview guide
+- **THEN** they understand the hook lifecycle (PreToolUse, PostToolUse, Stop)
+- **AND** they understand session hooks (SessionStart, UserPromptSubmit)
+- **AND** they understand subagent hooks (SubagentStart, SubagentStop)
+- **AND** they find example configurations for each hook type
+- **AND** they understand when and why to use each hook
+### Requirement: Client-Side Search with Pagefind
+
+The documentation site SHALL provide fast, client-side search functionality powered by the Pagefind search engine through the star-warp plugin.
+
+#### Scenario: Plugin installed and configured
+
+- **WHEN** the documentation site is built
+- **THEN** the @inox-tools/star-warp plugin is installed as a dependency and integrated into the Astro configuration
+
+#### Scenario: Search index generated at build time
+
+- **WHEN** the site build process completes
+- **THEN** Pagefind generates a search index of all documentation content
+
+#### Scenario: Search interface available
+
+- **WHEN** users access the documentation site
+- **THEN** a search interface is available allowing users to query documentation content
+
+#### Scenario: Search results returned instantly
+
+- **WHEN** users enter a search query
+- **THEN** results are returned from the client-side index without server requests
+
+#### Scenario: Default configuration used
+
+- **WHEN** the plugin is integrated
+- **THEN** it uses minimal/default configuration settings without custom options

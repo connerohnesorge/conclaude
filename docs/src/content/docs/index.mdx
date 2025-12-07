@@ -1,40 +1,100 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: conclaude
+description: The guardrails your Claude Code sessions need.
+template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
-  image:
-    file: ../../assets/houston.webp
+  tagline: Guardrails for Claude Code sessions. Enforce linting, testing, and workflow policies with configurable lifecycle hooks.
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Get Started
+      link: /guides/getting-started/
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
-      icon: external
+    - text: View on GitHub
+      link: https://github.com/connix-io/conclaude
+      icon: github
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid, Code, Tabs, TabItem } from '@astrojs/starlight/components';
 
-## Next steps
+## Quick Install
+
+<Tabs>
+  <TabItem label="Shell (Linux/macOS)">
+    ```bash
+    curl --proto '=https' --tlsv1.2 -LsSf https://github.com/connix-io/conclaude/releases/latest/download/conclaude-installer.sh | sh
+    ```
+  </TabItem>
+  <TabItem label="PowerShell (Windows)">
+    ```powershell
+    powershell -ExecutionPolicy Bypass -c "irm https://github.com/connix-io/conclaude/releases/latest/download/conclaude-installer.ps1 | iex"
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install conclaude
+    ```
+  </TabItem>
+</Tabs>
+
+Then initialize in your project:
+
+```bash
+conclaude init
+```
+
+## Features
 
 <CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
-	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
-	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
-	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
-	</Card>
+  <Card title="Hook System" icon="setting">
+    Handle Claude Code lifecycle events with precision—PreToolUse, PostToolUse, Stop, and more.
+  </Card>
+  <Card title="YAML Configuration" icon="document">
+    Human-readable `.conclaude.yaml` config that scales from solo projects to enterprise teams.
+  </Card>
+  <Card title="File Protection" icon="approve-check-circle">
+    Prevent unwanted file creation and protect critical files with intelligent pattern matching.
+  </Card>
+  <Card title="Session Logging" icon="list-format">
+    Complete audit trails with session-specific logging for every action Claude takes.
+  </Card>
+</CardGrid>
+
+## Why conclaude?
+
+AI-assisted coding is powerful, but without guardrails Claude Code sessions can break linting rules, create files in wrong locations, and leave your project inconsistent.
+
+**conclaude changes this.** Every session respects your standards:
+
+- Your **linting rules** are enforced
+- Your **tests must pass** before completion
+- Your **files stay organized**—no mystery root files
+- Your **workflows run automatically**
+
+## Example Configuration
+
+```yaml
+# .conclaude.yaml
+stop:
+  commands:
+    - run: cargo fmt --check
+      message: "Code formatting check"
+    - run: cargo test
+      message: "All tests must pass"
+
+preToolUse:
+  preventRootAdditions: true
+  uneditableFiles:
+    - "Cargo.lock"
+    - ".env*"
+```
+
+## Next Steps
+
+<CardGrid>
+  <Card title="Getting Started" icon="rocket">
+    Follow the [Getting Started guide](/guides/getting-started/) to configure conclaude for your first project.
+  </Card>
+  <Card title="CLI Reference" icon="open-book">
+    See the [CLI Reference](/reference/cli/) for all available commands and options.
+  </Card>
 </CardGrid>
