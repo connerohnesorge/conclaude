@@ -131,6 +131,14 @@
                         <Component Id='binary1' Guid='*'>
                             <File
                                 Id='exe1'
+                                Name='generate-docs.exe'
+                                DiskId='1'
+                                Source='$(var.CargoTargetBinDir)\generate-docs.exe'
+                                KeyPath='yes'/>
+                        </Component>
+                        <Component Id='binary2' Guid='*'>
+                            <File
+                                Id='exe2'
                                 Name='generate-schema.exe'
                                 DiskId='1'
                                 Source='$(var.CargoTargetBinDir)\generate-schema.exe'
@@ -159,6 +167,7 @@
 
             <ComponentRef Id='binary0'/>
             <ComponentRef Id='binary1'/>
+            <ComponentRef Id='binary2'/>
 
             <Feature
                 Id='Environment'

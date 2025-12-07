@@ -48,6 +48,43 @@ jobs:
           nix build .#default
           ./result/bin/conclaude --version
 
+  verify-docs:
+    name: Verify Generated Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v14
+        with:
+          logger: pretty
+
+      - name: Setup Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v8
+
+      - name: Generate documentation
+        run: nix develop .#ci -c cargo run --bin generate-docs
+
+      - name: Check for documentation changes
+        run: |
+          # Check for both modified and untracked files
+          git add -N docs/src/content/docs/reference/config/
+          if ! git diff --exit-code docs/src/content/docs/reference/config/; then
+            echo "❌ Generated documentation is out of date!"
+            echo ""
+            echo "The configuration documentation needs to be regenerated."
+            echo "Please run the following command locally and commit the changes:"
+            echo ""
+            echo "  cargo run --bin generate-docs"
+            echo ""
+            echo "Changes detected:"
+            git diff docs/src/content/docs/reference/config/
+            exit 1
+          else
+            echo "✅ Generated documentation is up to date!"
+          fi
+
   spectr-validate:
     name: Spectr Validate
     runs-on: ubuntu-latest
