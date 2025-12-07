@@ -145,6 +145,7 @@ The documentation site SHALL provide navigation access to the changelog section.
 
 - **WHEN** a user clicks the changelog navigation entry
 - **THEN** they are taken to the changelog index or overview page
+
 ### Requirement: LLM Context File Generation
 
 The documentation site SHALL automatically generate machine-readable context files (`llms.txt`, `llms-full.txt`, `llms-small.txt`) that enable AI systems to learn from documentation content.
@@ -177,6 +178,7 @@ The documentation site SHALL have a configured site URL required for proper plug
 
 - **WHEN** the `starlight-llms-txt` plugin is configured
 - **THEN** the `site` property is set in the Astro configuration
+
 ### Requirement: Conclaude-Branded Homepage
 
 The documentation site homepage SHALL display conclaude branding and content instead of generic Starlight placeholder text.
@@ -235,6 +237,7 @@ The documentation site SHALL include a guide explaining the hook system and how 
 - **AND** they understand subagent hooks (SubagentStart, SubagentStop)
 - **AND** they find example configurations for each hook type
 - **AND** they understand when and why to use each hook
+
 ### Requirement: Client-Side Search with Pagefind
 
 The documentation site SHALL provide fast, client-side search functionality powered by the Pagefind search engine through the star-warp plugin.
@@ -258,6 +261,25 @@ The documentation site SHALL provide fast, client-side search functionality powe
 
 - **WHEN** users enter a search query
 - **THEN** results are returned from the client-side index without server requests
+
+#### Scenario: Default configuration used
+
+- **WHEN** the plugin is integrated
+- **THEN** it uses minimal/default configuration settings without custom options
+
+### Requirement: Site Graph Visualization
+
+The documentation site SHALL provide an interactive graph visualization that displays the relationships and connections between documentation pages.
+
+#### Scenario: Plugin installed and configured
+
+- **WHEN** the documentation site is built
+- **THEN** the starlight-site-graph plugin is installed as a dependency and integrated into the Starlight configuration
+
+#### Scenario: Graph visualization available
+
+- **WHEN** users access the documentation site
+- **THEN** an interactive graph view is available showing page interconnections
 
 #### Scenario: Default configuration used
 
