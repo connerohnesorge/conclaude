@@ -145,6 +145,7 @@ The documentation site SHALL provide navigation access to the changelog section.
 
 - **WHEN** a user clicks the changelog navigation entry
 - **THEN** they are taken to the changelog index or overview page
+
 ### Requirement: LLM Context File Generation
 
 The documentation site SHALL automatically generate machine-readable context files (`llms.txt`, `llms-full.txt`, `llms-small.txt`) that enable AI systems to learn from documentation content.
@@ -177,6 +178,7 @@ The documentation site SHALL have a configured site URL required for proper plug
 
 - **WHEN** the `starlight-llms-txt` plugin is configured
 - **THEN** the `site` property is set in the Astro configuration
+
 ### Requirement: Conclaude-Branded Homepage
 
 The documentation site homepage SHALL display conclaude branding and content instead of generic Starlight placeholder text.
@@ -235,6 +237,7 @@ The documentation site SHALL include a guide explaining the hook system and how 
 - **AND** they understand subagent hooks (SubagentStart, SubagentStop)
 - **AND** they find example configurations for each hook type
 - **AND** they understand when and why to use each hook
+
 ### Requirement: Client-Side Search with Pagefind
 
 The documentation site SHALL provide fast, client-side search functionality powered by the Pagefind search engine through the star-warp plugin.
@@ -263,3 +266,32 @@ The documentation site SHALL provide fast, client-side search functionality powe
 
 - **WHEN** the plugin is integrated
 - **THEN** it uses minimal/default configuration settings without custom options
+
+### Requirement: Internal Link Validation
+
+The documentation site SHALL validate all internal links during production builds using the starlight-links-validator plugin.
+
+#### Scenario: Plugin is configured
+
+- **WHEN** the Starlight configuration is loaded
+- **THEN** the `starlightLinksValidator` plugin is included in the plugins array
+
+#### Scenario: Internal links are validated on build
+
+- **WHEN** a production build is executed (`npm run build`)
+- **THEN** the plugin validates all internal links in Markdown and MDX files
+
+#### Scenario: Broken internal link fails build
+
+- **WHEN** a Markdown file contains a broken internal link (404)
+- **THEN** the production build fails with an error indicating the broken link
+
+#### Scenario: External links are ignored
+
+- **WHEN** a Markdown file contains external links (http/https URLs)
+- **THEN** the plugin ignores these links and does not validate them
+
+#### Scenario: Hash links are validated
+
+- **WHEN** a Markdown file links to a heading anchor (e.g., `#installation`)
+- **THEN** the plugin validates that the target heading exists in the referenced page
