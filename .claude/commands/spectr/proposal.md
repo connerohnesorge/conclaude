@@ -8,11 +8,11 @@ tags: [spectr, change]
 **Guardrails**
 - Favor straightforward, minimal implementations first and add complexity only when it is requested or clearly required.
 - Keep changes tightly scoped to the requested outcome.
-- Refer to `spectr/AGENTS.md` (located inside the `spectr/` directory—run `ls spectr` or `spectr update` if you don't see it) if you need additional Spectr conventions or clarifications.
+- Refer to `spectr/AGENTS.md` (located inside the `spectr/` directory—run `ls spectr` or `spectr init` if you don't see it) if you need additional Spectr conventions or clarifications.
 - Identify any vague or ambiguous details and ask the necessary follow-up questions before editing files.
 
 **Steps**
-1. Review `spectr/project.md`, run `spectr list` and `spectr list --specs`, and inspect related code or docs (e.g., via `rg`/`ls`) to ground the proposal in current behaviour; note any gaps that require clarification.
+1. Review `spectr/project.md`, read `spectr/specs/` and `spectr/changes/` directories, and inspect related code or docs (e.g., via `rg`/`ls`) to ground the proposal in current behaviour; note any gaps that require clarification.
 2. Choose a unique verb-led `change-id` and scaffold `proposal.md`, `tasks.md`, and `design.md` (when needed) under `spectr/changes/<id>/`.
 3. Map the change into concrete capabilities or requirements, breaking multi-scope efforts into distinct spec deltas with clear relationships and sequencing.
 4. Capture architectural reasoning in `design.md` when the solution spans multiple systems, introduces new patterns, or demands trade-off discussion before committing to specs.
@@ -21,7 +21,8 @@ tags: [spectr, change]
 7. Validate with `spectr validate <id> --strict` and resolve every issue before sharing the proposal.
 
 **Reference**
-- Use `spectr show <id> --json --deltas-only` or `spectr show <spec> --type spec` to inspect details when validation fails.
+- Read delta specs directly at `spectr/changes/<id>/specs/<capability>/spec.md` when validation fails.
+- Read existing specs at `spectr/specs/<capability>/spec.md` to understand current state.
 - Search existing requirements with `rg -n "Requirement:|Scenario:" spectr/specs` before writing new ones.
 - Explore the codebase with `rg <keyword>`, `ls`, or direct file reads so proposals align with current implementation realities.
 

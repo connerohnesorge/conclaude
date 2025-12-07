@@ -90,16 +90,18 @@ fn main() -> Result<()> {
 
     // Parse as JSON
     println!("Parsing JSON schema...");
-    let schema_json: Value = serde_json::from_str(&schema_content)
-        .context("Failed to parse schema JSON")?;
+    let schema_json: Value =
+        serde_json::from_str(&schema_content).context("Failed to parse schema JSON")?;
 
     // Extract schema information
     let schema = extract_schema(&schema_json)?;
 
     // Ensure output directory exists
     println!("Creating output directory: {}", args.output_dir.display());
-    fs::create_dir_all(&args.output_dir)
-        .context(format!("Failed to create output directory: {}", args.output_dir.display()))?;
+    fs::create_dir_all(&args.output_dir).context(format!(
+        "Failed to create output directory: {}",
+        args.output_dir.display()
+    ))?;
 
     // Generate overview page
     println!("Generating configuration overview page...");
@@ -136,11 +138,15 @@ fn extract_schema(schema_json: &Value) -> Result<Schema> {
         .to_string();
 
     let properties = extract_properties(
-        schema_json.get("properties").context("Schema missing 'properties'")?
+        schema_json
+            .get("properties")
+            .context("Schema missing 'properties'")?,
     )?;
 
     let definitions = extract_definitions(
-        schema_json.get("definitions").context("Schema missing 'definitions'")?
+        schema_json
+            .get("definitions")
+            .context("Schema missing 'definitions'")?,
     )?;
 
     Ok(Schema {
@@ -406,9 +412,8 @@ fn generate_overview_page(schema: &Schema, output_dir: &Path) -> Result<()> {
         let key_options = if let Some(ref_path) = &property.reference {
             if let Some(def_name) = ref_path.strip_prefix("#/definitions/") {
                 if let Some(definition) = schema.definitions.get(def_name) {
-                    let mut prop_names: Vec<_> = definition.properties.keys()
-                        .map(|s| s.as_str())
-                        .collect();
+                    let mut prop_names: Vec<_> =
+                        definition.properties.keys().map(|s| s.as_str()).collect();
                     prop_names.sort();
 
                     // Take up to 3 key properties for the table
@@ -416,10 +421,14 @@ fn generate_overview_page(schema: &Schema, output_dir: &Path) -> Result<()> {
                     if key_props.is_empty() {
                         "-".to_string()
                     } else {
-                        format!("`{}`", key_props.iter()
-                            .map(|s| s.to_string())
-                            .collect::<Vec<_>>()
-                            .join("`, `"))
+                        format!(
+                            "`{}`",
+                            key_props
+                                .iter()
+                                .map(|s| s.to_string())
+                                .collect::<Vec<_>>()
+                                .join("`, `")
+                        )
                     }
                 } else {
                     "-".to_string()
@@ -433,10 +442,7 @@ fn generate_overview_page(schema: &Schema, output_dir: &Path) -> Result<()> {
 
         content.push_str(&format!(
             "| [{}](/reference/config/{}/) | {} | {} |\n",
-            section_title,
-            kebab_name,
-            first_sentence,
-            key_options
+            section_title, kebab_name, first_sentence, key_options
         ));
     }
 
@@ -452,9 +458,8 @@ fn generate_overview_page(schema: &Schema, output_dir: &Path) -> Result<()> {
         let kebab_name = to_kebab_case(section_name);
         content.push_str(&format!(
             "### [{}](/reference/config/{})\n\n",
-            section_title,
-            kebab_name
-        ));  // Note: no trailing slash for section headers
+            section_title, kebab_name
+        )); // Note: no trailing slash for section headers
 
         // Add first line of description from definition if available
         let description = if let Some(ref_path) = &property.reference {
@@ -479,14 +484,21 @@ fn generate_overview_page(schema: &Schema, output_dir: &Path) -> Result<()> {
 
     // Write to file
     let output_path = output_dir.join("configuration.md");
-    fs::write(&output_path, content)
-        .context(format!("Failed to write overview page: {}", output_path.display()))?;
+    fs::write(&output_path, content).context(format!(
+        "Failed to write overview page: {}",
+        output_path.display()
+    ))?;
 
     Ok(())
 }
 
 /// Generate a section-specific documentation page
-fn generate_section_page(schema: &Schema, section_name: &str, output_dir: &Path, schema_json: &Value) -> Result<()> {
+fn generate_section_page(
+    schema: &Schema,
+    section_name: &str,
+    output_dir: &Path,
+    schema_json: &Value,
+) -> Result<()> {
     let property = schema
         .properties
         .get(section_name)
@@ -568,7 +580,10 @@ fn generate_section_page(schema: &Schema, section_name: &str, output_dir: &Path,
 
                 // Check if this property references a nested type
                 if let Some(def) = def_json {
-                    if let Some(prop_json) = def.get("properties").and_then(|p| p.get(prop_name.as_str())) {
+                    if let Some(prop_json) = def
+                        .get("properties")
+                        .and_then(|p| p.get(prop_name.as_str()))
+                    {
                         if let Some(nested_type) = extract_nested_type_ref(prop_json) {
                             if !nested_types_to_document.contains(&nested_type) {
                                 nested_types_to_document.push(nested_type);
@@ -606,7 +621,10 @@ fn generate_section_page(schema: &Schema, section_name: &str, output_dir: &Path,
     let examples = extract_yaml_examples(description);
     if !examples.is_empty() {
         content.push_str("## Complete Examples\n\n");
-        content.push_str(&format!("Here are complete configuration examples for the `{}` section:\n\n", section_name));
+        content.push_str(&format!(
+            "Here are complete configuration examples for the `{}` section:\n\n",
+            section_name
+        ));
 
         for (i, example) in examples.iter().enumerate() {
             if examples.len() > 1 {
@@ -624,8 +642,10 @@ fn generate_section_page(schema: &Schema, section_name: &str, output_dir: &Path,
 
     // Write to file with kebab-case filename
     let output_path = output_dir.join(format!("{}.md", kebab_name));
-    fs::write(&output_path, content)
-        .context(format!("Failed to write section page: {}", output_path.display()))?;
+    fs::write(&output_path, content).context(format!(
+        "Failed to write section page: {}",
+        output_path.display()
+    ))?;
 
     Ok(())
 }
@@ -753,7 +773,12 @@ fn generate_nested_type_docs(
                             .unwrap_or("");
 
                         if let Some(variant_type) = variant.get("type").and_then(|v| v.as_str()) {
-                            content.push_str(&format!("{}. **{}**: {}\n", i + 1, variant_type, variant_desc));
+                            content.push_str(&format!(
+                                "{}. **{}**: {}\n",
+                                i + 1,
+                                variant_type,
+                                variant_desc
+                            ));
 
                             // If it's an object variant, show its properties
                             if variant_type == "object" {
@@ -771,8 +796,10 @@ fn generate_nested_type_docs(
                                                     .and_then(|v| v.as_str())
                                                     .unwrap_or("");
                                                 let prop_type = extract_type(prop_val);
-                                                content.push_str(&format!("   - `{}` ({}): {}\n",
-                                                    prop_name, prop_type, prop_desc));
+                                                content.push_str(&format!(
+                                                    "   - `{}` ({}): {}\n",
+                                                    prop_name, prop_type, prop_desc
+                                                ));
                                             }
                                         }
                                         content.push('\n');
@@ -795,12 +822,15 @@ fn generate_nested_type_docs(
 
                 for prop_name in prop_names {
                     let prop = &definition.properties[prop_name];
-                    let default_str = prop.default_value.as_ref()
+                    let default_str = prop
+                        .default_value
+                        .as_ref()
                         .map(|d| format!("`{}`", d))
                         .unwrap_or_else(|| "-".to_string());
 
                     // Truncate description for table (take first sentence)
-                    let short_desc = prop.description
+                    let short_desc = prop
+                        .description
                         .lines()
                         .next()
                         .unwrap_or("")
@@ -811,10 +841,7 @@ fn generate_nested_type_docs(
 
                     content.push_str(&format!(
                         "| `{}` | `{}` | {} | {} |\n",
-                        prop_name,
-                        prop.property_type,
-                        default_str,
-                        short_desc
+                        prop_name, prop.property_type, default_str, short_desc
                     ));
                 }
                 content.push('\n');

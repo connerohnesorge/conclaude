@@ -1,5 +1,5 @@
 use conclaude::config::{
-    ConclaudeConfig, extract_bash_commands, generate_default_config, load_conclaude_config,
+    extract_bash_commands, generate_default_config, load_conclaude_config, ConclaudeConfig,
 };
 use std::fs;
 use tempfile::tempdir;
