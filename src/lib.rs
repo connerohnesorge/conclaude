@@ -3,6 +3,9 @@ pub mod config;
 pub mod gitignore;
 pub mod hooks;
 
+#[cfg(test)]
+mod hooks_tests;
+
 /// Schema generation and validation utilities.
 ///
 /// This module is primarily used by build and release automation tooling, including:

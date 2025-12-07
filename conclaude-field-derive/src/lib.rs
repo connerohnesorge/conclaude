@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, Lit, Meta, parse_macro_input};
+use syn::{parse_macro_input, Data, DeriveInput, Fields, Lit, Meta};
 
 /// Derives a `FieldList` trait implementation that provides field names as a vector.
 ///
