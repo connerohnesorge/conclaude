@@ -48,7 +48,9 @@ impl Args {
 /// Schema definition extracted from JSON Schema
 #[derive(Debug)]
 struct Schema {
+    #[allow(dead_code)]
     title: String,
+    #[allow(dead_code)]
     description: String,
     properties: HashMap<String, PropertyDefinition>,
     definitions: HashMap<String, DefinitionSchema>,
@@ -57,6 +59,7 @@ struct Schema {
 /// Property definition for a schema property
 #[derive(Debug)]
 struct PropertyDefinition {
+    #[allow(dead_code)]
     name: String,
     description: String,
     property_type: String,
@@ -437,7 +440,7 @@ fn generate_overview_page(schema: &Schema, output_dir: &Path) -> Result<()> {
         ));
     }
 
-    content.push_str("\n");
+    content.push('\n');
 
     // Add configuration sections
     content.push_str("## Configuration Sections\n\n");
@@ -561,7 +564,7 @@ fn generate_section_page(schema: &Schema, section_name: &str, output_dir: &Path,
                     content.push_str(&format!("| **Default** | `{}` |\n", default));
                 }
 
-                content.push_str("\n");
+                content.push('\n');
 
                 // Check if this property references a nested type
                 if let Some(def) = def_json {
@@ -772,14 +775,14 @@ fn generate_nested_type_docs(
                                                     prop_name, prop_type, prop_desc));
                                             }
                                         }
-                                        content.push_str("\n");
+                                        content.push('\n');
                                     }
                                 }
                             }
                         }
                     }
                 }
-                content.push_str("\n");
+                content.push('\n');
             } else if !definition.properties.is_empty() {
                 // Regular object type - show properties table
                 content.push_str("**Properties:**\n\n");
@@ -814,7 +817,7 @@ fn generate_nested_type_docs(
                         short_desc
                     ));
                 }
-                content.push_str("\n");
+                content.push('\n');
             }
         }
     }
