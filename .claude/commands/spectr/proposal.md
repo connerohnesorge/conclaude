@@ -5,13 +5,13 @@ category: Spectr
 tags: [spectr, change]
 ---
 <!-- spectr:START -->
-**Guardrails**
+# Guardrails
 - Favor straightforward, minimal implementations first and add complexity only when it is requested or clearly required.
 - Keep changes tightly scoped to the requested outcome.
 - Refer to `spectr/AGENTS.md` (located inside the `spectr/` directory—run `ls spectr` or `spectr init` if you don't see it) if you need additional Spectr conventions or clarifications.
 - Identify any vague or ambiguous details and ask the necessary follow-up questions before editing files.
 
-**Steps**
+# Steps
 1. Review `spectr/project.md`, read `spectr/specs/` and `spectr/changes/` directories, and inspect related code or docs (e.g., via `rg`/`ls`) to ground the proposal in current behaviour; note any gaps that require clarification.
 2. Choose a unique verb-led `change-id` and scaffold `proposal.md`, `tasks.md`, and `design.md` (when needed) under `spectr/changes/<id>/`.
 3. Map the change into concrete capabilities or requirements, breaking multi-scope efforts into distinct spec deltas with clear relationships and sequencing.
@@ -20,7 +20,7 @@ tags: [spectr, change]
 6. Draft `tasks.md` as an ordered list of small, verifiable work items that deliver user-visible progress, include validation (tests, tooling), and highlight dependencies or parallelizable work.
 7. Validate with `spectr validate <id> --strict` and resolve every issue before sharing the proposal.
 
-**Reference**
+# Reference
 - Read delta specs directly at `spectr/changes/<id>/specs/<capability>/spec.md` when validation fails.
 - Read existing specs at `spectr/specs/<capability>/spec.md` to understand current state.
 - Search existing requirements with `rg -n "Requirement:|Scenario:" spectr/specs` before writing new ones.
