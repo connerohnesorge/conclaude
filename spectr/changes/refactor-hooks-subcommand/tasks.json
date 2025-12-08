@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "1.1",
+      "section": "CLI Structure Refactoring",
+      "description": "Create `HooksCommands` enum with all 11 hook variants (PreToolUse, PostToolUse, PermissionRequest, Notification, UserPromptSubmit, SessionStart, SessionEnd, Stop, SubagentStart, SubagentStop, PreCompact)",
+      "status": "completed"
+    },
+    {
+      "id": "1.2",
+      "section": "CLI Structure Refactoring",
+      "description": "Add `Hooks` variant to top-level `Commands` enum with nested subcommand (using `#[clap(name = \"Hooks\")]` for PascalCase)",
+      "status": "completed"
+    },
+    {
+      "id": "1.3",
+      "section": "CLI Structure Refactoring",
+      "description": "Remove hook variants from top-level `Commands` enum",
+      "status": "completed"
+    },
+    {
+      "id": "1.4",
+      "section": "CLI Structure Refactoring",
+      "description": "Update `main()` match arm to delegate `Commands::Hooks` to `HooksCommands` handling",
+      "status": "completed"
+    },
+    {
+      "id": "2.1",
+      "section": "Init Command Update",
+      "description": "Update `handle_init()` to generate hook commands with `Hooks` prefix (e.g., `conclaude Hooks PreToolUse`)",
+      "status": "completed"
+    },
+    {
+      "id": "2.2",
+      "section": "Init Command Update",
+      "description": "Update console output in Init to show new command format",
+      "status": "completed"
+    },
+    {
+      "id": "3.1",
+      "section": "Testing",
+      "description": "Verify all hooks work via new command structure (`conclaude Hooks <HookName>`)",
+      "status": "completed"
+    },
+    {
+      "id": "3.2",
+      "section": "Testing",
+      "description": "Run `conclaude Init` and verify generated `.claude/settings.json` uses new hook command format",
+      "status": "completed"
+    },
+    {
+      "id": "3.3",
+      "section": "Testing",
+      "description": "Run existing tests to confirm no regressions",
+      "status": "completed"
+    },
+    {
+      "id": "4.1",
+      "section": "Documentation",
+      "description": "Update README/documentation with new command structure",
+      "status": "completed"
+    }
+  ]
+}

@@ -532,6 +532,8 @@ This creates:
 
 If you prefer manual setup, configure hooks in your Claude Code settings:
 
+> **Note**: As of the current version, all hook commands are nested under the `Hooks` parent subcommand (e.g., `conclaude Hooks PreToolUse` instead of `conclaude PreToolUse`).
+
 ```json
 {
   "hooks": {
@@ -541,7 +543,7 @@ If you prefer manual setup, configure hooks in your Claude Code settings:
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude PreToolUse"
+            "command": "conclaude Hooks PreToolUse"
           }
         ]
       }
@@ -552,7 +554,7 @@ If you prefer manual setup, configure hooks in your Claude Code settings:
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude PostToolUse"
+            "command": "conclaude Hooks PostToolUse"
           }
         ]
       }
@@ -563,7 +565,7 @@ If you prefer manual setup, configure hooks in your Claude Code settings:
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Stop"
+            "command": "conclaude Hooks Stop"
           }
         ]
       }
@@ -633,23 +635,24 @@ Reason: Invalid YAML syntax at line 15: unexpected key 'invalid_field'
 ```bash
 # Test Stop hook
 echo '{"session_id":"test","transcript_path":"/tmp/test.jsonl","hook_event_name":"Stop","stop_hook_active":true}' | \
-  conclaude Stop
+  conclaude Hooks Stop
 
 # Test PreToolUse hook
 echo '{"session_id":"test","transcript_path":"/tmp/test.jsonl","hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"test.txt"}}' | \
-  conclaude PreToolUse
+  conclaude Hooks PreToolUse
 
 # Test SubagentStart hook
 echo '{"session_id":"test","transcript_path":"/tmp/test.jsonl","hook_event_name":"SubagentStart","cwd":"/tmp","permission_mode":"ask","agent_id":"coder","subagent_type":"implementation","agent_transcript_path":"/tmp/agent_coder.jsonl"}' | \
-  conclaude SubagentStart
+  conclaude Hooks SubagentStart
 
 # Test SubagentStop hook
 echo '{"session_id":"test","transcript_path":"/tmp/test.jsonl","hook_event_name":"SubagentStop","stop_hook_active":true,"agent_id":"coder","agent_transcript_path":"/tmp/agent_coder.jsonl"}' | \
-  conclaude SubagentStop
+  conclaude Hooks SubagentStop
 
 # Get help
 conclaude --help
-conclaude Stop --help
+conclaude Hooks --help
+conclaude Hooks Stop --help
 ```
 
 ### Exit Codes
@@ -783,7 +786,7 @@ cat > subagent_start_payload.json << 'EOF'
 EOF
 
 # Send to conclaude
-cat subagent_start_payload.json | conclaude SubagentStart
+cat subagent_start_payload.json | conclaude Hooks SubagentStart
 ```
 
 ### SubagentStop Hook Payload
@@ -866,7 +869,7 @@ cat > subagent_stop_payload.json << 'EOF'
 EOF
 
 # Send to conclaude
-cat subagent_stop_payload.json | conclaude SubagentStop
+cat subagent_stop_payload.json | conclaude Hooks SubagentStop
 ```
 
 ## Development
@@ -993,16 +996,16 @@ conclaude init [--force] [--config-path <path>] [--claude-path <path>]
 # Validate configuration
 conclaude validate [--config-path <path>]
 
-# Hook handlers (called by Claude Code)
-conclaude PreToolUse
-conclaude PostToolUse
-conclaude Stop
-conclaude SessionStart
-conclaude UserPromptSubmit
-conclaude Notification
-conclaude SubagentStart
-conclaude SubagentStop
-conclaude PreCompact
+# Hook handlers (called by Claude Code - all under Hooks subcommand)
+conclaude Hooks PreToolUse
+conclaude Hooks PostToolUse
+conclaude Hooks Stop
+conclaude Hooks SessionStart
+conclaude Hooks UserPromptSubmit
+conclaude Hooks Notification
+conclaude Hooks SubagentStart
+conclaude Hooks SubagentStop
+conclaude Hooks PreCompact
 
 # Visualize configuration
 conclaude visualize [--rule <rule-name>] [--show-matches]

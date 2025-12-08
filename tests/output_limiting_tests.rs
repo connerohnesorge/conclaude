@@ -645,7 +645,7 @@ preToolUse:
 
     // Run the stop hook from temp directory so it picks up the config
     let mut child = Command::new(&binary_path)
-        .arg("Stop")
+        .args(["Hooks", "Stop"])
         .current_dir(temp_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -751,7 +751,7 @@ preToolUse:
 
     // Run the stop hook from temp directory so it picks up the config
     let mut child = Command::new(&binary_path)
-        .arg("Stop")
+        .args(["Hooks", "Stop"])
         .current_dir(temp_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -857,7 +857,7 @@ preToolUse:
 
     // Run the stop hook from temp directory so it picks up the config
     let mut child = Command::new(&binary_path)
-        .arg("Stop")
+        .args(["Hooks", "Stop"])
         .current_dir(temp_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -959,7 +959,7 @@ preToolUse:
 
     // Run the stop hook from temp directory so it picks up the config
     let mut child = Command::new(&binary_path)
-        .arg("Stop")
+        .args(["Hooks", "Stop"])
         .current_dir(temp_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

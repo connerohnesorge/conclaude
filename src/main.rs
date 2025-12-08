@@ -50,6 +50,32 @@ enum Commands {
         #[arg(long)]
         schema_url: Option<String>,
     },
+    /// Hook commands for Claude Code integration
+    #[clap(name = "Hooks")]
+    Hooks {
+        #[command(subcommand)]
+        command: HooksCommands,
+    },
+    /// Visualize file/directory settings from configuration
+    Visualize {
+        /// The specific rule to visualize (e.g., "uneditableFiles", "preventRootAdditions")
+        #[arg(short, long)]
+        rule: Option<String>,
+
+        /// Show files that match the rule
+        #[arg(long)]
+        show_matches: bool,
+    },
+    /// Validate conclaude configuration file
+    Validate {
+        /// Path to configuration file to validate
+        #[arg(long)]
+        config_path: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum HooksCommands {
     /// Process `PreToolUse` hook - fired before tool execution
     #[clap(name = "PreToolUse")]
     PreToolUse,
@@ -83,22 +109,6 @@ enum Commands {
     /// Process `PreCompact` hook - fired before transcript compaction
     #[clap(name = "PreCompact")]
     PreCompact,
-    /// Visualize file/directory settings from configuration
-    Visualize {
-        /// The specific rule to visualize (e.g., "uneditableFiles", "preventRootAdditions")
-        #[arg(short, long)]
-        rule: Option<String>,
-
-        /// Show files that match the rule
-        #[arg(long)]
-        show_matches: bool,
-    },
-    /// Validate conclaude configuration file
-    Validate {
-        /// Path to configuration file to validate
-        #[arg(long)]
-        config_path: Option<String>,
-    },
 }
 
 #[tokio::main]
@@ -112,17 +122,19 @@ async fn main() -> Result<()> {
             force,
             schema_url,
         } => handle_init(config_path, claude_path, force, schema_url).await,
-        Commands::PreToolUse => handle_hook_result(handle_pre_tool_use).await,
-        Commands::PostToolUse => handle_hook_result(handle_post_tool_use).await,
-        Commands::PermissionRequest => handle_hook_result(handle_permission_request).await,
-        Commands::Notification => handle_hook_result(handle_notification).await,
-        Commands::UserPromptSubmit => handle_hook_result(handle_user_prompt_submit).await,
-        Commands::SessionStart => handle_hook_result(handle_session_start).await,
-        Commands::SessionEnd => handle_hook_result(handle_session_end).await,
-        Commands::Stop => handle_hook_result(handle_stop).await,
-        Commands::SubagentStart => handle_hook_result(handle_subagent_start).await,
-        Commands::SubagentStop => handle_hook_result(handle_subagent_stop).await,
-        Commands::PreCompact => handle_hook_result(handle_pre_compact).await,
+        Commands::Hooks { command } => match command {
+            HooksCommands::PreToolUse => handle_hook_result(handle_pre_tool_use).await,
+            HooksCommands::PostToolUse => handle_hook_result(handle_post_tool_use).await,
+            HooksCommands::PermissionRequest => handle_hook_result(handle_permission_request).await,
+            HooksCommands::Notification => handle_hook_result(handle_notification).await,
+            HooksCommands::UserPromptSubmit => handle_hook_result(handle_user_prompt_submit).await,
+            HooksCommands::SessionStart => handle_hook_result(handle_session_start).await,
+            HooksCommands::SessionEnd => handle_hook_result(handle_session_end).await,
+            HooksCommands::Stop => handle_hook_result(handle_stop).await,
+            HooksCommands::SubagentStart => handle_hook_result(handle_subagent_start).await,
+            HooksCommands::SubagentStop => handle_hook_result(handle_subagent_stop).await,
+            HooksCommands::PreCompact => handle_hook_result(handle_pre_compact).await,
+        },
         Commands::Visualize { rule, show_matches } => handle_visualize(rule, show_matches).await,
         Commands::Validate { config_path } => handle_validate(config_path).await,
     }
@@ -262,7 +274,7 @@ async fn handle_init(
                 matcher: String::new(),
                 hooks: vec![ClaudeHookConfig {
                     config_type: "command".to_string(),
-                    command: format!("conclaude {hook_type}"),
+                    command: format!("conclaude Hooks {hook_type}"),
                 }],
             }],
         );
