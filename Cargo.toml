@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "conclaude-field-derive"]
+members = [".", "crates/conclaude-field-derive"]
 
 [package]
 name = "conclaude"
@@ -48,7 +48,7 @@ schemars = { version = "0.8", features = ["derive"] }
 regex = "1.10"
 walkdir = "2.4"
 notify-rust = "4.10"
-conclaude-field-derive = { path = "conclaude-field-derive" }
+conclaude-field-derive = { path = "crates/conclaude-field-derive" }
 
 [dev-dependencies]
 tempfile = "3.8"
