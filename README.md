@@ -1006,6 +1006,8 @@ conclaude Hooks Notification
 conclaude Hooks SubagentStart
 conclaude Hooks SubagentStop
 conclaude Hooks PreCompact
+conclaude Hooks PermissionRequest
+conclaude Hooks SessionEnd
 
 # Visualize configuration
 conclaude visualize [--rule <rule-name>] [--show-matches]
