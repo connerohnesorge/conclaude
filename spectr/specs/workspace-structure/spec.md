@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TODO: Add purpose description
+Define the organizational structure for internal workspace crates to maintain a clean project root and follow idiomatic Rust multi-crate workspace conventions.
 
 ## Requirements
 
