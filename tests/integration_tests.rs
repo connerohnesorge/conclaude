@@ -12,8 +12,7 @@ fn test_cli_help_command() {
 
     let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
     assert!(stdout.contains("Claude Code Hook Handler"));
-    assert!(stdout.contains("PreToolUse"));
-    assert!(stdout.contains("PostToolUse"));
+    assert!(stdout.contains("Hooks"));
     assert!(stdout.contains("init"));
 }
 
@@ -56,7 +55,7 @@ fn test_cli_init_command() {
         .expect("Failed to read settings file");
     assert!(settings_content.contains("PreToolUse"));
     assert!(settings_content.contains("PostToolUse"));
-    assert!(settings_content.contains("conclaude PreToolUse"));
+    assert!(settings_content.contains("conclaude Hooks PreToolUse"));
 }
 
 #[test]
@@ -717,7 +716,7 @@ preToolUse:
     // Execute Stop hook by piping JSON to stdin
     // Run from project_root so config is found there
     let mut child = Command::new(&binary_path)
-        .arg("Stop")
+        .args(["Hooks", "Stop"])
         .current_dir(&project_root)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
