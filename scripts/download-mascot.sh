@@ -32,13 +32,13 @@ if [ -f "$OUTPUT_FILE" ]; then
         # Update the index.mdx to use PNG instead of SVG
         if [ -f "docs/src/content/docs/index.mdx" ]; then
             echo "Updating index.mdx to use PNG image..."
-            sed -i 's/mascot\.svg/mascot.png/' docs/src/content/docs/index.mdx
+            sed -i.bak 's|../../assets/mascot\.svg|../../assets/mascot.png|' docs/src/content/docs/index.mdx
         fi
         
         # Update README.md to use PNG instead of SVG
         if [ -f "README.md" ]; then
             echo "Updating README.md to use PNG image..."
-            sed -i 's/mascot\.svg/mascot.png/' README.md
+            sed -i.bak 's|./docs/src/assets/mascot\.svg|./docs/src/assets/mascot.png|' README.md
         fi
         
         echo ""
