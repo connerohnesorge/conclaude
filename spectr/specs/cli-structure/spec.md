@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TODO: Add purpose description
+Define the CLI command structure with a Hooks parent subcommand that organizes all 11 hook handlers under a single nested command hierarchy, replacing the previous top-level hook commands.
 
 ## Requirements
 
