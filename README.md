@@ -1,5 +1,9 @@
 # conclaude
 
+<p align="center">
+  <img src="./docs/src/assets/mascot.svg" alt="conclaude mascot" width="200"/>
+</p>
+
 **The guardrails your Claude Code sessions need.**
 
 A high-performance Rust CLI tool that provides essential guardrails for Claude Code sessions through a comprehensive hook system. Conclaude ensures your AI coding sessions maintain code quality, follow project standards, and respect your development workflows.
