@@ -1,13 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
-  <!-- Placeholder for mascot image -->
-  <!-- Replace this with the actual mascot.png from the GitHub issue -->
-  <circle cx="100" cy="100" r="90" fill="#FF6B35" opacity="0.3"/>
-  <text x="100" y="100" text-anchor="middle" dominant-baseline="middle" 
-        font-family="Arial, sans-serif" font-size="16" fill="#333">
-    Mascot Placeholder
-  </text>
-  <text x="100" y="120" text-anchor="middle" dominant-baseline="middle" 
-        font-family="Arial, sans-serif" font-size="12" fill="#666">
-    Replace with mascot.png
-  </text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- Simplified crab mascot placeholder -->
+  <!-- Based on description: orange/coral cartoon crab -->
+  <!-- Replace this with the actual mascot.png from: -->
+  <!-- https://github.com/user-attachments/assets/2e1cc33a-5e49-4e1c-b575-f6ab5e16374f -->
+  
+  <!-- Background burst rays -->
+  <g id="rays" opacity="0.5">
+    <path d="M 200 200 L 340 80 L 320 100 Z" fill="#F4A582"/>
+    <path d="M 200 200 L 380 140 L 360 160 Z" fill="#F4A582"/>
+    <path d="M 200 200 L 390 200 L 370 200 Z" fill="#F4A582"/>
+    <path d="M 200 200 L 380 260 L 360 240 Z" fill="#F4A582"/>
+    <path d="M 200 200 L 340 320 L 320 300 Z" fill="#F4A582"/>
+    <path d="M 200 200 L 260 380 L 240 360 Z" fill="#F4A582"/>
+    <path d="M 200 200 L 200 390 L 200 370 Z" fill="#F4A582"/>
+    <path d="M 200 200 L 140 380 L 160 360 Z" fill="#F4A582"/>
+    <path d="M 200 200 L 60 320 L 80 300 Z" fill="#F4A582"/>
+    <path d="M 200 200 L 20 260 L 40 240 Z" fill="#F4A582"/>
+    <path d="M 200 200 L 10 200 L 30 200 Z" fill="#F4A582"/>
+    <path d="M 200 200 L 20 140 L 40 160 Z" fill="#F4A582"/>
+    <path d="M 200 200 L 60 80 L 80 100 Z" fill="#F4A582"/>
+  </g>
+  
+  <!-- Crab body (simplified) -->
+  <ellipse cx="200" cy="200" rx="60" ry="50" fill="#FF6347" stroke="#D2411E" stroke-width="3"/>
+  
+  <!-- Eyes -->
+  <ellipse cx="185" cy="190" rx="12" ry="15" fill="white"/>
+  <ellipse cx="215" cy="190" rx="12" ry="15" fill="white"/>
+  <circle cx="185" cy="195" r="6" fill="black"/>
+  <circle cx="215" cy="195" r="6" fill="black"/>
+  <circle cx="187" cy="192" r="2" fill="white"/>
+  <circle cx="217" cy="192" r="2" fill="white"/>
+  
+  <!-- Smile -->
+  <path d="M 180 210 Q 200 220 220 210" fill="none" stroke="#D2411E" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Left claw -->
+  <ellipse cx="130" cy="200" rx="20" ry="25" fill="#FF6347" stroke="#D2411E" stroke-width="2"/>
+  <ellipse cx="125" cy="185" rx="8" ry="10" fill="white"/>
+  <ellipse cx="125" cy="215" rx="8" ry="10" fill="white"/>
+  
+  <!-- Right claw -->
+  <ellipse cx="270" cy="200" rx="20" ry="25" fill="#FF6347" stroke="#D2411E" stroke-width="2"/>
+  <ellipse cx="275" cy="185" rx="8" ry="10" fill="white"/>
+  <ellipse cx="275" cy="215" rx="8" ry="10" fill="white"/>
+  
+  <!-- Legs (simplified) -->
+  <line x1="165" y1="235" x2="140" y2="270" stroke="#FF6347" stroke-width="5" stroke-linecap="round"/>
+  <line x1="185" y1="240" x2="170" y2="280" stroke="#FF6347" stroke-width="5" stroke-linecap="round"/>
+  <line x1="215" y1="240" x2="230" y2="280" stroke="#FF6347" stroke-width="5" stroke-linecap="round"/>
+  <line x1="235" y1="235" x2="260" y2="270" stroke="#FF6347" stroke-width="5" stroke-linecap="round"/>
+  
+  <!-- Shell pattern -->
+  <path d="M 180 175 Q 200 170 220 175" fill="none" stroke="#D2411E" stroke-width="1.5"/>
+  <path d="M 175 185 Q 200 180 225 185" fill="none" stroke="#D2411E" stroke-width="1.5"/>
 </svg>
