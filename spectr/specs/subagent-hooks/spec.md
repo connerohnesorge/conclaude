@@ -414,6 +414,76 @@ The system SHALL pass subagent context to command execution via environment vari
 - **AND** `CONCLAUDE_AGENT_ID` environment variable SHALL equal "xyz789"
 - **AND** both variables have the same value (fallback behavior)
 
+### Requirement: Agent Name Extraction from Main Transcript
+
+The system SHALL extract semantic agent names from the main transcript using a well-defined algorithm with deterministic fallback behavior.
+
+#### Extraction Algorithm
+
+1. **Search Scope**: Search the ENTIRE main transcript for all tool calls
+2. **Tool Identification**: Identify tool calls where `tool_name` equals `"Task"` (case-sensitive)
+3. **Matching Logic**: A Task call matches the stopped agent if ANY of:
+   - The Task call's `metadata.agent_id` equals the stopped agent's `agent_id`
+   - The Task call's `parameters.agent_id` equals the stopped agent's `agent_id`
+   - The Task call's `metadata.subagent_id` equals the stopped agent's `agent_id`
+4. **Name Extraction**: From a matching Task call, extract `subagent_type` from (in precedence order):
+   - `metadata.subagent_type`
+   - `parameters.subagent_type`
+   - `parameters.type`
+5. **Multiple Matches**: If multiple matching Task calls exist, use the LAST occurrence (most recent in transcript order)
+6. **Fallback**: If no matching Task call is found OR no `subagent_type` can be extracted, use `agent_id` as `CONCLAUDE_AGENT_NAME`
+
+#### Fields to Inspect
+
+| Field Path | Purpose | Required |
+|------------|---------|----------|
+| `tool_name` | Identify Task tool calls | Yes |
+| `metadata.agent_id` | Match against stopped agent | No |
+| `parameters.agent_id` | Match against stopped agent | No |
+| `metadata.subagent_id` | Match against stopped agent | No |
+| `metadata.subagent_type` | Extract semantic name | No |
+| `parameters.subagent_type` | Extract semantic name | No |
+| `parameters.type` | Extract semantic name (legacy) | No |
+
+#### Edge Case Handling
+
+##### Scenario: Empty or missing transcript
+- **WHEN** main transcript is empty, missing, or unreadable
+- **THEN** `CONCLAUDE_AGENT_NAME` SHALL fall back to `agent_id`
+- **AND** `CONCLAUDE_AGENT_ID` SHALL equal `agent_id`
+- **AND** extraction SHALL NOT emit an error (graceful degradation)
+
+##### Scenario: Malformed Task entries
+- **WHEN** a Task tool call has malformed JSON, missing fields, or invalid structure
+- **THEN** that entry SHALL be silently ignored
+- **AND** extraction SHALL continue searching remaining Task calls
+- **AND** malformed entries SHALL NOT cause extraction failure
+
+##### Scenario: Conflicting subagent_type values
+- **WHEN** multiple matching Task calls exist for the same agent_id
+- **AND** they contain DIFFERENT `subagent_type` values
+- **THEN** the system SHALL emit a warning log message
+- **AND** `CONCLAUDE_AGENT_NAME` SHALL fall back to `agent_id`
+- **AND** `CONCLAUDE_AGENT_ID` SHALL equal `agent_id`
+- **AND** the warning SHALL include the conflicting values and agent_id
+
+##### Scenario: subagent_type is empty string
+- **WHEN** a matching Task call has `subagent_type` set to empty string `""`
+- **THEN** that value SHALL be treated as if `subagent_type` was not present
+- **AND** extraction SHALL continue to fallback behavior
+
+##### Scenario: subagent_type contains only whitespace
+- **WHEN** a matching Task call has `subagent_type` containing only whitespace
+- **THEN** that value SHALL be trimmed and treated as empty
+- **AND** extraction SHALL fall back to `agent_id`
+
+#### Invariants
+
+- `CONCLAUDE_AGENT_ID` SHALL ALWAYS equal the stopped agent's `agent_id` (never modified)
+- `CONCLAUDE_AGENT_NAME` SHALL be non-empty (fallback ensures this)
+- Extraction SHALL be deterministic (same transcript + agent_id = same result)
+- Extraction SHALL complete in bounded time (linear scan, no recursion)
+
 #### Scenario: Agent transcript path in environment variable
 - **WHEN** agent stops with agent_transcript_path "/tmp/agent_coder.json"
 - **THEN** `CONCLAUDE_AGENT_TRANSCRIPT_PATH` SHALL equal "/tmp/agent_coder.json"
