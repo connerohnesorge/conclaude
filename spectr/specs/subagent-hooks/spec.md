@@ -387,7 +387,8 @@ The system SHALL pass subagent context to command execution via environment vari
 #### Scenario: Environment variables available in commands
 - **WHEN** a subagent stop command executes
 - **THEN** the following environment variables SHALL be available:
-  - `CONCLAUDE_AGENT_ID` - Agent identifier from payload (provided by add-subagent-stop-payload-fields)
+  - `CONCLAUDE_AGENT_ID` - Raw agent identifier from payload (e.g., "adb0a8b")
+  - `CONCLAUDE_AGENT_NAME` - Semantic agent name extracted from main transcript (e.g., "coder", "tester", "stuck"), falls back to agent_id if extraction fails
   - `CONCLAUDE_AGENT_TRANSCRIPT_PATH` - Agent's transcript path from payload (provided by add-subagent-stop-payload-fields)
   - `CONCLAUDE_SESSION_ID` - Session ID from payload
   - `CONCLAUDE_TRANSCRIPT_PATH` - Main transcript file path
@@ -398,6 +399,20 @@ The system SHALL pass subagent context to command execution via environment vari
 - **WHEN** agent with agent_id "coder" stops and command executes
 - **THEN** `CONCLAUDE_AGENT_ID` environment variable SHALL equal "coder"
 - **AND** command can access this via `$CONCLAUDE_AGENT_ID` in bash
+
+#### Scenario: Agent name extracted from main transcript
+- **WHEN** agent with agent_id "abc123" stops
+- **AND** main transcript contains Task tool call with subagent_type "coder"
+- **THEN** `CONCLAUDE_AGENT_NAME` environment variable SHALL equal "coder"
+- **AND** `CONCLAUDE_AGENT_ID` environment variable SHALL equal "abc123"
+- **AND** commands can use the semantic name via `$CONCLAUDE_AGENT_NAME`
+
+#### Scenario: Agent name extraction fails, fallback to agent_id
+- **WHEN** agent with agent_id "xyz789" stops
+- **AND** main transcript does not contain matching Task tool call
+- **THEN** `CONCLAUDE_AGENT_NAME` environment variable SHALL equal "xyz789"
+- **AND** `CONCLAUDE_AGENT_ID` environment variable SHALL equal "xyz789"
+- **AND** both variables have the same value (fallback behavior)
 
 #### Scenario: Agent transcript path in environment variable
 - **WHEN** agent stops with agent_transcript_path "/tmp/agent_coder.json"

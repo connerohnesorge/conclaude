@@ -15,7 +15,14 @@ This hook allows configuring different commands for different subagent names usi
 
 # Environment Variables
 
-The following environment variables are available in subagent stop commands: - `CONCLAUDE_AGENT_ID` - The subagent's identifier - `CONCLAUDE_AGENT_TRANSCRIPT_PATH` - Path to subagent's transcript - `CONCLAUDE_SESSION_ID` - Current session ID - `CONCLAUDE_TRANSCRIPT_PATH` - Main transcript file path - `CONCLAUDE_HOOK_EVENT` - Always "SubagentStop" - `CONCLAUDE_CWD` - Current working directory
+The following environment variables are available in subagent stop commands:
+- `CONCLAUDE_AGENT_ID` - The raw agent identifier (e.g., "adb0a8b")
+- `CONCLAUDE_AGENT_NAME` - The semantic agent name (e.g., "coder", "tester", "stuck") extracted from the main transcript. Falls back to `CONCLAUDE_AGENT_ID` if extraction fails.
+- `CONCLAUDE_AGENT_TRANSCRIPT_PATH` - Path to subagent's transcript
+- `CONCLAUDE_SESSION_ID` - Current session ID
+- `CONCLAUDE_TRANSCRIPT_PATH` - Main transcript file path
+- `CONCLAUDE_HOOK_EVENT` - Always "SubagentStop"
+- `CONCLAUDE_CWD` - Current working directory
 
 ## Configuration Properties
 

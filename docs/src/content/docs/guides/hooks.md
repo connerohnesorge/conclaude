@@ -325,8 +325,9 @@ For subagent hooks:
 
 | Variable | Description |
 |----------|-------------|
-| `CONCLAUDE_AGENT_ID` | Subagent identifier |
-| `CONCLAUDE_SUBAGENT_TYPE` | Subagent type (SubagentStart only) |
+| `CONCLAUDE_AGENT_ID` | Raw agent identifier (e.g., "adb0a8b") |
+| `CONCLAUDE_AGENT_NAME` | Semantic agent name (e.g., "coder", "tester", "stuck"). Falls back to agent ID if extraction fails. (SubagentStop only) |
+| `CONCLAUDE_SUBAGENT_TYPE` | Subagent type (e.g., "implementation") (SubagentStart only) |
 | `CONCLAUDE_AGENT_TRANSCRIPT_PATH` | Path to subagent transcript |
 
 ## Next Steps
