@@ -9,7 +9,7 @@ mod hooks_tests;
 /// Schema generation and validation utilities.
 ///
 /// This module is primarily used by build and release automation tooling, including:
-/// - The external `generate-schema` binary (`scripts/generate-schema.rs`) which creates
+/// - The external `generate-schema` binary (`src/bin/generate-schema.rs`) which creates
 ///   the JSON Schema file during builds
 /// - GitHub Actions workflows that upload schema files to releases
 /// - External scripts that need to programmatically generate or validate configuration schemas
