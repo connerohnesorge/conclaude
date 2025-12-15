@@ -30,6 +30,10 @@ path = "scripts/generate-schema.rs"
 name = "generate-docs"
 path = "src/bin/generate-docs.rs"
 
+[[bin]]
+name = "download-ts-sdk"
+path = "scripts/download-ts-sdk.rs"
+
 [dependencies]
 clap = { version = "4.5", features = ["derive", "env"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -49,6 +53,9 @@ regex = "1.10"
 walkdir = "2.4"
 notify-rust = "4.10"
 conclaude-field-derive = { path = "crates/conclaude-field-derive" }
+reqwest = { version = "0.12", features = ["rustls-tls-native-roots", "json"], default-features = false }
+flate2 = "1.0"
+tar = "0.4"
 
 [dev-dependencies]
 tempfile = "3.8"
