@@ -165,7 +165,7 @@ With the configuration above:
 - Case-sensitive by default (use `caseInsensitive: true` to override)
 - File references using `@` syntax are expanded to file contents
 
-**See Also:** [UserPromptSubmit Configuration Reference](/reference/config/user-prompt-submit)
+**See Also:** [UserPromptSubmit Configuration Reference](/conclaude/reference/config/user-prompt-submit)
 
 ---
 
@@ -415,8 +415,8 @@ For subagent hooks:
 
 ## Next Steps
 
-- **[CLI Reference](/reference/cli)** — All commands and hook handlers
-- **[Configuration Reference](/reference/config/configuration)** — Complete configuration options
-- **[Stop Hook](/reference/config/stop)** — Detailed stop hook configuration
-- **[PreToolUse Hook](/reference/config/pre-tool-use)** — File protection rules
-- **[UserPromptSubmit Hook](/reference/config/user-prompt-submit)** — Context injection configuration
+- **[CLI Reference](/conclaude/reference/cli)** — All commands and hook handlers
+- **[Configuration Reference](/conclaude/reference/config/configuration)** — Complete configuration options
+- **[Stop Hook](/conclaude/reference/config/stop)** — Detailed stop hook configuration
+- **[PreToolUse Hook](/conclaude/reference/config/pre-tool-use)** — File protection rules
+- **[UserPromptSubmit Hook](/conclaude/reference/config/user-prompt-submit)** — Context injection configuration

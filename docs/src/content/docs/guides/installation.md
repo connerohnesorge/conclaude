@@ -202,6 +202,6 @@ conclaude 0.1.0
 
 ## Next Steps
 
-- **[Getting Started](/guides/getting-started)** — Initialize conclaude in your project
-- **[Hooks Overview](/guides/hooks)** — Learn about the hook system
-- **[CLI Reference](/reference/cli)** — All available commands
+- **[Getting Started](/conclaude/guides/getting-started)** — Initialize conclaude in your project
+- **[Hooks Overview](/conclaude/guides/hooks)** — Learn about the hook system
+- **[CLI Reference](/conclaude/reference/cli)** — All available commands

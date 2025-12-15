@@ -441,7 +441,7 @@ fn generate_overview_page(schema: &Schema, output_dir: &Path) -> Result<()> {
         };
 
         content.push_str(&format!(
-            "| [{}](/reference/config/{}) | {} | {} |\n",
+            "| [{}](/conclaude/reference/config/{}) | {} | {} |\n",
             section_title, kebab_name, first_sentence, key_options
         ));
     }
@@ -457,7 +457,7 @@ fn generate_overview_page(schema: &Schema, output_dir: &Path) -> Result<()> {
         let section_title = format_section_title(section_name);
         let kebab_name = to_kebab_case(section_name);
         content.push_str(&format!(
-            "### [{}](/reference/config/{})\n\n",
+            "### [{}](/conclaude/reference/config/{})\n\n",
             section_title, kebab_name
         ));
 
@@ -638,7 +638,7 @@ fn generate_section_page(
 
     // Add navigation back to overview
     content.push_str("## See Also\n\n");
-    content.push_str("- [Configuration Overview](/reference/config/configuration) - Complete reference for all configuration options\n");
+    content.push_str("- [Configuration Overview](/conclaude/reference/config/configuration) - Complete reference for all configuration options\n");
 
     // Write to file with kebab-case filename
     let output_path = output_dir.join(format!("{}.md", kebab_name));

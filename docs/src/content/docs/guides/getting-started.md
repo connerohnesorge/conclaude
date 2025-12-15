@@ -19,7 +19,7 @@ The fastest way to install conclaude is via the shell installer:
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-installer.sh | sh
 ```
 
-For other installation methods, see the [Installation guide](/guides/installation).
+For other installation methods, see the [Installation guide](/conclaude/guides/installation).
 
 Verify the installation:
 
@@ -148,7 +148,7 @@ If any check fails, Claude sees the output and can fix the issues before the ses
 
 ## Next Steps
 
-- **[Installation](/guides/installation)** — All installation methods including npm, Nix, and building from source
-- **[Hooks Overview](/guides/hooks)** — Deep dive into the hook system and all available hooks
-- **[CLI Reference](/reference/cli)** — Complete command reference
-- **[Configuration Reference](/reference/config/configuration)** — All configuration options explained
+- **[Installation](/conclaude/guides/installation)** — All installation methods including npm, Nix, and building from source
+- **[Hooks Overview](/conclaude/guides/hooks)** — Deep dive into the hook system and all available hooks
+- **[CLI Reference](/conclaude/reference/cli)** — Complete command reference
+- **[Configuration Reference](/conclaude/reference/config/configuration)** — All configuration options explained
