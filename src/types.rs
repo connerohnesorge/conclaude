@@ -8,6 +8,8 @@ pub struct HookResult {
     pub message: Option<String>,
     /// Whether to block the current operation from proceeding
     pub blocked: Option<bool>,
+    /// Context to prepend to Claude's system prompt when context injection rules match
+    pub system_prompt: Option<String>,
 }
 
 impl HookResult {
@@ -16,6 +18,7 @@ impl HookResult {
         Self {
             message: None,
             blocked: Some(false),
+            system_prompt: None,
         }
     }
 
@@ -23,6 +26,17 @@ impl HookResult {
         Self {
             message: Some(message.into()),
             blocked: Some(true),
+            system_prompt: None,
+        }
+    }
+
+    /// Create a success result with injected context
+    #[must_use]
+    pub fn with_context(context: impl Into<String>) -> Self {
+        Self {
+            message: None,
+            blocked: Some(false),
+            system_prompt: Some(context.into()),
         }
     }
 }
@@ -369,6 +383,7 @@ mod tests {
         let result = HookResult::success();
         assert_eq!(result.blocked, Some(false));
         assert_eq!(result.message, None);
+        assert_eq!(result.system_prompt, None);
     }
 
     #[test]
@@ -376,6 +391,15 @@ mod tests {
         let result = HookResult::blocked("Test blocking message");
         assert_eq!(result.blocked, Some(true));
         assert_eq!(result.message, Some("Test blocking message".to_string()));
+        assert_eq!(result.system_prompt, None);
+    }
+
+    #[test]
+    fn test_hook_result_with_context() {
+        let result = HookResult::with_context("Read the sidebar documentation");
+        assert_eq!(result.blocked, Some(false));
+        assert_eq!(result.message, None);
+        assert_eq!(result.system_prompt, Some("Read the sidebar documentation".to_string()));
     }
 
     #[test]
@@ -954,5 +978,98 @@ mod tests {
         assert!(json.contains("\"hook_event_name\":\"SubagentStart\""));
         assert!(json.contains("\"agent_id\":\"coder\""));
         assert!(json.contains("\"subagent_type\":\"implementation\""));
+    }
+
+    // Tests for context injection - verifying HookResult behavior
+
+    #[test]
+    fn test_hook_result_with_context_creates_correct_result() {
+        let context = "Read the documentation at @docs/example.md";
+        let result = HookResult::with_context(context);
+
+        assert_eq!(result.blocked, Some(false));
+        assert_eq!(result.message, None);
+        assert_eq!(result.system_prompt, Some(context.to_string()));
+    }
+
+    #[test]
+    fn test_hook_result_with_context_string_type() {
+        let context = String::from("Test context");
+        let result = HookResult::with_context(context);
+
+        assert_eq!(result.system_prompt, Some("Test context".to_string()));
+    }
+
+    #[test]
+    fn test_hook_result_with_context_serialization() {
+        let result = HookResult::with_context("Injected context");
+        let json = serde_json::to_string(&result).unwrap();
+
+        assert!(json.contains("\"system_prompt\":\"Injected context\""));
+        assert!(json.contains("\"blocked\":false"));
+    }
+
+    #[test]
+    fn test_hook_result_with_context_deserialization() {
+        let json = r#"{
+            "message": null,
+            "blocked": false,
+            "system_prompt": "Test context"
+        }"#;
+
+        let result: HookResult = serde_json::from_str(json).unwrap();
+        assert_eq!(result.system_prompt, Some("Test context".to_string()));
+        assert_eq!(result.blocked, Some(false));
+        assert_eq!(result.message, None);
+    }
+
+    #[test]
+    fn test_hook_result_success_no_context() {
+        let result = HookResult::success();
+        assert_eq!(result.system_prompt, None);
+        assert_eq!(result.blocked, Some(false));
+        assert_eq!(result.message, None);
+    }
+
+    #[test]
+    fn test_hook_result_blocked_no_context() {
+        let result = HookResult::blocked("Test error");
+        assert_eq!(result.system_prompt, None);
+        assert_eq!(result.blocked, Some(true));
+        assert_eq!(result.message, Some("Test error".to_string()));
+    }
+
+    #[test]
+    fn test_user_prompt_submit_payload_serialization() {
+        let payload = UserPromptSubmitPayload {
+            base: BasePayload {
+                session_id: "test_session".to_string(),
+                transcript_path: "/path/to/transcript".to_string(),
+                hook_event_name: "UserPromptSubmit".to_string(),
+                cwd: "/current/dir".to_string(),
+                permission_mode: Some("default".to_string()),
+            },
+            prompt: "test user prompt".to_string(),
+        };
+
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("\"prompt\":\"test user prompt\""));
+        assert!(json.contains("\"session_id\":\"test_session\""));
+    }
+
+    #[test]
+    fn test_user_prompt_submit_payload_deserialization() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "UserPromptSubmit",
+            "cwd": "/current/dir",
+            "permission_mode": "default",
+            "prompt": "test prompt"
+        }"#;
+
+        let payload: UserPromptSubmitPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.prompt, "test prompt");
+        assert_eq!(payload.base.session_id, "test_session");
     }
 }

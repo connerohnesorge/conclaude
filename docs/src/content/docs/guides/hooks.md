@@ -123,11 +123,49 @@ With infinite mode, validation runs after every task completion, not just at ses
 
 **When:** User submits input to Claude
 
-**Purpose:** Process or log user prompts.
+**Purpose:** Process user prompts and inject context based on prompt content.
 
 **Use Cases:**
+- Context injection based on prompt patterns
+- Automatically load project-specific guidelines
 - Audit logging of user inputs
-- Pre-processing prompts
+
+**Configuration:**
+
+```yaml
+userPromptSubmit:
+  contextRules:
+    - pattern: "sidebar|navigation"
+      prompt: |
+        Read @.claude/contexts/sidebar.md before making changes.
+
+    - pattern: "auth|login|authentication"
+      prompt: |
+        Review authentication patterns in @.claude/contexts/auth.md
+      caseInsensitive: true
+```
+
+**How It Works:**
+
+Context injection allows you to automatically prepend relevant guidelines, documentation, or reminders to Claude's system prompt based on what you're asking about. When your prompt matches a configured pattern, conclaude injects the associated context before Claude processes your request.
+
+**Example Scenario:**
+
+You ask: "How do I update the sidebar component?"
+
+With the configuration above:
+1. Pattern `sidebar|navigation` matches "sidebar"
+2. conclaude prepends the context from `.claude/contexts/sidebar.md`
+3. Claude receives your prompt with additional context about sidebar guidelines
+4. Claude responds with knowledge of your project-specific sidebar patterns
+
+**Pattern Matching:**
+- Supports regular expressions for flexible matching
+- Multiple rules can match and inject context
+- Case-sensitive by default (use `caseInsensitive: true` to override)
+- File references using `@` syntax are expanded to file contents
+
+**See Also:** [UserPromptSubmit Configuration Reference](/reference/config/user-prompt-submit/)
 
 ---
 
@@ -289,6 +327,51 @@ preToolUse:
   preventRootAdditions: false
 ```
 
+### Context Injection for Project Guidelines
+
+Automatically inject relevant context when working on specific features:
+
+```yaml
+userPromptSubmit:
+  contextRules:
+    # React component guidelines
+    - pattern: "component|react|jsx|tsx"
+      prompt: |
+        Component guidelines: @.claude/contexts/components.md
+        - Use TypeScript
+        - Add PropTypes
+        - Include unit tests
+      caseInsensitive: true
+
+    # API development standards
+    - pattern: "api|endpoint|route"
+      prompt: |
+        API standards: @.claude/contexts/api.md
+        - Use proper HTTP status codes
+        - Implement error handling
+        - Add request validation
+
+    # Security reminders
+    - pattern: "auth|login|password|security"
+      prompt: |
+        SECURITY CHECKLIST:
+        - Never commit secrets
+        - Use environment variables
+        - Review: @.claude/contexts/security.md
+      caseInsensitive: true
+
+# Optional: Get notified when context is injected
+notifications:
+  enabled: true
+  hooks:
+    - "UserPromptSubmit"
+  showSuccess: true
+```
+
+**How This Helps:**
+
+When you ask "How do I add a new React component?", conclaude automatically reminds Claude about your component guidelines before it responds. You don't need to repeat instructions manually.
+
 ## Notifications
 
 Get system notifications when hooks execute:
@@ -336,3 +419,4 @@ For subagent hooks:
 - **[Configuration Reference](/reference/config/configuration/)** — Complete configuration options
 - **[Stop Hook](/reference/config/stop/)** — Detailed stop hook configuration
 - **[PreToolUse Hook](/reference/config/pre-tool-use/)** — File protection rules
+- **[UserPromptSubmit Hook](/reference/config/user-prompt-submit/)** — Context injection configuration
