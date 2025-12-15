@@ -13,38 +13,38 @@ Conclaude uses YAML configuration files to define lifecycle hooks, file protecti
 
 | Section | Description | Key Options |
 |---------|-------------|-------------|
-| [Notifications](/reference/config/notifications) | Configuration for system notifications | `enabled`, `hooks`, `showErrors` |
-| [Permission Request](/reference/config/permission-request) | Configuration for permission request hooks that control tool permission decisions | `allow`, `default`, `deny` |
-| [Pre Tool Use](/reference/config/pre-tool-use) | Configuration for pre-tool-use hooks that run before tools are executed | `generatedFileMessage`, `preventAdditions`, `preventGeneratedFileEdits` |
-| [Stop](/reference/config/stop) | Configuration for stop hook commands that run when Claude is about to stop | `commands`, `infinite`, `infiniteMessage` |
-| [Subagent Stop](/reference/config/subagent-stop) | Configuration for subagent stop hooks with pattern-based command execution | `commands` |
-| [User Prompt Submit](/reference/config/user-prompt-submit) | Configuration for user prompt submit hook with context injection rules | `contextRules` |
+| [Notifications](/conclaude/reference/config/notifications) | Configuration for system notifications | `enabled`, `hooks`, `showErrors` |
+| [Permission Request](/conclaude/reference/config/permission-request) | Configuration for permission request hooks that control tool permission decisions | `allow`, `default`, `deny` |
+| [Pre Tool Use](/conclaude/reference/config/pre-tool-use) | Configuration for pre-tool-use hooks that run before tools are executed | `generatedFileMessage`, `preventAdditions`, `preventGeneratedFileEdits` |
+| [Stop](/conclaude/reference/config/stop) | Configuration for stop hook commands that run when Claude is about to stop | `commands`, `infinite`, `infiniteMessage` |
+| [Subagent Stop](/conclaude/reference/config/subagent-stop) | Configuration for subagent stop hooks with pattern-based command execution | `commands` |
+| [User Prompt Submit](/conclaude/reference/config/user-prompt-submit) | Configuration for user prompt submit hook with context injection rules | `contextRules` |
 
 ## Configuration Sections
 
 Detailed documentation for each configuration section:
 
-### [Notifications](/reference/config/notifications)
+### [Notifications](/conclaude/reference/config/notifications)
 
 Configuration for system notifications.
 
-### [Permission Request](/reference/config/permission-request)
+### [Permission Request](/conclaude/reference/config/permission-request)
 
 Configuration for permission request hooks that control tool permission decisions.
 
-### [Pre Tool Use](/reference/config/pre-tool-use)
+### [Pre Tool Use](/conclaude/reference/config/pre-tool-use)
 
 Configuration for pre-tool-use hooks that run before tools are executed.
 
-### [Stop](/reference/config/stop)
+### [Stop](/conclaude/reference/config/stop)
 
 Configuration for stop hook commands that run when Claude is about to stop
 
-### [Subagent Stop](/reference/config/subagent-stop)
+### [Subagent Stop](/conclaude/reference/config/subagent-stop)
 
 Configuration for subagent stop hooks with pattern-based command execution.
 
-### [User Prompt Submit](/reference/config/user-prompt-submit)
+### [User Prompt Submit](/conclaude/reference/config/user-prompt-submit)
 
 Configuration for user prompt submit hook with context injection rules
 
