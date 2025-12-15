@@ -146,6 +146,10 @@ struct ClaudeHookConfig {
     #[serde(rename = "type")]
     config_type: String,
     command: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    prompt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timeout: Option<u64>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -275,6 +279,8 @@ async fn handle_init(
                 hooks: vec![ClaudeHookConfig {
                     config_type: "command".to_string(),
                     command: format!("conclaude Hooks {hook_type}"),
+                    prompt: None,
+                    timeout: Some(600),
                 }],
             }],
         );
