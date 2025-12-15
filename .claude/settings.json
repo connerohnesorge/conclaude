@@ -10,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude UserPromptSubmit"
+            "command": "conclaude Hooks UserPromptSubmit"
           }
         ]
       }
@@ -21,7 +21,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude PreToolUse"
+            "command": "conclaude Hooks PreToolUse"
           }
         ]
       }
@@ -32,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Stop"
+            "command": "conclaude Hooks Stop"
           }
         ]
       }
@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude SubagentStop"
+            "command": "conclaude Hooks SubagentStop"
           }
         ]
       }
@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude PermissionRequest"
+            "command": "conclaude Hooks PermissionRequest"
           }
         ]
       }
@@ -65,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude SessionEnd"
+            "command": "conclaude Hooks SessionEnd"
           }
         ]
       }
@@ -76,7 +76,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Notification"
+            "command": "conclaude Hooks Notification"
           }
         ]
       }
@@ -87,7 +87,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude SubagentStart"
+            "command": "conclaude Hooks SubagentStart"
           }
         ]
       }
@@ -98,7 +98,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude PostToolUse"
+            "command": "conclaude Hooks PostToolUse"
           }
         ]
       }
@@ -109,7 +109,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude PreCompact"
+            "command": "conclaude Hooks PreCompact"
           }
         ]
       }
@@ -120,7 +120,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude SessionStart"
+            "command": "conclaude Hooks SessionStart"
           }
         ]
       }
