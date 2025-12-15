@@ -16,7 +16,7 @@
 //! # Schema Distribution
 //!
 //! The generated schema is published at:
-//! `https://github.com/connix-io/conclaude/releases/latest/download/conclaude-schema.json`
+//! `https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-schema.json`
 //!
 //! This URL is embedded in configuration files via the `yaml-language-server` comment
 //! header, enabling IDE support for `.conclaude.yml` files.
@@ -75,7 +75,7 @@ pub fn generate_config_schema() -> Result<Value> {
             "description".to_string(),
             json!("Configuration schema for Conclaude - Claude Code hook handler"),
         );
-        schema_obj.insert("$id".to_string(), json!("https://github.com/connix-io/conclaude/releases/latest/download/conclaude-schema.json"));
+        schema_obj.insert("$id".to_string(), json!("https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-schema.json"));
     }
 
     Ok(schema_value)
@@ -141,7 +141,7 @@ pub fn validate_config_against_schema(config_content: &str) -> Result<()> {
 /// Gets the default schema URL for YAML language server headers
 #[must_use]
 pub fn get_schema_url() -> String {
-    "https://github.com/connix-io/conclaude/releases/latest/download/conclaude-schema.json"
+    "https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-schema.json"
         .to_string()
 }
 
@@ -214,7 +214,7 @@ invalid_field: "should fail"
     fn test_generate_yaml_language_server_header() {
         let default_header = generate_yaml_language_server_header(None);
         assert!(default_header.contains("yaml-language-server:"));
-        assert!(default_header.contains("github.com/connix-io/conclaude"));
+        assert!(default_header.contains("github.com/connerohnesorge/conclaude"));
 
         let custom_header =
             generate_yaml_language_server_header(Some("https://example.com/schema.json"));

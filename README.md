@@ -7,8 +7,8 @@ A high-performance Rust CLI tool that provides essential guardrails for Claude C
 <!-- [![Crates.io](https://img.shields.io/crates/v/conclaude)](https://crates.io/crates/conclaude) -->
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org)
-[![CI](https://github.com/connix-io/conclaude/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/connix-io/conclaude/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/connix-io/conclaude?display_name=tag&sort=semver)](https://github.com/connix-io/conclaude/releases)
+[![CI](https://github.com/connerohnesorge/conclaude/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/connerohnesorge/conclaude/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/connerohnesorge/conclaude?display_name=tag&sort=semver)](https://github.com/connerohnesorge/conclaude/releases)
 
 Born from real developer frustration, conclaude transforms chaotic AI coding sessions into controlled, validated workflows. It's not just another CLI tool—it's your project's guardian, ensuring that every Claude Code session respects your standards, follows your rules, and maintains your code quality.
 
@@ -16,21 +16,21 @@ Born from real developer frustration, conclaude transforms chaotic AI coding ses
 
 Official builds are published on GitHub Releases when tags matching `v*` are pushed.
 
-- Latest release: https://github.com/connix-io/conclaude/releases/latest
-- All releases: https://github.com/connix-io/conclaude/releases
+- Latest release: https://github.com/connerohnesorge/conclaude/releases/latest
+- All releases: https://github.com/connerohnesorge/conclaude/releases
 
 ### Quick Install Options
 
 #### Option 1: Shell Script (Recommended)
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/connix-io/conclaude/releases/latest/download/conclaude-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-installer.sh | sh
 ```
 
 #### Option 2: PowerShell (Windows)
 
 ```powershell
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/connix-io/conclaude/releases/latest/download/conclaude-installer.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-installer.ps1 | iex"
 ```
 
 #### Option 3: NPM Package
@@ -43,9 +43,9 @@ npm install conclaude
 
 ```bash
 # Linux x86_64 example
-# Visit https://github.com/connix-io/conclaude/releases/latest to find the download URL for your platform
+# Visit https://github.com/connerohnesorge/conclaude/releases/latest to find the download URL for your platform
 curl -L -o conclaude.tar.xz \
-  https://github.com/connix-io/conclaude/releases/latest/download/conclaude-x86_64-unknown-linux-gnu.tar.xz
+  https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-x86_64-unknown-linux-gnu.tar.xz
 tar -xf conclaude.tar.xz
 chmod +x conclaude && sudo mv conclaude /usr/local/bin/
 conclaude --version
@@ -163,7 +163,7 @@ cargo install conclaude
 
 ```bash
 # Clone and build from source
-git clone https://github.com/connix-io/conclaude.git
+git clone https://github.com/connerohnesorge/conclaude.git
 cd conclaude
 cargo build --release
 
@@ -174,7 +174,7 @@ cargo build --release
 
 ```bash
 # Use the flake directly
-nix run github:connix-io/conclaude -- --help
+nix run github:connerohnesorge/conclaude -- --help
 ```
 
 #### Adding conclaude to your development shell
@@ -186,7 +186,7 @@ Add conclaude as a flake input and include it in your development shell:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    conclaude.url = "github:connix-io/conclaude";
+    conclaude.url = "github:connerohnesorge/conclaude";
   };
 
   outputs = { self, nixpkgs, conclaude, ... }:
@@ -219,7 +219,7 @@ nix develop
 
 ```bash
 # Clone the repository
-git clone https://github.com/connix-io/conclaude.git
+git clone https://github.com/connerohnesorge/conclaude.git
 cd conclaude
 
 # Build the project
@@ -336,7 +336,7 @@ The complete configuration schema is defined as Rust structs with serde serializ
 - **notifications**: System notification settings for hook events
 
 The JSON schema for IDE autocomplete and validation is automatically published with each release at:
-`https://github.com/connix-io/conclaude/releases/latest/download/conclaude-schema.json`
+`https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-schema.json`
 
 Developers can regenerate the schema locally using: `cargo run --bin generate-schema`
 
@@ -1257,7 +1257,7 @@ jobs:
       - name: Install conclaude
         run: |
           curl --proto '=https' --tlsv1.2 -LsSf \
-            https://github.com/connix-io/conclaude/releases/latest/download/conclaude-installer.sh | sh
+            https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-installer.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Validate conclaude configuration
@@ -1278,7 +1278,7 @@ validate-conclaude:
   image: rust:latest
   before_script:
     - curl --proto '=https' --tlsv1.2 -LsSf
-      https://github.com/connix-io/conclaude/releases/latest/download/conclaude-installer.sh | sh
+      https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-installer.sh | sh
     - export PATH="$HOME/.cargo/bin:$PATH"
   script:
     - conclaude validate
@@ -1305,7 +1305,7 @@ jobs:
           name: Install conclaude
           command: |
             curl --proto '=https' --tlsv1.2 -LsSf \
-              https://github.com/connix-io/conclaude/releases/latest/download/conclaude-installer.sh | sh
+              https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-installer.sh | sh
             echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> $BASH_ENV
       - run:
           name: Validate configuration
@@ -1347,7 +1347,7 @@ FROM rust:1.70-slim as validator
 
 # Install conclaude
 RUN curl --proto '=https' --tlsv1.2 -LsSf \
-    https://github.com/connix-io/conclaude/releases/latest/download/conclaude-installer.sh | sh
+    https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-installer.sh | sh
 
 # Copy configuration
 COPY .conclaude.yaml /app/.conclaude.yaml

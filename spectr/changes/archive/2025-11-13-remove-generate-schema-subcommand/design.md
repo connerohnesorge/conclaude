@@ -24,7 +24,7 @@ Move schema generation to a standalone Rust binary (`scripts/generate-schema.rs`
 The schema generation script will be integrated into the release process:
 1. The script will generate `conclaude-schema.json` in the workspace root
 2. `cargo-dist` will automatically include the schema file in release artifacts
-3. The schema URL (`https://github.com/connix-io/conclaude/releases/latest/download/conclaude-schema.json`) will remain stable
+3. The schema URL (`https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-schema.json`) will remain stable
 4. **Note**: The GitHub Actions workflow is managed by `cargo-dist` and should not be manually edited
 
 ### Dependency Management

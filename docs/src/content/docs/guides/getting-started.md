@@ -16,7 +16,7 @@ This guide walks you through installing conclaude, creating your first configura
 The fastest way to install conclaude is via the shell installer:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/connix-io/conclaude/releases/latest/download/conclaude-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-installer.sh | sh
 ```
 
 For other installation methods, see the [Installation guide](/guides/installation/).
