@@ -28,7 +28,7 @@ fn error(message: &str) {
 
 // Fetch package metadata from npm registry
 async fn fetch_package_metadata() -> Result<String, Box<dyn std::error::Error>> {
-    let response = reqwest::get(REGISTRY_URL).await?;
+    let response = reqwest::get(REGISTRY_URL).await?.error_for_status()?;
     let json: Value = response.json().await?;
 
     // Extract the latest version's tarball URL
@@ -45,9 +45,85 @@ async fn fetch_package_metadata() -> Result<String, Box<dyn std::error::Error>> 
 
 // Download tarball from URL
 async fn download_tarball(url: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let response = reqwest::get(url).await?;
+    let response = reqwest::get(url).await?.error_for_status()?;
     let bytes = response.bytes().await?;
     Ok(bytes.to_vec())
+}
+
+// Normalize a path by resolving . and .. components without requiring the path to exist
+fn normalize_path(path: &Path) -> std::path::PathBuf {
+    let mut components = Vec::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Prefix(p) => components.push(std::path::Component::Prefix(p)),
+            std::path::Component::RootDir => {
+                components.clear();
+                components.push(std::path::Component::RootDir);
+            }
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                // Only pop if we have a normal component to pop
+                if matches!(components.last(), Some(std::path::Component::Normal(_))) {
+                    components.pop();
+                } else if !matches!(
+                    components.last(),
+                    Some(std::path::Component::RootDir | std::path::Component::Prefix(_))
+                ) {
+                    // Keep the .. if we can't resolve it (relative path escaping)
+                    components.push(std::path::Component::ParentDir);
+                }
+            }
+            std::path::Component::Normal(c) => {
+                components.push(std::path::Component::Normal(c));
+            }
+        }
+    }
+    components.iter().collect()
+}
+
+// Validate that a destination path is safely within the target directory
+fn validate_extraction_path(
+    entry_path: &Path,
+    target_dir: &Path,
+) -> Result<std::path::PathBuf, String> {
+    // Reject absolute paths in the archive
+    if entry_path.is_absolute() {
+        return Err(format!(
+            "Absolute path in archive is not allowed: {}",
+            entry_path.display()
+        ));
+    }
+
+    // Check for suspicious components before joining
+    for component in entry_path.components() {
+        if let std::path::Component::Normal(s) = component {
+            let s_str = s.to_string_lossy();
+            // Reject paths that look like they're trying to escape (e.g., hidden tricks)
+            if s_str.starts_with("..") || s_str.contains('\0') {
+                return Err(format!(
+                    "Suspicious path component in archive: {}",
+                    entry_path.display()
+                ));
+            }
+        }
+    }
+
+    // Construct the destination path
+    let dest_path = target_dir.join(entry_path);
+
+    // Normalize both paths to resolve any . or .. components
+    let normalized_target = normalize_path(target_dir);
+    let normalized_dest = normalize_path(&dest_path);
+
+    // Ensure the normalized destination starts with the normalized target
+    if !normalized_dest.starts_with(&normalized_target) {
+        return Err(format!(
+            "Path traversal attempt detected: {} would extract outside target directory",
+            entry_path.display()
+        ));
+    }
+
+    Ok(dest_path)
 }
 
 // Extract tarball to target directory, stripping the "package/" prefix
@@ -58,6 +134,7 @@ fn extract_tarball(
     let cursor = Cursor::new(tarball_bytes);
     let decoder = GzDecoder::new(cursor);
     let mut archive = Archive::new(decoder);
+    let target_path = Path::new(target_dir);
 
     for entry in archive.entries()? {
         let mut entry = entry?;
@@ -71,7 +148,8 @@ fn extract_tarball(
             continue;
         }
 
-        let dest_path = Path::new(target_dir).join(stripped_path);
+        // Validate the path is safe (no path traversal)
+        let dest_path = validate_extraction_path(stripped_path, target_path)?;
 
         // Create parent directories if needed
         if let Some(parent) = dest_path.parent() {
