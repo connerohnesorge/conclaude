@@ -24,7 +24,7 @@ path = "src/main.rs"
 
 [[bin]]
 name = "generate-schema"
-path = "scripts/generate-schema.rs"
+path = "src/bin/generate-schema.rs"
 
 [[bin]]
 name = "generate-docs"

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "1.1",
+      "section": "Implementation",
+      "description": "Move `scripts/generate-schema.rs` to `src/bin/generate-schema.rs`",
+      "status": "completed"
+    },
+    {
+      "id": "1.2",
+      "section": "Implementation",
+      "description": "Update `Cargo.toml:27` [[bin]] path from `scripts/generate-schema.rs` to `src/bin/generate-schema.rs`",
+      "status": "completed"
+    },
+    {
+      "id": "1.3",
+      "section": "Implementation",
+      "description": "Update doc comment in `src/lib.rs:12` to reference `src/bin/generate-schema.rs`",
+      "status": "completed"
+    },
+    {
+      "id": "2.1",
+      "section": "Verification",
+      "description": "Verify `cargo build --bin generate-schema` succeeds with no errors",
+      "status": "completed"
+    },
+    {
+      "id": "2.2",
+      "section": "Verification",
+      "description": "Verify `cargo run --bin generate-schema` outputs \"Schema generated successfully: conclaude-schema.json\"",
+      "status": "completed"
+    },
+    {
+      "id": "2.3",
+      "section": "Verification",
+      "description": "Verify `conclaude-schema.json` is created in workspace root",
+      "status": "completed"
+    }
+  ]
+}
