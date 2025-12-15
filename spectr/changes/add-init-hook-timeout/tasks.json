@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "1.1",
+      "section": "Implementation",
+      "description": "Add optional `timeout` field to `ClaudeHookConfig` struct in `src/main.rs`",
+      "status": "completed"
+    },
+    {
+      "id": "1.2",
+      "section": "Implementation",
+      "description": "Update hook generation in `handle_init` to include `timeout: 600` for all hooks",
+      "status": "completed"
+    },
+    {
+      "id": "1.3",
+      "section": "Implementation",
+      "description": "Test `conclaude init` generates settings.json with timeout field",
+      "status": "completed"
+    },
+    {
+      "id": "2.1",
+      "section": "Validation",
+      "description": "Run `cargo build` to verify compilation",
+      "status": "completed"
+    },
+    {
+      "id": "2.2",
+      "section": "Validation",
+      "description": "Run `cargo test` to verify existing tests pass",
+      "status": "completed"
+    },
+    {
+      "id": "2.3",
+      "section": "Validation",
+      "description": "Manually test `conclaude init` in a temp directory and verify generated settings.json includes timeout",
+      "status": "completed"
+    }
+  ]
+}
