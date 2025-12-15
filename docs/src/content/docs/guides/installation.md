@@ -10,7 +10,7 @@ conclaude supports multiple installation methods. Choose the one that best fits 
 The fastest way to install on Linux or macOS:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/connix-io/conclaude/releases/latest/download/conclaude-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-installer.sh | sh
 ```
 
 This downloads the latest release binary and installs it to `~/.cargo/bin`.
@@ -20,7 +20,7 @@ This downloads the latest release binary and installs it to `~/.cargo/bin`.
 For Windows users:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/connix-io/conclaude/releases/latest/download/conclaude-installer.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-installer.ps1 | iex"
 ```
 
 ## npm Package
@@ -39,13 +39,13 @@ npm install -g conclaude
 
 ## Manual Binary Download
 
-Download the pre-built binary for your platform from [GitHub Releases](https://github.com/connix-io/conclaude/releases/latest).
+Download the pre-built binary for your platform from [GitHub Releases](https://github.com/connerohnesorge/conclaude/releases/latest).
 
 ### Linux x86_64
 
 ```bash
 curl -L -o conclaude.tar.xz \
-  https://github.com/connix-io/conclaude/releases/latest/download/conclaude-x86_64-unknown-linux-gnu.tar.xz
+  https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-x86_64-unknown-linux-gnu.tar.xz
 tar -xf conclaude.tar.xz
 chmod +x conclaude
 sudo mv conclaude /usr/local/bin/
@@ -55,7 +55,7 @@ sudo mv conclaude /usr/local/bin/
 
 ```bash
 curl -L -o conclaude.tar.xz \
-  https://github.com/connix-io/conclaude/releases/latest/download/conclaude-aarch64-unknown-linux-gnu.tar.xz
+  https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-aarch64-unknown-linux-gnu.tar.xz
 tar -xf conclaude.tar.xz
 chmod +x conclaude
 sudo mv conclaude /usr/local/bin/
@@ -67,7 +67,7 @@ For Alpine Linux and other musl-based distributions:
 
 ```bash
 curl -L -o conclaude.tar.xz \
-  https://github.com/connix-io/conclaude/releases/latest/download/conclaude-x86_64-unknown-linux-musl.tar.xz
+  https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-x86_64-unknown-linux-musl.tar.xz
 tar -xf conclaude.tar.xz
 chmod +x conclaude
 sudo mv conclaude /usr/local/bin/
@@ -77,7 +77,7 @@ sudo mv conclaude /usr/local/bin/
 
 ```bash
 curl -L -o conclaude.tar.xz \
-  https://github.com/connix-io/conclaude/releases/latest/download/conclaude-aarch64-apple-darwin.tar.xz
+  https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-aarch64-apple-darwin.tar.xz
 tar -xf conclaude.tar.xz
 chmod +x conclaude
 sudo mv conclaude /usr/local/bin/
@@ -87,7 +87,7 @@ sudo mv conclaude /usr/local/bin/
 
 ```bash
 curl -L -o conclaude.tar.xz \
-  https://github.com/connix-io/conclaude/releases/latest/download/conclaude-x86_64-apple-darwin.tar.xz
+  https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-x86_64-apple-darwin.tar.xz
 tar -xf conclaude.tar.xz
 chmod +x conclaude
 sudo mv conclaude /usr/local/bin/
@@ -111,7 +111,7 @@ sudo mv conclaude /usr/local/bin/
 Run conclaude directly without installation:
 
 ```bash
-nix run github:connix-io/conclaude -- --help
+nix run github:connerohnesorge/conclaude -- --help
 ```
 
 ### Development Shell
@@ -123,7 +123,7 @@ Add conclaude to your project's development shell:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    conclaude.url = "github:connix-io/conclaude";
+    conclaude.url = "github:connerohnesorge/conclaude";
   };
 
   outputs = { self, nixpkgs, conclaude, ... }:
@@ -165,7 +165,7 @@ cargo install conclaude
 Clone and build the repository:
 
 ```bash
-git clone https://github.com/connix-io/conclaude.git
+git clone https://github.com/connerohnesorge/conclaude.git
 cd conclaude
 cargo build --release
 ```
@@ -181,7 +181,7 @@ sudo cp target/release/conclaude /usr/local/bin/
 For development with hot reloading:
 
 ```bash
-git clone https://github.com/connix-io/conclaude.git
+git clone https://github.com/connerohnesorge/conclaude.git
 cd conclaude
 cargo install --path .
 ```

@@ -1,5 +1,5 @@
 {
-  "$id": "https://github.com/connix-io/conclaude/releases/latest/download/conclaude-schema.json",
+  "$id": "https://github.com/connerohnesorge/conclaude/releases/latest/download/conclaude-schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
