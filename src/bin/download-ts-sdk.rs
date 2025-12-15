@@ -4,7 +4,6 @@ use std::path::Path;
 use std::process;
 
 use flate2::read::GzDecoder;
-use reqwest;
 use serde_json::Value;
 use tar::Archive;
 
@@ -52,7 +51,10 @@ async fn download_tarball(url: &str) -> Result<Vec<u8>, Box<dyn std::error::Erro
 }
 
 // Extract tarball to target directory, stripping the "package/" prefix
-fn extract_tarball(tarball_bytes: &[u8], target_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn extract_tarball(
+    tarball_bytes: &[u8],
+    target_dir: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let cursor = Cursor::new(tarball_bytes);
     let decoder = GzDecoder::new(cursor);
     let mut archive = Archive::new(decoder);
@@ -175,7 +177,10 @@ async fn main() {
     println!();
 
     // Display success information
-    info(&format!("✓ TypeScript SDK source files are available at: {}", TARGET_DIR));
+    info(&format!(
+        "✓ TypeScript SDK source files are available at: {}",
+        TARGET_DIR
+    ));
 
     if check_src_directory(TARGET_DIR) {
         info(&format!("✓ Source code location: {}/src", TARGET_DIR));
