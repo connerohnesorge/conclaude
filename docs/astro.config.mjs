@@ -10,7 +10,8 @@ import starWarp from '@inox-tools/star-warp';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://conclaude.dev',
+	site: 'https://connerohnesorge.github.io',
+	base: 'conclaude',
 	integrations: [
 		starlight({
 			title: 'conclaude',
