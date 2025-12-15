@@ -18,6 +18,7 @@ Conclaude uses YAML configuration files to define lifecycle hooks, file protecti
 | [Pre Tool Use](/reference/config/pre-tool-use/) | Configuration for pre-tool-use hooks that run before tools are executed | `generatedFileMessage`, `preventAdditions`, `preventGeneratedFileEdits` |
 | [Stop](/reference/config/stop/) | Configuration for stop hook commands that run when Claude is about to stop | `commands`, `infinite`, `infiniteMessage` |
 | [Subagent Stop](/reference/config/subagent-stop/) | Configuration for subagent stop hooks with pattern-based command execution | `commands` |
+| [User Prompt Submit](/reference/config/user-prompt-submit/) | Configuration for user prompt submit hook with context injection rules | `contextRules` |
 
 ## Configuration Sections
 
@@ -42,4 +43,8 @@ Configuration for stop hook commands that run when Claude is about to stop
 ### [Subagent Stop](/reference/config/subagent-stop)
 
 Configuration for subagent stop hooks with pattern-based command execution.
+
+### [User Prompt Submit](/reference/config/user-prompt-submit)
+
+Configuration for user prompt submit hook with context injection rules
 

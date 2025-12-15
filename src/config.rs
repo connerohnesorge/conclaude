@@ -249,6 +249,11 @@ fn default_true() -> bool {
     true
 }
 
+/// Default function that returns Some(true) for optional bool fields
+fn default_option_true() -> Option<bool> {
+    Some(true)
+}
+
 /// Configuration for pre-tool-use hooks that run before tools are executed.
 ///
 /// All file protection rules are consolidated in this section to prevent Claude from
@@ -512,6 +517,73 @@ pub struct NotificationsConfig {
     pub show_system_events: bool,
 }
 
+/// Configuration for a single context injection rule
+///
+/// Rules define patterns to match against user prompts and context to inject
+/// when matches occur.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct ContextInjectionRule {
+    /// Regex pattern to match against user prompt text
+    pub pattern: String,
+    /// Context or instructions to prepend to Claude's system prompt when pattern matches.
+    /// Supports `@path/to/file` syntax to reference external files.
+    pub prompt: String,
+    /// Whether this rule is active. Default: true
+    #[serde(default = "default_option_true")]
+    pub enabled: Option<bool>,
+    /// Use case-insensitive pattern matching. Default: false
+    #[serde(default, rename = "caseInsensitive")]
+    pub case_insensitive: Option<bool>,
+}
+
+/// Configuration for user prompt submit hook with context injection rules
+///
+/// This hook allows automatic injection of context or instructions into Claude's
+/// system prompt based on pattern matching against user-submitted prompts.
+///
+/// # Examples
+///
+/// ```yaml
+/// userPromptSubmit:
+///   contextRules:
+///     # Basic pattern matching
+///     - pattern: "sidebar"
+///       prompt: |
+///         Make sure to read @.claude/contexts/sidebar.md before proceeding.
+///
+///     # Multiple patterns with logical OR
+///     - pattern: "auth|login|authentication"
+///       prompt: |
+///         Review the authentication patterns in @.claude/contexts/auth.md
+///
+///     # Case-insensitive matching
+///     - pattern: "(?i)database|sql|query"
+///       prompt: |
+///         Follow the database conventions in @.claude/contexts/database.md
+///
+///     # Optional rule that can be disabled
+///     - pattern: "performance"
+///       prompt: "Consider performance implications"
+///       enabled: false
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct UserPromptSubmitConfig {
+    /// List of context injection rules that match user prompts and inject context.
+    ///
+    /// Rules are evaluated in order. Multiple rules can match a single prompt,
+    /// and their contexts will be concatenated in configuration order.
+    ///
+    /// Each rule supports:
+    /// - `pattern`: (required) Regex pattern to match user prompt
+    /// - `prompt`: (required) Context to inject when pattern matches
+    /// - `enabled`: (optional) Whether rule is active. Default: true
+    /// - `caseInsensitive`: (optional) Case-insensitive matching. Default: false
+    #[serde(default, rename = "contextRules")]
+    pub context_rules: Vec<ContextInjectionRule>,
+}
+
 /// Configuration for permission request hooks that control tool permission decisions.
 ///
 /// This hook is fired when Claude requests permission to use a tool. Use this to
@@ -661,6 +733,8 @@ pub struct ConclaudeConfig {
     pub notifications: NotificationsConfig,
     #[serde(default, rename = "permissionRequest")]
     pub permission_request: Option<PermissionRequestConfig>,
+    #[serde(default, rename = "userPromptSubmit")]
+    pub user_prompt_submit: UserPromptSubmitConfig,
 }
 
 /// Extract the field name from an unknown field error message
@@ -683,6 +757,7 @@ fn suggest_similar_fields(unknown_field: &str, section: &str) -> Vec<String> {
         ("preToolUse", PreToolUseConfig::field_names()),
         ("notifications", NotificationsConfig::field_names()),
         ("permissionRequest", PermissionRequestConfig::field_names()),
+        ("userPromptSubmit", UserPromptSubmitConfig::field_names()),
         ("commands", StopCommand::field_names()),
         ("subagentStopCommands", SubagentStopCommand::field_names()),
     ];
@@ -942,6 +1017,40 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
                  For a valid configuration template, run:\n\
                    conclaude init",
                 permission_request.default
+            );
+            return Err(anyhow::anyhow!(error_msg));
+        }
+    }
+
+    // Validate userPromptSubmit context rules regex patterns
+    for (idx, rule) in config.user_prompt_submit.context_rules.iter().enumerate() {
+        // Try to compile the regex pattern
+        let regex_result = if rule.case_insensitive.unwrap_or(false) {
+            regex::RegexBuilder::new(&rule.pattern)
+                .case_insensitive(true)
+                .build()
+        } else {
+            regex::Regex::new(&rule.pattern)
+        };
+
+        if let Err(e) = regex_result {
+            let error_msg = format!(
+                "Invalid regex pattern in userPromptSubmit.contextRules[{idx}]\n\n\
+                 Error: Pattern '{}' failed to compile\n\n\
+                 Regex error: {}\n\n\
+                 Common causes:\n\
+                   • Unclosed brackets or parentheses\n\
+                   • Invalid escape sequences\n\
+                   • Incorrect regex syntax\n\n\
+                 Example valid patterns:\n\
+                   pattern: \"sidebar\"              # Simple text match\n\
+                   pattern: \"auth|login\"           # Multiple options (OR)\n\
+                   pattern: \"(?i)database\"         # Case-insensitive\n\
+                   pattern: \"test.*feature\"        # Wildcard matching\n\n\
+                 For regex help, see: https://docs.rs/regex/latest/regex/#syntax\n\n\
+                 For a valid configuration template, run:\n\
+                   conclaude init",
+                rule.pattern, e
             );
             return Err(anyhow::anyhow!(error_msg));
         }
@@ -1941,5 +2050,315 @@ notifications:
             fields.contains(&"timeout"),
             "StopCommand field_names should include 'timeout'"
         );
+    }
+
+    #[test]
+    fn test_user_prompt_submit_config_basic() {
+        let yaml = r#"
+userPromptSubmit:
+  contextRules:
+    - pattern: "sidebar"
+      prompt: "Read the sidebar docs"
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_ok(),
+            "Valid userPromptSubmit config should parse: {:?}",
+            result.err()
+        );
+
+        let config = result.unwrap();
+        assert_eq!(config.user_prompt_submit.context_rules.len(), 1);
+        assert_eq!(config.user_prompt_submit.context_rules[0].pattern, "sidebar");
+        assert_eq!(config.user_prompt_submit.context_rules[0].prompt, "Read the sidebar docs");
+    }
+
+    #[test]
+    fn test_user_prompt_submit_config_with_all_fields() {
+        let yaml = r#"
+userPromptSubmit:
+  contextRules:
+    - pattern: "auth|login"
+      prompt: "Review authentication docs"
+      enabled: true
+      caseInsensitive: true
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_ok(),
+            "Config with all fields should parse: {:?}",
+            result.err()
+        );
+
+        let config = result.unwrap();
+        let rule = &config.user_prompt_submit.context_rules[0];
+        assert_eq!(rule.pattern, "auth|login");
+        assert_eq!(rule.prompt, "Review authentication docs");
+        assert_eq!(rule.enabled, Some(true));
+        assert_eq!(rule.case_insensitive, Some(true));
+    }
+
+    #[test]
+    fn test_user_prompt_submit_config_invalid_regex() {
+        let yaml = r#"
+userPromptSubmit:
+  contextRules:
+    - pattern: "[invalid"
+      prompt: "Test"
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_err(),
+            "Invalid regex pattern should fail validation"
+        );
+        let error = result.err().unwrap().to_string();
+        assert!(
+            error.contains("Invalid regex pattern") || error.contains("[invalid"),
+            "Error should mention invalid regex: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_user_prompt_submit_config_multiple_rules() {
+        let yaml = r#"
+userPromptSubmit:
+  contextRules:
+    - pattern: "sidebar"
+      prompt: "Read sidebar docs"
+    - pattern: "auth"
+      prompt: "Read auth docs"
+    - pattern: "database"
+      prompt: "Read db docs"
+      enabled: false
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_ok(),
+            "Multiple context rules should parse: {:?}",
+            result.err()
+        );
+
+        let config = result.unwrap();
+        assert_eq!(config.user_prompt_submit.context_rules.len(), 3);
+
+        // Verify first rule
+        assert_eq!(config.user_prompt_submit.context_rules[0].pattern, "sidebar");
+        assert_eq!(config.user_prompt_submit.context_rules[0].enabled, Some(true));
+
+        // Verify third rule with enabled: false
+        assert_eq!(config.user_prompt_submit.context_rules[2].pattern, "database");
+        assert_eq!(config.user_prompt_submit.context_rules[2].enabled, Some(false));
+    }
+
+    #[test]
+    fn test_user_prompt_submit_config_optional() {
+        let yaml = r#"
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_ok(),
+            "Config without userPromptSubmit should parse: {:?}",
+            result.err()
+        );
+
+        let config = result.unwrap();
+        assert_eq!(config.user_prompt_submit.context_rules.len(), 0);
+    }
+
+    #[test]
+    fn test_user_prompt_submit_field_list() {
+        assert_eq!(
+            UserPromptSubmitConfig::field_names(),
+            vec!["contextRules"]
+        );
+    }
+
+    #[test]
+    fn test_context_injection_rule_field_list() {
+        assert_eq!(
+            ContextInjectionRule::field_names(),
+            vec!["pattern", "prompt", "enabled", "caseInsensitive"]
+        );
+    }
+
+    // Tests for Task 4.1: ContextInjectionRule parsing
+    #[test]
+    fn test_context_injection_rule_parsing_all_fields() {
+        let yaml = r#"
+userPromptSubmit:
+  contextRules:
+    - pattern: "sidebar"
+      prompt: "Read the sidebar docs"
+      enabled: true
+      caseInsensitive: false
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_ok(),
+            "Config with all fields should parse: {:?}",
+            result.err()
+        );
+
+        let config = result.unwrap();
+        let rule = &config.user_prompt_submit.context_rules[0];
+        assert_eq!(rule.pattern, "sidebar");
+        assert_eq!(rule.prompt, "Read the sidebar docs");
+        assert_eq!(rule.enabled, Some(true));
+        assert_eq!(rule.case_insensitive, Some(false));
+    }
+
+    #[test]
+    fn test_context_injection_rule_parsing_minimal_fields() {
+        let yaml = r#"
+userPromptSubmit:
+  contextRules:
+    - pattern: "auth"
+      prompt: "Check auth docs"
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_ok(),
+            "Config with minimal fields should parse: {:?}",
+            result.err()
+        );
+
+        let config = result.unwrap();
+        let rule = &config.user_prompt_submit.context_rules[0];
+        assert_eq!(rule.pattern, "auth");
+        assert_eq!(rule.prompt, "Check auth docs");
+        // Check default values
+        assert_eq!(rule.enabled, Some(true), "Default enabled should be true");
+        assert_eq!(rule.case_insensitive, None, "Default caseInsensitive should be None (false)");
+    }
+
+    #[test]
+    fn test_context_injection_rule_default_values() {
+        let yaml = r#"
+userPromptSubmit:
+  contextRules:
+    - pattern: "test"
+      prompt: "Test prompt"
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let config: ConclaudeConfig = serde_yaml::from_str(yaml).unwrap();
+        let rule = &config.user_prompt_submit.context_rules[0];
+
+        // Verify default for enabled is Some(true)
+        assert_eq!(rule.enabled, Some(true));
+
+        // Verify default for caseInsensitive is None (which means false)
+        assert_eq!(rule.case_insensitive, None);
     }
 }

@@ -3,6 +3,41 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
+    "ContextInjectionRule": {
+      "additionalProperties": false,
+      "description": "Configuration for a single context injection rule\n\nRules define patterns to match against user prompts and context to inject when matches occur.",
+      "properties": {
+        "caseInsensitive": {
+          "default": null,
+          "description": "Use case-insensitive pattern matching. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enabled": {
+          "default": true,
+          "description": "Whether this rule is active. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "pattern": {
+          "description": "Regex pattern to match against user prompt text",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "Context or instructions to prepend to Claude's system prompt when pattern matches. Supports `@path/to/file` syntax to reference external files.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pattern",
+        "prompt"
+      ],
+      "type": "object"
+    },
     "NotificationsConfig": {
       "additionalProperties": false,
       "description": "Configuration for system notifications.\n\nControls desktop notifications for hook execution, errors, successes, and system events. Notifications help you stay informed about what conclaude is doing in the background.\n\n# Examples\n\n```yaml # Enable notifications for all hooks notifications: enabled: true hooks: [\"*\"] showErrors: true showSuccess: true showSystemEvents: true ```\n\n```yaml # Enable notifications only for Stop hook notifications: enabled: true hooks: [\"Stop\"] showErrors: true showSuccess: false showSystemEvents: false ```\n\n```yaml # Enable notifications for specific hooks notifications: enabled: true hooks: [\"Stop\", \"PreToolUse\"] showErrors: true showSuccess: true showSystemEvents: true ```",
@@ -368,6 +403,21 @@
         }
       ],
       "description": "Configuration for an uneditable file rule.\n\nFiles that Claude cannot edit, using glob patterns. Supports various glob patterns for flexible file protection.\n\n# Formats\n\nTwo formats are supported for backward compatibility:\n\n1. **Simple string patterns**: `\"*.lock\"` - Just the glob pattern as a string - Uses a generic error message when blocking\n\n2. **Detailed objects with custom messages**: `{pattern: \"*.lock\", message: \"...\"}` - Allows specifying a custom error message - More descriptive feedback when files are blocked\n\n# Examples\n\n```yaml uneditableFiles: # Simple patterns (backward compatible) - \"./package.json\"      # specific file - \"*.md\"                # file extension - \"src/**/*.ts\"         # nested patterns - \"docs/**\"             # entire directories\n\n# Detailed patterns with custom error messages - pattern: \"*.lock\" message: \"Lock files are automatically created. Run 'npm install' to update.\" - pattern: \".env*\" message: \"Environment files contain secrets. Use .env.example instead.\" - pattern: \"{package,tsconfig}.json\" message: \"Configuration files require team review before changes.\" ```\n\nThe `#[serde(untagged)]` attribute allows serde to automatically handle both plain string patterns and detailed object configurations."
+    },
+    "UserPromptSubmitConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for user prompt submit hook with context injection rules\n\nThis hook allows automatic injection of context or instructions into Claude's system prompt based on pattern matching against user-submitted prompts.\n\n# Examples\n\n```yaml userPromptSubmit: contextRules: # Basic pattern matching - pattern: \"sidebar\" prompt: | Make sure to read @.claude/contexts/sidebar.md before proceeding.\n\n# Multiple patterns with logical OR - pattern: \"auth|login|authentication\" prompt: | Review the authentication patterns in @.claude/contexts/auth.md\n\n# Case-insensitive matching - pattern: \"(?i)database|sql|query\" prompt: | Follow the database conventions in @.claude/contexts/database.md\n\n# Optional rule that can be disabled - pattern: \"performance\" prompt: \"Consider performance implications\" enabled: false ```",
+      "properties": {
+        "contextRules": {
+          "default": [],
+          "description": "List of context injection rules that match user prompts and inject context.\n\nRules are evaluated in order. Multiple rules can match a single prompt, and their contexts will be concatenated in configuration order.\n\nEach rule supports: - `pattern`: (required) Regex pattern to match user prompt - `prompt`: (required) Context to inject when pattern matches - `enabled`: (optional) Whether rule is active. Default: true - `caseInsensitive`: (optional) Case-insensitive matching. Default: false",
+          "items": {
+            "$ref": "#/definitions/ContextInjectionRule"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
     }
   },
   "description": "Configuration schema for Conclaude - Claude Code hook handler",
@@ -433,6 +483,16 @@
       ],
       "default": {
         "commands": {}
+      }
+    },
+    "userPromptSubmit": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/UserPromptSubmitConfig"
+        }
+      ],
+      "default": {
+        "contextRules": []
       }
     }
   },

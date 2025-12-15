@@ -88,3 +88,34 @@ notifications:
 #   deny:
 #     - "BashOutput"
 #     - "KillShell"
+
+# User prompt submit hook - context injection based on prompt patterns
+# Automatically prepends context when prompts match patterns
+# Uncomment to enable:
+#
+# userPromptSubmit:
+#   contextRules:
+#     # Pattern-based context injection
+#     - pattern: "sidebar"
+#       prompt: |
+#         Make sure to read @.claude/contexts/sidebar.md before proceeding.
+#
+#     # Multiple patterns with regex alternation
+#     - pattern: "auth|login|authentication"
+#       prompt: |
+#         Review the authentication patterns in @.claude/contexts/auth.md
+#
+#     # Case-insensitive matching (using regex flag)
+#     - pattern: "(?i)database|sql|query"
+#       prompt: |
+#         Follow the database conventions in @.claude/contexts/database.md
+#
+#     # Disable a rule temporarily
+#     - pattern: "test"
+#       prompt: "Run tests before proceeding"
+#       enabled: false
+#
+#     # Explicit case-insensitive flag
+#     - pattern: "api"
+#       prompt: "Check API documentation first"
+#       caseInsensitive: true

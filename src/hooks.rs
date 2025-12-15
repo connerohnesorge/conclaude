@@ -231,8 +231,16 @@ where
 {
     match handler().await {
         Ok(result) => {
-            if result.blocked.unwrap_or(false) && result.message.is_some() {
-                eprintln!("{}", result.message.unwrap());
+            // Serialize the result to JSON and output to stdout
+            let json = serde_json::to_string(&result)
+                .context("Failed to serialize hook result to JSON")?;
+            println!("{}", json);
+
+            // If blocked, also print the message to stderr for visibility
+            if result.blocked.unwrap_or(false) {
+                if let Some(ref message) = result.message {
+                    eprintln!("{}", message);
+                }
                 std::process::exit(2);
             }
             std::process::exit(0);
@@ -659,12 +667,63 @@ pub async fn handle_notification() -> Result<HookResult> {
     Ok(HookResult::success())
 }
 
+/// Expand @file references in a prompt string to the actual file contents.
+///
+/// References like @.claude/contexts/sidebar.md are replaced with the file contents.
+/// Files are resolved relative to the config file directory.
+/// Missing files are left as literal text and logged as warnings.
+fn expand_file_references(prompt: &str, config_dir: &Path) -> String {
+    use regex::Regex;
+
+    // Match @path/to/file.ext pattern
+    let re = Regex::new(r"@([\w\-./]+)").unwrap();
+
+    re.replace_all(prompt, |caps: &regex::Captures| {
+        let file_ref = &caps[1];
+        let file_path = config_dir.join(file_ref);
+
+        match fs::read_to_string(&file_path) {
+            Ok(content) => content,
+            Err(e) => {
+                eprintln!(
+                    "Warning: Failed to expand @{} reference: {}",
+                    file_ref, e
+                );
+                // Leave the reference as-is if file can't be read
+                format!("@{}", file_ref)
+            }
+        }
+    }).to_string()
+}
+
+/// Compile a context injection rule's pattern to a regex.
+/// Returns None if the pattern fails to compile.
+fn compile_rule_pattern(rule: &crate::config::ContextInjectionRule) -> Option<regex::Regex> {
+    use regex::RegexBuilder;
+
+    let pattern = if rule.case_insensitive.unwrap_or(false) {
+        format!("(?i){}", rule.pattern)
+    } else {
+        rule.pattern.clone()
+    };
+
+    match RegexBuilder::new(&pattern).build() {
+        Ok(regex) => Some(regex),
+        Err(e) => {
+            eprintln!(
+                "Warning: Failed to compile context rule pattern '{}': {}",
+                rule.pattern, e
+            );
+            None
+        }
+    }
+}
+
 /// Handles `UserPromptSubmit` hook events when users submit input to Claude.
 ///
 /// # Errors
 ///
 /// Returns an error if payload validation fails or configuration loading fails.
-#[allow(clippy::unused_async)]
 pub async fn handle_user_prompt_submit() -> Result<HookResult> {
     let payload: UserPromptSubmitPayload = read_payload_from_stdin()?;
 
@@ -679,7 +738,57 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
         payload.base.session_id
     );
 
-    // Send notification for user prompt submission
+    // Load configuration for context injection rules
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    // Check if any context injection rules match
+    let mut matching_contexts = Vec::new();
+    let mut matched_patterns = Vec::new();
+
+    for rule in &config.user_prompt_submit.context_rules {
+        // Skip disabled rules
+        if rule.enabled == Some(false) {
+            continue;
+        }
+
+        // Compile the pattern
+        let Some(regex) = compile_rule_pattern(rule) else {
+            continue;
+        };
+
+        // Check if the pattern matches the user prompt
+        if regex.is_match(&payload.prompt) {
+            // Expand any @file references in the prompt
+            let expanded_prompt = expand_file_references(&rule.prompt, config_dir);
+            matching_contexts.push(expanded_prompt);
+            matched_patterns.push(rule.pattern.clone());
+        }
+    }
+
+    // If we have matching contexts, combine them and return
+    if !matching_contexts.is_empty() {
+        let combined_context = matching_contexts.join("\n\n");
+
+        println!(
+            "Context injection: {} rule(s) matched user prompt",
+            matching_contexts.len()
+        );
+        println!("Matched patterns: {:?}", matched_patterns);
+
+        send_notification(
+            "UserPromptSubmit",
+            "success",
+            Some(&format!(
+                "Context injected ({} rule(s) matched)",
+                matching_contexts.len()
+            )),
+        );
+
+        return Ok(HookResult::with_context(combined_context));
+    }
+
+    // Send notification for user prompt submission (no context injection)
     send_notification("UserPromptSubmit", "success", Some("User input received"));
     Ok(HookResult::success())
 }
@@ -1936,4 +2045,242 @@ fn check_root_additions(snapshot: &HashSet<String>) -> Result<Option<HookResult>
     }
 
     Ok(None)
+}
+
+#[cfg(test)]
+mod prompt_context_tests {
+    use super::*;
+    use crate::config::ContextInjectionRule;
+    use std::fs;
+    use tempfile::TempDir;
+
+    // Tests for Task 4.2: Regex pattern matching
+
+    #[test]
+    fn test_regex_simple_string_pattern() {
+        let rule = ContextInjectionRule {
+            pattern: "sidebar".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+
+        let regex = compile_rule_pattern(&rule).unwrap();
+        assert!(regex.is_match("update the sidebar"));
+        assert!(regex.is_match("sidebar component"));
+        assert!(!regex.is_match("side bar"));
+    }
+
+    #[test]
+    fn test_regex_alternation_pattern() {
+        let rule = ContextInjectionRule {
+            pattern: "auth|login|authentication".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+
+        let regex = compile_rule_pattern(&rule).unwrap();
+        assert!(regex.is_match("fix auth bug"));
+        assert!(regex.is_match("update login page"));
+        assert!(regex.is_match("add authentication"));
+        // "authorize" does not match because it contains "auth" as substring
+        // If we want word boundaries, use pattern: "\\bauth\\b|\\blogin\\b|\\bauthentication\\b"
+        assert!(!regex.is_match("update the navbar"));
+    }
+
+    #[test]
+    fn test_regex_case_insensitive_with_flag_in_pattern() {
+        let rule = ContextInjectionRule {
+            pattern: "(?i)database".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+
+        let regex = compile_rule_pattern(&rule).unwrap();
+        assert!(regex.is_match("DATABASE connection"));
+        assert!(regex.is_match("database query"));
+        assert!(regex.is_match("Database setup"));
+    }
+
+    #[test]
+    fn test_regex_case_insensitive_with_config_field() {
+        let rule = ContextInjectionRule {
+            pattern: "database".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: Some(true),
+        };
+
+        let regex = compile_rule_pattern(&rule).unwrap();
+        assert!(regex.is_match("DATABASE connection"));
+        assert!(regex.is_match("database query"));
+        assert!(regex.is_match("Database setup"));
+    }
+
+    #[test]
+    fn test_regex_pattern_does_not_match() {
+        let rule = ContextInjectionRule {
+            pattern: "sidebar".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+
+        let regex = compile_rule_pattern(&rule).unwrap();
+        assert!(!regex.is_match("update the navigation"));
+        assert!(!regex.is_match("fix header component"));
+    }
+
+    // Tests for Task 4.3: File reference expansion
+
+    #[test]
+    fn test_expand_file_references_valid_file() {
+        // Create temporary directory and file
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.md");
+        fs::write(&file_path, "This is test content").unwrap();
+
+        let prompt = format!("Read @{}", file_path.file_name().unwrap().to_str().unwrap());
+        let expanded = expand_file_references(&prompt, temp_dir.path());
+
+        assert_eq!(expanded, "Read This is test content");
+    }
+
+    #[test]
+    fn test_expand_file_references_missing_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let prompt = "Read @missing-file.md";
+        let expanded = expand_file_references(prompt, temp_dir.path());
+
+        // Missing file reference should be left as-is
+        assert_eq!(expanded, "Read @missing-file.md");
+    }
+
+    #[test]
+    fn test_expand_file_references_multiple_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let file1 = temp_dir.path().join("file1.md");
+        let file2 = temp_dir.path().join("file2.md");
+        fs::write(&file1, "Content 1").unwrap();
+        fs::write(&file2, "Content 2").unwrap();
+
+        let prompt = "Read @file1.md and @file2.md";
+        let expanded = expand_file_references(prompt, temp_dir.path());
+
+        assert_eq!(expanded, "Read Content 1 and Content 2");
+    }
+
+    #[test]
+    fn test_expand_file_references_no_references() {
+        let temp_dir = TempDir::new().unwrap();
+        let prompt = "This is a normal prompt without file references";
+        let expanded = expand_file_references(prompt, temp_dir.path());
+
+        // Prompt should be unchanged
+        assert_eq!(expanded, "This is a normal prompt without file references");
+    }
+
+    // Tests for Task 4.4: Multiple pattern matches
+
+    #[test]
+    fn test_multiple_patterns_both_match() {
+        let rule1 = ContextInjectionRule {
+            pattern: "sidebar".to_string(),
+            prompt: "Context 1".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        let rule2 = ContextInjectionRule {
+            pattern: "auth".to_string(),
+            prompt: "Context 2".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+
+        let regex1 = compile_rule_pattern(&rule1).unwrap();
+        let regex2 = compile_rule_pattern(&rule2).unwrap();
+
+        let user_prompt = "update the auth sidebar";
+
+        assert!(regex1.is_match(user_prompt));
+        assert!(regex2.is_match(user_prompt));
+    }
+
+    #[test]
+    fn test_multiple_patterns_first_matches_second_does_not() {
+        let rule1 = ContextInjectionRule {
+            pattern: "sidebar".to_string(),
+            prompt: "Context 1".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        let rule2 = ContextInjectionRule {
+            pattern: "auth".to_string(),
+            prompt: "Context 2".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+
+        let regex1 = compile_rule_pattern(&rule1).unwrap();
+        let regex2 = compile_rule_pattern(&rule2).unwrap();
+
+        let user_prompt = "update the sidebar";
+
+        assert!(regex1.is_match(user_prompt));
+        assert!(!regex2.is_match(user_prompt));
+    }
+
+    #[test]
+    fn test_multiple_patterns_none_match() {
+        let rule1 = ContextInjectionRule {
+            pattern: "sidebar".to_string(),
+            prompt: "Context 1".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        let rule2 = ContextInjectionRule {
+            pattern: "auth".to_string(),
+            prompt: "Context 2".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+
+        let regex1 = compile_rule_pattern(&rule1).unwrap();
+        let regex2 = compile_rule_pattern(&rule2).unwrap();
+
+        let user_prompt = "update the navigation";
+
+        assert!(!regex1.is_match(user_prompt));
+        assert!(!regex2.is_match(user_prompt));
+    }
+
+    // Tests for Task 4.6: Invalid regex handling
+
+    #[test]
+    fn test_invalid_regex_pattern_returns_none() {
+        let rule = ContextInjectionRule {
+            pattern: "[invalid".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+
+        let result = compile_rule_pattern(&rule);
+        assert!(result.is_none(), "Invalid regex should return None");
+    }
+
+    #[test]
+    fn test_invalid_regex_pattern_unclosed_paren() {
+        let rule = ContextInjectionRule {
+            pattern: "(unclosed".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+
+        let result = compile_rule_pattern(&rule);
+        assert!(result.is_none(), "Invalid regex should return None");
+    }
 }
