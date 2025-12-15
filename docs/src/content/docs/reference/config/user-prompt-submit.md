@@ -59,4 +59,4 @@ userPromptSubmit: contextRules: # Basic pattern matching - pattern: "sidebar" pr
 
 ## See Also
 
-- [Configuration Overview](configuration) - Complete reference for all configuration options
+- [Configuration Overview](/reference/config/configuration) - Complete reference for all configuration options

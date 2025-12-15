@@ -52,7 +52,7 @@ export default defineConfig({
 					actions: ['copy', 'view', 'chatgpt', 'claude'],
 				}),
 				starlightChangelogs(),
-				starlightLinksValidator(),
+				// starlightLinksValidator(), // Temporarily disabled - doesn't work with base path
 				starlightLlmsTxt(),
 				starlightSiteGraph(),
 				starWarp(),
