@@ -15,7 +15,7 @@ use notify_rust::{Notification, Urgency};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::{self, Read};
+use std::io::{self, BufRead, BufReader, Read};
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::OnceLock;
@@ -1116,10 +1116,12 @@ pub(crate) fn match_subagent_patterns<'a>(
 ///
 /// * `payload` - The SubagentStopPayload containing subagent information
 /// * `config_dir` - The directory containing the configuration file
+/// * `agent_name` - The extracted agent name (subagent_type), if available
 #[must_use]
 pub(crate) fn build_subagent_env_vars(
     payload: &SubagentStopPayload,
     config_dir: &Path,
+    agent_name: Option<&str>,
 ) -> HashMap<String, String> {
     let mut env_vars = HashMap::new();
 
@@ -1129,6 +1131,10 @@ pub(crate) fn build_subagent_env_vars(
         "CONCLAUDE_AGENT_TRANSCRIPT_PATH".to_string(),
         payload.agent_transcript_path.clone(),
     );
+
+    // Set CONCLAUDE_AGENT_NAME to the extracted name, or fall back to agent_id
+    let agent_name_value = agent_name.unwrap_or(&payload.agent_id);
+    env_vars.insert("CONCLAUDE_AGENT_NAME".to_string(), agent_name_value.to_string());
 
     // Session-level environment variables
     env_vars.insert(
@@ -1148,6 +1154,11 @@ pub(crate) fn build_subagent_env_vars(
         "CONCLAUDE_CONFIG_DIR".to_string(),
         config_dir.to_string_lossy().to_string(),
     );
+
+    // Full JSON payload for advanced use cases
+    if let Ok(json) = serde_json::to_string(payload) {
+        env_vars.insert("CONCLAUDE_PAYLOAD_JSON".to_string(), json);
+    }
 
     env_vars
 }
@@ -1370,6 +1381,142 @@ async fn execute_subagent_stop_commands(
     Ok(())
 }
 
+/// Extract the agent name (subagent_type) from the main transcript file
+/// by finding the Task tool call that spawned this agent.
+///
+/// Returns None if the agent name cannot be found.
+///
+/// # Arguments
+///
+/// * `transcript_path` - Path to the main transcript file (JSONL format)
+/// * `agent_id` - The agent ID to search for
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be opened or read.
+pub fn extract_agent_name_from_transcript(
+    transcript_path: &str,
+    agent_id: &str,
+) -> Result<Option<String>> {
+    // Open the transcript file
+    let file = match fs::File::open(transcript_path) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!(
+                "Failed to open transcript file '{}' for agent name extraction: {}",
+                transcript_path, e
+            );
+            return Ok(None);
+        }
+    };
+
+    let reader = BufReader::new(file);
+
+    // First pass: find the tool_result with matching agentId and get the tool_use_id
+    let mut tool_use_id: Option<String> = None;
+
+    for line_result in reader.lines() {
+        let line = match line_result {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("Error reading line from transcript: {}", e);
+                continue;
+            }
+        };
+
+        // Parse the JSON line
+        let parsed: Value = match serde_json::from_str(&line) {
+            Ok(v) => v,
+            Err(_) => continue, // Skip malformed lines
+        };
+
+        // Check if this is a tool_result with matching agentId
+        if let Some(tool_use_result) = parsed.get("toolUseResult") {
+            if let Some(result_agent_id) = tool_use_result.get("agentId").and_then(|v| v.as_str())
+            {
+                if result_agent_id == agent_id {
+                    // Found the matching tool result, extract tool_use_id
+                    if let Some(message) = parsed.get("message") {
+                        if let Some(content) = message.get("content").and_then(|v| v.as_array()) {
+                            for item in content {
+                                if let Some(use_id) =
+                                    item.get("tool_use_id").and_then(|v| v.as_str())
+                                {
+                                    tool_use_id = Some(use_id.to_string());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    let tool_use_id = match tool_use_id {
+        Some(id) => id,
+        None => {
+            eprintln!(
+                "Could not find tool_result with agentId '{}' in transcript",
+                agent_id
+            );
+            return Ok(None);
+        }
+    };
+
+    // Second pass: find the Task tool_use with matching id and extract subagent_type
+    let file = fs::File::open(transcript_path)?;
+    let reader = BufReader::new(file);
+
+    for line_result in reader.lines() {
+        let line = match line_result {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("Error reading line from transcript: {}", e);
+                continue;
+            }
+        };
+
+        // Parse the JSON line
+        let parsed: Value = match serde_json::from_str(&line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        // Check if this has a message.content array
+        if let Some(message) = parsed.get("message") {
+            if let Some(content) = message.get("content").and_then(|v| v.as_array()) {
+                for item in content {
+                    // Check if this is a tool_use with type "tool_use"
+                    if item.get("type").and_then(|v| v.as_str()) == Some("tool_use") {
+                        // Check if the id matches
+                        if item.get("id").and_then(|v| v.as_str()) == Some(&tool_use_id) {
+                            // Check if the name is "Task"
+                            if item.get("name").and_then(|v| v.as_str()) == Some("Task") {
+                                // Extract subagent_type from input
+                                if let Some(input) = item.get("input") {
+                                    if let Some(subagent_type) =
+                                        input.get("subagent_type").and_then(|v| v.as_str())
+                                    {
+                                        return Ok(Some(subagent_type.to_string()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    eprintln!(
+        "Could not find Task tool_use with id '{}' in transcript",
+        tool_use_id
+    );
+    Ok(None)
+}
+
 /// Handles `SubagentStop` hook events when Claude subagents complete their tasks.
 ///
 /// This function processes subagent stop events by:
@@ -1393,12 +1540,34 @@ pub async fn handle_subagent_stop() -> Result<HookResult> {
         payload.base.session_id, payload.agent_id
     );
 
-    // Set environment variables for the subagent's information (for backward compatibility)
+    // Extract agent name from main transcript
+    let agent_name = extract_agent_name_from_transcript(
+        &payload.base.transcript_path,
+        &payload.agent_id,
+    )?;
+
+    // Set environment variables for the subagent's information
     std::env::set_var("CONCLAUDE_AGENT_ID", &payload.agent_id);
     std::env::set_var(
         "CONCLAUDE_AGENT_TRANSCRIPT_PATH",
         &payload.agent_transcript_path,
     );
+
+    // Set CONCLAUDE_AGENT_NAME to the extracted name, or fall back to agent_id
+    let agent_name_value = agent_name.as_deref().unwrap_or(&payload.agent_id);
+    std::env::set_var("CONCLAUDE_AGENT_NAME", agent_name_value);
+
+    if let Some(name) = &agent_name {
+        println!(
+            "Extracted agent name '{}' for agent_id '{}'",
+            name, payload.agent_id
+        );
+    } else {
+        println!(
+            "Could not extract agent name for agent_id '{}', using agent_id as fallback",
+            payload.agent_id
+        );
+    }
 
     // Load configuration
     let (config, config_path) = get_config().await?;
@@ -1421,7 +1590,7 @@ pub async fn handle_subagent_stop() -> Result<HookResult> {
 
             if !commands.is_empty() {
                 // Build environment variables
-                let env_vars = build_subagent_env_vars(&payload, config_dir);
+                let env_vars = build_subagent_env_vars(&payload, config_dir, agent_name.as_deref());
 
                 // Execute commands (graceful failure handling)
                 execute_subagent_stop_commands(&commands, &env_vars, config_dir).await?;

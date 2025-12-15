@@ -311,7 +311,8 @@ Additional variables for SubagentStart and SubagentStop:
 
 | Variable | Description |
 |----------|-------------|
-| `CONCLAUDE_AGENT_ID` | Subagent identifier (e.g., "coder", "tester") |
-| `CONCLAUDE_SUBAGENT_TYPE` | Subagent type (e.g., "implementation") |
+| `CONCLAUDE_AGENT_ID` | Raw agent identifier (e.g., "adb0a8b") |
+| `CONCLAUDE_AGENT_NAME` | Semantic agent name (e.g., "coder", "tester", "stuck") extracted from main transcript. Falls back to `CONCLAUDE_AGENT_ID` if extraction fails. (SubagentStop only) |
+| `CONCLAUDE_SUBAGENT_TYPE` | Subagent type (e.g., "implementation") (SubagentStart only) |
 | `CONCLAUDE_AGENT_TRANSCRIPT_PATH` | Path to subagent transcript |
 | `CONCLAUDE_PERMISSION_MODE` | Permission mode (SubagentStart only) |

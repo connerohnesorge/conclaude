@@ -838,7 +838,8 @@ $CONCLAUDE_HOOK_EVENT          # "SubagentStop"
 $CONCLAUDE_CONFIG_DIR          # Directory containing the config file
 
 # Subagent-specific context
-$CONCLAUDE_AGENT_ID            # The subagent identifier
+$CONCLAUDE_AGENT_ID            # The raw agent identifier (e.g., "adb0a8b")
+$CONCLAUDE_AGENT_NAME          # The semantic agent name (e.g., "coder", "tester", "stuck")
 $CONCLAUDE_AGENT_TRANSCRIPT_PATH # Path to subagent's transcript
 ```
 
@@ -1219,7 +1220,8 @@ preToolUse:
 - `CONCLAUDE_PERMISSION_MODE`: Permission mode for the session (e.g., "ask", "allow", "deny")
 
 **SubagentStop Hook Variables** (Available when SubagentStop hook executes):
-- `CONCLAUDE_AGENT_ID`: Identifier for the subagent that completed (e.g., "coder", "tester", "stuck")
+- `CONCLAUDE_AGENT_ID`: The raw agent identifier (e.g., "adb0a8b")
+- `CONCLAUDE_AGENT_NAME`: The semantic agent name extracted from the main transcript (e.g., "coder", "tester", "stuck"). Falls back to `CONCLAUDE_AGENT_ID` if extraction fails.
 - `CONCLAUDE_AGENT_TRANSCRIPT_PATH`: Path to the subagent's transcript file for accessing its work history
 
 **Available in all stop hooks:**

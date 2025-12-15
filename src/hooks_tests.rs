@@ -775,10 +775,14 @@ fn test_build_subagent_env_vars() {
         agent_transcript_path: "/path/to/agent/transcript.json".to_string(),
     };
 
-    let env_vars = build_subagent_env_vars(&payload, Path::new("/test/config"));
+    let env_vars = build_subagent_env_vars(&payload, Path::new("/test/config"), Some("coder"));
 
     assert_eq!(
         env_vars.get("CONCLAUDE_AGENT_ID"),
+        Some(&"coder".to_string())
+    );
+    assert_eq!(
+        env_vars.get("CONCLAUDE_AGENT_NAME"),
         Some(&"coder".to_string())
     );
     assert_eq!(
@@ -805,6 +809,11 @@ fn test_build_subagent_env_vars() {
         env_vars.get("CONCLAUDE_CONFIG_DIR"),
         Some(&"/test/config".to_string())
     );
+
+    // Verify CONCLAUDE_PAYLOAD_JSON contains the full payload
+    let payload_json = env_vars.get("CONCLAUDE_PAYLOAD_JSON").unwrap();
+    assert!(payload_json.contains("\"agent_id\":\"coder\""));
+    assert!(payload_json.contains("\"session_id\":\"test-session-123\""));
 }
 
 #[test]
@@ -824,17 +833,19 @@ fn test_build_subagent_env_vars_all_expected_keys() {
         agent_transcript_path: "/agent/transcript".to_string(),
     };
 
-    let env_vars = build_subagent_env_vars(&payload, Path::new("."));
+    let env_vars = build_subagent_env_vars(&payload, Path::new("."), None);
 
     // Verify all expected keys are present
     let expected_keys = [
         "CONCLAUDE_AGENT_ID",
+        "CONCLAUDE_AGENT_NAME",
         "CONCLAUDE_AGENT_TRANSCRIPT_PATH",
         "CONCLAUDE_SESSION_ID",
         "CONCLAUDE_TRANSCRIPT_PATH",
         "CONCLAUDE_HOOK_EVENT",
         "CONCLAUDE_CWD",
         "CONCLAUDE_CONFIG_DIR",
+        "CONCLAUDE_PAYLOAD_JSON",
     ];
 
     for key in &expected_keys {
@@ -842,6 +853,12 @@ fn test_build_subagent_env_vars_all_expected_keys() {
     }
 
     assert_eq!(env_vars.len(), expected_keys.len());
+
+    // When agent_name is None, it should fall back to agent_id
+    assert_eq!(
+        env_vars.get("CONCLAUDE_AGENT_NAME"),
+        Some(&"tester".to_string())
+    );
 }
 
 #[test]
@@ -952,4 +969,115 @@ fn test_collect_subagent_stop_commands_no_matching_patterns() {
 
     let collected = collect_subagent_stop_commands(&config, &matching_patterns).unwrap();
     assert!(collected.is_empty());
+}
+
+#[test]
+fn test_extract_agent_name_from_transcript_success() {
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    // Create a temporary transcript file with realistic content
+    let mut temp_file = NamedTempFile::new().unwrap();
+
+    // Write a Task tool_use line
+    writeln!(
+        temp_file,
+        r#"{{"message":{{"role":"assistant","content":[{{"type":"tool_use","id":"toolu_01424YNSBt1xf2XzWa3NBN4b","name":"Task","input":{{"subagent_type":"coder","instructions":"Implement the feature"}}}}]}}}}"#
+    ).unwrap();
+
+    // Write some other lines
+    writeln!(
+        temp_file,
+        r#"{{"message":{{"role":"user","content":"Test message"}}}}"#
+    ).unwrap();
+
+    // Write a tool_result line with matching agentId
+    writeln!(
+        temp_file,
+        r#"{{"message":{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"toolu_01424YNSBt1xf2XzWa3NBN4b","content":"Result"}}]}},"toolUseResult":{{"agentId":"adb0a8b","status":"completed"}}}}"#
+    ).unwrap();
+
+    temp_file.flush().unwrap();
+
+    let result = extract_agent_name_from_transcript(
+        temp_file.path().to_str().unwrap(),
+        "adb0a8b"
+    ).unwrap();
+
+    assert_eq!(result, Some("coder".to_string()));
+}
+
+#[test]
+fn test_extract_agent_name_from_transcript_agent_not_found() {
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    // Create a temporary transcript file
+    let mut temp_file = NamedTempFile::new().unwrap();
+
+    writeln!(
+        temp_file,
+        r#"{{"message":{{"role":"assistant","content":[{{"type":"tool_use","id":"toolu_123","name":"Task","input":{{"subagent_type":"coder"}}}}]}}}}"#
+    ).unwrap();
+
+    writeln!(
+        temp_file,
+        r#"{{"message":{{"content":[{{"type":"tool_result","tool_use_id":"toolu_123"}}]}},"toolUseResult":{{"agentId":"different_id"}}}}"#
+    ).unwrap();
+
+    temp_file.flush().unwrap();
+
+    let result = extract_agent_name_from_transcript(
+        temp_file.path().to_str().unwrap(),
+        "nonexistent_id"
+    ).unwrap();
+
+    assert_eq!(result, None);
+}
+
+#[test]
+fn test_extract_agent_name_from_transcript_file_not_found() {
+    let result = extract_agent_name_from_transcript(
+        "/nonexistent/path/to/transcript.jsonl",
+        "some_id"
+    ).unwrap();
+
+    assert_eq!(result, None);
+}
+
+#[test]
+fn test_extract_agent_name_from_transcript_different_agent_types() {
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    let test_cases = vec![
+        ("coder", "agent123"),
+        ("tester", "agent456"),
+        ("stuck", "agent789"),
+    ];
+
+    for (agent_type, agent_id) in test_cases {
+        let mut temp_file = NamedTempFile::new().unwrap();
+
+        writeln!(
+            temp_file,
+            r#"{{"message":{{"role":"assistant","content":[{{"type":"tool_use","id":"tool_use_id","name":"Task","input":{{"subagent_type":"{}"}}}}]}}}}"#,
+            agent_type
+        ).unwrap();
+
+        writeln!(
+            temp_file,
+            r#"{{"message":{{"content":[{{"type":"tool_result","tool_use_id":"tool_use_id"}}]}},"toolUseResult":{{"agentId":"{}"}}}}"#,
+            agent_id
+        ).unwrap();
+
+        temp_file.flush().unwrap();
+
+        let result = extract_agent_name_from_transcript(
+            temp_file.path().to_str().unwrap(),
+            agent_id
+        ).unwrap();
+
+        assert_eq!(result, Some(agent_type.to_string()));
+    }
 }
