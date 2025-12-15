@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "1.1",
+      "section": "Dependencies & Setup",
+      "description": "Add `reqwest` dependency with `rustls-tls` feature to Cargo.toml",
+      "status": "completed"
+    },
+    {
+      "id": "1.2",
+      "section": "Dependencies & Setup",
+      "description": "Add `flate2` dependency to Cargo.toml",
+      "status": "completed"
+    },
+    {
+      "id": "1.3",
+      "section": "Dependencies & Setup",
+      "description": "Add `tar` dependency to Cargo.toml",
+      "status": "completed"
+    },
+    {
+      "id": "1.4",
+      "section": "Dependencies & Setup",
+      "description": "Add `[[bin]]` entry for `download-ts-sdk` pointing to `scripts/download-ts-sdk.rs`",
+      "status": "completed"
+    },
+    {
+      "id": "2.1",
+      "section": "Core Implementation",
+      "description": "Create `scripts/download-ts-sdk.rs` with tokio main entry point",
+      "status": "completed"
+    },
+    {
+      "id": "2.2",
+      "section": "Core Implementation",
+      "description": "Implement ANSI color helper functions (info, warn, error) matching original script format:",
+      "status": "completed"
+    },
+    {
+      "id": "2.3",
+      "section": "Core Implementation",
+      "description": "Define constants:",
+      "status": "completed"
+    },
+    {
+      "id": "2.4",
+      "section": "Core Implementation",
+      "description": "Implement `fetch_package_metadata()`: GET registry URL, parse JSON, extract `dist.tarball` URL from `dist-tags.latest` version",
+      "status": "completed"
+    },
+    {
+      "id": "2.5",
+      "section": "Core Implementation",
+      "description": "Implement `download_tarball()`: GET tarball URL, return bytes",
+      "status": "completed"
+    },
+    {
+      "id": "2.6",
+      "section": "Core Implementation",
+      "description": "Implement `extract_tarball()`:",
+      "status": "completed"
+    },
+    {
+      "id": "2.7",
+      "section": "Core Implementation",
+      "description": "Implement `remove_existing_installation()`: check if TARGET_DIR/package.json exists, if so remove TARGET_DIR",
+      "status": "completed"
+    },
+    {
+      "id": "2.8",
+      "section": "Core Implementation",
+      "description": "Implement `create_target_directory()`: create TARGET_DIR with mkdir_all",
+      "status": "completed"
+    },
+    {
+      "id": "2.9",
+      "section": "Core Implementation",
+      "description": "Implement `read_installed_version()`: parse TARGET_DIR/package.json, extract \"version\" field",
+      "status": "completed"
+    },
+    {
+      "id": "2.10",
+      "section": "Core Implementation",
+      "description": "Implement `check_src_directory()`: check if TARGET_DIR/src exists",
+      "status": "completed"
+    },
+    {
+      "id": "3.1",
+      "section": "Main Flow",
+      "description": "Implement main() with exact message sequence matching original script:",
+      "status": "completed"
+    },
+    {
+      "id": "3.2",
+      "section": "Main Flow",
+      "description": "Implement error handling with descriptive messages matching original script style",
+      "status": "completed"
+    },
+    {
+      "id": "4.1",
+      "section": "Validation",
+      "description": "Verify binary compiles: `cargo build --bin download-ts-sdk`",
+      "status": "completed"
+    },
+    {
+      "id": "4.2",
+      "section": "Validation",
+      "description": "Run binary and confirm SDK downloads to correct location",
+      "status": "completed"
+    },
+    {
+      "id": "4.3",
+      "section": "Validation",
+      "description": "Verify extracted file structure contains package.json, src/, etc.",
+      "status": "completed"
+    },
+    {
+      "id": "4.4",
+      "section": "Validation",
+      "description": "Verify version is correctly extracted and displayed",
+      "status": "completed"
+    },
+    {
+      "id": "4.5",
+      "section": "Validation",
+      "description": "Test re-running binary replaces existing installation cleanly",
+      "status": "completed"
+    },
+    {
+      "id": "4.6",
+      "section": "Validation",
+      "description": "Test error messages appear correctly for network failures",
+      "status": "completed"
+    },
+    {
+      "id": "5.1",
+      "section": "Cleanup",
+      "description": "Remove `scripts/download-ts-sdk.sh`",
+      "status": "completed"
+    },
+    {
+      "id": "5.2",
+      "section": "Cleanup",
+      "description": "Search codebase for references to the shell script and update if needed",
+      "status": "completed"
+    }
+  ]
+}
