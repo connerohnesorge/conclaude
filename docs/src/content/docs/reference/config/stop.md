@@ -57,4 +57,4 @@ Configuration for individual stop commands with optional messages
 
 ## See Also
 
-- [Configuration Overview](/reference/config/configuration/) - Complete reference for all configuration options
+- [Configuration Overview](configuration) - Complete reference for all configuration options

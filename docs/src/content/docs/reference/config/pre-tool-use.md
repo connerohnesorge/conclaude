@@ -199,4 +199,4 @@ preToolUse: # Prevent root-level file creation preventRootAdditions: true
 
 ## See Also
 
-- [Configuration Overview](/reference/config/configuration/) - Complete reference for all configuration options
+- [Configuration Overview](configuration) - Complete reference for all configuration options
