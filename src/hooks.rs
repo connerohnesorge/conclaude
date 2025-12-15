@@ -2003,6 +2003,50 @@ async fn check_git_ignored_file(payload: &PreToolUsePayload) -> Result<Option<Ho
     Ok(None)
 }
 
+/// Snapshot the root directory
+///
+/// # Errors
+///
+/// Returns an error if the current directory cannot be read.
+fn snapshot_root_directory() -> Result<HashSet<String>> {
+    let mut snapshot = HashSet::new();
+
+    for entry in (fs::read_dir(".")?).flatten() {
+        if let Ok(file_name) = entry.file_name().into_string() {
+            snapshot.insert(file_name);
+        }
+    }
+
+    Ok(snapshot)
+}
+
+/// Check for new additions to the root directory
+///
+/// # Errors
+///
+/// Returns an error if the current directory cannot be read.
+fn check_root_additions(snapshot: &HashSet<String>) -> Result<Option<HookResult>> {
+    let mut new_files = Vec::new();
+
+    for entry in (fs::read_dir(".")?).flatten() {
+        if let Ok(file_name) = entry.file_name().into_string() {
+            if !snapshot.contains(&file_name) && !file_name.starts_with('.') {
+                new_files.push(file_name);
+            }
+        }
+    }
+
+    if !new_files.is_empty() {
+        let message = format!(
+            "Unauthorized root additions detected: {}",
+            new_files.join(", ")
+        );
+        return Ok(Some(HookResult::blocked(message)));
+    }
+
+    Ok(None)
+}
+
 #[cfg(test)]
 mod prompt_context_tests {
     use super::*;
@@ -2239,48 +2283,4 @@ mod prompt_context_tests {
         let result = compile_rule_pattern(&rule);
         assert!(result.is_none(), "Invalid regex should return None");
     }
-}
-
-/// Snapshot the root directory
-///
-/// # Errors
-///
-/// Returns an error if the current directory cannot be read.
-fn snapshot_root_directory() -> Result<HashSet<String>> {
-    let mut snapshot = HashSet::new();
-
-    for entry in (fs::read_dir(".")?).flatten() {
-        if let Ok(file_name) = entry.file_name().into_string() {
-            snapshot.insert(file_name);
-        }
-    }
-
-    Ok(snapshot)
-}
-
-/// Check for new additions to the root directory
-///
-/// # Errors
-///
-/// Returns an error if the current directory cannot be read.
-fn check_root_additions(snapshot: &HashSet<String>) -> Result<Option<HookResult>> {
-    let mut new_files = Vec::new();
-
-    for entry in (fs::read_dir(".")?).flatten() {
-        if let Ok(file_name) = entry.file_name().into_string() {
-            if !snapshot.contains(&file_name) && !file_name.starts_with('.') {
-                new_files.push(file_name);
-            }
-        }
-    }
-
-    if !new_files.is_empty() {
-        let message = format!(
-            "Unauthorized root additions detected: {}",
-            new_files.join(", ")
-        );
-        return Ok(Some(HookResult::blocked(message)));
-    }
-
-    Ok(None)
 }
