@@ -11,6 +11,7 @@ stop:
   # - run: "npm test"
   #   showStdout: true
   #   showStderr: true
+  #   showCommand: true  # Show "Executing command X/Y: npm test" (default: true)
   #   message: "Tests failed"
   #   maxOutputLines: 100
   #   timeout: 300
@@ -25,10 +26,12 @@ subagentStop:
   # coder:
   #   - run: "npm run lint"
   #     showStdout: true
+  #     showCommand: true  # Show "Executing command X/Y: npm run lint" (default: true)
   #     message: "Linting failed"
   # test*:
   #   - run: "npm test"
   #     showStderr: true
+  #     showCommand: false  # Hide the "Executing command..." line
 
 # Pre-tool-use hook - file protection and tool validation
 preToolUse:

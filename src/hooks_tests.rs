@@ -256,6 +256,7 @@ fn test_collect_stop_commands_with_output_config() {
                 StopCommand {
                     run: "echo hello".to_string(),
                     message: Some("Custom message".to_string()),
+                    show_command: None,
                     show_stdout: Some(true),
                     show_stderr: Some(false),
                     max_output_lines: Some(10),
@@ -264,6 +265,7 @@ fn test_collect_stop_commands_with_output_config() {
                 StopCommand {
                     run: "ls -la".to_string(),
                     message: None,
+                    show_command: None,
                     show_stdout: Some(false),
                     show_stderr: Some(true),
                     max_output_lines: Some(5),
@@ -301,6 +303,7 @@ fn test_collect_stop_commands_default_values() {
             commands: vec![StopCommand {
                 run: "echo test".to_string(),
                 message: None,
+                show_command: None,
                 show_stdout: None,
                 show_stderr: None,
                 max_output_lines: None,
@@ -476,6 +479,7 @@ fn test_match_subagent_patterns_wildcard() {
         vec![SubagentStopCommand {
             run: "echo all".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -505,6 +509,7 @@ fn test_match_subagent_patterns_exact() {
         vec![SubagentStopCommand {
             run: "echo coder".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -535,6 +540,7 @@ fn test_match_subagent_patterns_prefix_glob() {
         vec![SubagentStopCommand {
             run: "echo test".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -568,6 +574,7 @@ fn test_match_subagent_patterns_suffix_glob() {
         vec![SubagentStopCommand {
             run: "echo coder".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -601,6 +608,7 @@ fn test_match_subagent_patterns_character_class() {
         vec![SubagentStopCommand {
             run: "echo agent".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -637,6 +645,7 @@ fn test_match_subagent_patterns_multiple_matches() {
         vec![SubagentStopCommand {
             run: "echo all".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -648,6 +657,7 @@ fn test_match_subagent_patterns_multiple_matches() {
         vec![SubagentStopCommand {
             run: "echo coder".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -659,6 +669,7 @@ fn test_match_subagent_patterns_multiple_matches() {
         vec![SubagentStopCommand {
             run: "echo suffix-coder".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -688,6 +699,7 @@ fn test_match_subagent_patterns_wildcard_first() {
         vec![SubagentStopCommand {
             run: "echo coder".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -699,6 +711,7 @@ fn test_match_subagent_patterns_wildcard_first() {
         vec![SubagentStopCommand {
             run: "echo all".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -724,6 +737,7 @@ fn test_match_subagent_patterns_no_match() {
         vec![SubagentStopCommand {
             run: "echo coder".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -735,6 +749,7 @@ fn test_match_subagent_patterns_no_match() {
         vec![SubagentStopCommand {
             run: "echo tester".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -872,6 +887,7 @@ fn test_collect_subagent_stop_commands_single_pattern() {
             SubagentStopCommand {
                 run: "echo first".to_string(),
                 message: Some("First command".to_string()),
+                show_command: None,
                 show_stdout: Some(true),
                 show_stderr: Some(false),
                 max_output_lines: Some(10),
@@ -880,6 +896,7 @@ fn test_collect_subagent_stop_commands_single_pattern() {
             SubagentStopCommand {
                 run: "echo second".to_string(),
                 message: None,
+                show_command: None,
                 show_stdout: None,
                 show_stderr: None,
                 max_output_lines: None,
@@ -917,6 +934,7 @@ fn test_collect_subagent_stop_commands_multiple_patterns() {
         vec![SubagentStopCommand {
             run: "echo wildcard".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -928,6 +946,7 @@ fn test_collect_subagent_stop_commands_multiple_patterns() {
         vec![SubagentStopCommand {
             run: "echo coder".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,
@@ -957,6 +976,7 @@ fn test_collect_subagent_stop_commands_no_matching_patterns() {
         vec![SubagentStopCommand {
             run: "echo coder".to_string(),
             message: None,
+            show_command: None,
             show_stdout: None,
             show_stderr: None,
             max_output_lines: None,

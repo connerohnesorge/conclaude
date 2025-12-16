@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "1.1",
+      "section": "Implementation",
+      "description": "Add `show_command` field to `StopCommand` struct in `src/config.rs` with `#[serde(default = \"default_true\", rename = \"showCommand\")]`",
+      "status": "completed"
+    },
+    {
+      "id": "1.2",
+      "section": "Implementation",
+      "description": "Add `show_command` field to `SubagentStopCommand` struct in `src/config.rs` with same attributes",
+      "status": "completed"
+    },
+    {
+      "id": "1.3",
+      "section": "Implementation",
+      "description": "Add `default_true` helper function returning `Some(true)` if not already present",
+      "status": "completed"
+    },
+    {
+      "id": "1.4",
+      "section": "Implementation",
+      "description": "Update `StopCommandConfig` struct in `src/hooks.rs` to include `show_command: bool` field",
+      "status": "completed"
+    },
+    {
+      "id": "1.5",
+      "section": "Implementation",
+      "description": "Update `SubagentStopCommandConfig` struct in `src/hooks.rs` to include `show_command: bool` field",
+      "status": "completed"
+    },
+    {
+      "id": "1.6",
+      "section": "Implementation",
+      "description": "Update `build_stop_commands` function to propagate `show_command` value (default to `true`)",
+      "status": "completed"
+    },
+    {
+      "id": "1.7",
+      "section": "Implementation",
+      "description": "Update `build_subagent_stop_commands` function to propagate `show_command` value (default to `true`)",
+      "status": "completed"
+    },
+    {
+      "id": "1.8",
+      "section": "Implementation",
+      "description": "Conditionally print \"Executing command X/Y: <command>\" based on `show_command` in `execute_stop_commands`",
+      "status": "completed"
+    },
+    {
+      "id": "1.9",
+      "section": "Implementation",
+      "description": "Conditionally print command execution line in `execute_subagent_stop_commands`",
+      "status": "completed"
+    },
+    {
+      "id": "2.1",
+      "section": "Schema Update",
+      "description": "Regenerate `conclaude-schema.json` with `cargo run -- generate-schema`",
+      "status": "completed"
+    },
+    {
+      "id": "3.1",
+      "section": "Testing",
+      "description": "Add unit test: config parsing with `showCommand: true` explicit",
+      "status": "completed"
+    },
+    {
+      "id": "3.2",
+      "section": "Testing",
+      "description": "Add unit test: config parsing with `showCommand: false`",
+      "status": "completed"
+    },
+    {
+      "id": "3.3",
+      "section": "Testing",
+      "description": "Add unit test: config parsing without `showCommand` (verify default `true`)",
+      "status": "completed"
+    },
+    {
+      "id": "3.4",
+      "section": "Testing",
+      "description": "Add integration test: verify command line is printed when `showCommand: true`",
+      "status": "completed"
+    },
+    {
+      "id": "3.5",
+      "section": "Testing",
+      "description": "Add integration test: verify command line is suppressed when `showCommand: false`",
+      "status": "completed"
+    },
+    {
+      "id": "4.1",
+      "section": "Documentation",
+      "description": "Update `.conclaude.yaml` comments with `showCommand` option",
+      "status": "completed"
+    },
+    {
+      "id": "4.2",
+      "section": "Documentation",
+      "description": "Update README.md command configuration section",
+      "status": "completed"
+    }
+  ]
+}

@@ -337,6 +337,7 @@ fn test_stop_command_struct_serialization() {
     let cmd = StopCommand {
         run: "echo test".to_string(),
         message: Some("Test message".to_string()),
+        show_command: None,
         show_stdout: Some(true),
         show_stderr: Some(false),
         max_output_lines: Some(50),
@@ -520,6 +521,7 @@ fn test_stop_config_round_trip() {
         commands: vec![StopCommand {
             run: "npm test".to_string(),
             message: Some("Failed".to_string()),
+            show_command: None,
             show_stdout: Some(true),
             show_stderr: Some(true),
             max_output_lines: Some(25),
