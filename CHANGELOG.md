@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2025-12-16
+
+### Features
+
+- Add CONCLAUDE_AGENT_NAME env var to SubagentStop hook (#157) ([5fb4116](https://github.com/connerohnesorge/conclaude/commit/5fb4116dfe83a8f0b6a6542641fece9be650ff4f))
+- Replace download-ts-sdk.sh with Rust binary (#164) ([9f8c8f6](https://github.com/connerohnesorge/conclaude/commit/9f8c8f6d240178ad23be41ee1a28476f0bcfcd07))
+- **init:** Add 10-minute timeout to generated Claude Code hooks (#168) ([1db7f62](https://github.com/connerohnesorge/conclaude/commit/1db7f6295a76fe7f3bfc2d6ac983029d470cf4d7))
+- **hooks:** Add context injection for UserPromptSubmit hook (#170) ([3e4585a](https://github.com/connerohnesorge/conclaude/commit/3e4585a542cfbae4be2c15ec7cfc0e8fc07377a3))
+
+### Bug Fixes
+
+- Fix docs astro config (to use gh pages) ([4903a35](https://github.com/connerohnesorge/conclaude/commit/4903a3591c26bb6800d49f2617bad36049c7e5ee))
+- Fix docs generation to use relative links and fix README ([91e3738](https://github.com/connerohnesorge/conclaude/commit/91e3738db04a44ec9a2558d773f666cb9a4bcd4e))
+- Fix docs links ([383ed9b](https://github.com/connerohnesorge/conclaude/commit/383ed9b04aa9ba88c1281271ae3312ee55cf1a34))
+- Fixed internal links in docs ([6a97f53](https://github.com/connerohnesorge/conclaude/commit/6a97f539d0790180bc7d9e6757f8769693c74e4f))
+- Fix internal links of permission-request.md ([67e69da](https://github.com/connerohnesorge/conclaude/commit/67e69dac4527301e2636da8ed243b073d1518ba3))
+
+### Refactoring
+
+- Extract hooks tests to separate module for improved testability (#141) ([5092968](https://github.com/connerohnesorge/conclaude/commit/5092968a842cd420efd93f5bfb16170e7ca24a8c))
+- Move conclaude-field-derive crate to crates/ directory (#143) ([abfef6d](https://github.com/connerohnesorge/conclaude/commit/abfef6d745d561bb470d35a118f486434c2aece6))
+- [**breaking**] Reorganize hook commands under Hooks parent subcommand (#148) ([8f169e6](https://github.com/connerohnesorge/conclaude/commit/8f169e637fe7780432f385836bbb37d827db410a))
+- Relocate generate-schema binary to src/bin/ (#161) ([92c2e65](https://github.com/connerohnesorge/conclaude/commit/92c2e657b86f854450269f5d47eafa18f1bad5f9))
+
+### Miscellaneous Tasks
+
+- **release:** Update CHANGELOG.md for v0.2.4 ([b8029d1](https://github.com/connerohnesorge/conclaude/commit/b8029d129b976cd44053131c23d57a8010b70013))
+
+### Spectr
+
+- **archive:** Add-starlight-links-validator (#138) ([23be06c](https://github.com/connerohnesorge/conclaude/commit/23be06c4735ff245f4f1e0f2ffcbbbc811943904))
+- **archive:** Add-command-timeout (#135) ([b3a6376](https://github.com/connerohnesorge/conclaude/commit/b3a6376d837edeb93813c8c99c35789754e4340c))
+- **archive:** Add-starlight-site-graph (#137) ([12292db](https://github.com/connerohnesorge/conclaude/commit/12292dbbf067ba9fa1d64fee3506bf43956f1745))
+- **archive:** Add-config-documentation-generator (#136) ([2c1cfb8](https://github.com/connerohnesorge/conclaude/commit/2c1cfb8df3a634d6c892aab8b579362bf007fcca))
+- **archive:** Add-contextual-menu-plugin (#142) ([ea65ebd](https://github.com/connerohnesorge/conclaude/commit/ea65ebdfd2d0aa6433e739d9382a2b24850a7539))
+- **proposal:** Refactor-hooks-subcommand (#145) ([0714977](https://github.com/connerohnesorge/conclaude/commit/0714977a96db1d78e07d892453a38e4f413be081))
+- **archive:** Refactor-hooks-tests-to-separate-file (#146) ([1961292](https://github.com/connerohnesorge/conclaude/commit/1961292e13ab7e1bd2f34ce3b323b6fe76b9a247))
+- **archive:** Refactor-move-derive-crate-to-crates (#147) ([7ae4498](https://github.com/connerohnesorge/conclaude/commit/7ae4498ff6a2fd2cf4c2e0a91472c166b4f5c64e))
+- Archive refactor-hooks-subcommand and fix cli-structure spec (#152) ([6fab96e](https://github.com/connerohnesorge/conclaude/commit/6fab96e76e10690fffe80da2720befe5f2090be8))
+- **remove:** Extend-bash-command-validation (#153) ([8cf5aca](https://github.com/connerohnesorge/conclaude/commit/8cf5acab011b453d9762392f28e9a609b046670b))
+- **proposal:** Replace-download-ts-sdk-script (#160) ([18f3d39](https://github.com/connerohnesorge/conclaude/commit/18f3d39fb89dfcd70605e1b8a4f5fee6c376c190))
+- **proposal:** Relocate-generate-schema-binary (#159) ([589a672](https://github.com/connerohnesorge/conclaude/commit/589a672dc67268cd110a4ac129577b9dcfc4b7ef))
+- **archive:** Relocate-generate-schema-binary (#163) ([717cb01](https://github.com/connerohnesorge/conclaude/commit/717cb0147da5b630d16732ea461d9471fe271f5c))
+- **proposal:** Add-prompt-context-injection (#165) ([2ae712d](https://github.com/connerohnesorge/conclaude/commit/2ae712dad562770f4ec2629f95dcfb8ad85053d4))
+- **proposal:** Add-init-hook-timeout (#166) ([a3082fc](https://github.com/connerohnesorge/conclaude/commit/a3082fc5e26082e702405e75d1a96e8561cc3e93))
+- **proposal:** Add-show-command-config (#167) ([e8cbd03](https://github.com/connerohnesorge/conclaude/commit/e8cbd03b7888a55a40a6e75c992bf6bd72177baf))
+- **archive:** Add-init-hook-timeout (#169) ([02473c9](https://github.com/connerohnesorge/conclaude/commit/02473c981f15ec6c5f2ab31a6843671acfb8b84d))
+- **proposal:** Add-stop-hook-pr-check-example (#171) ([522d388](https://github.com/connerohnesorge/conclaude/commit/522d3881d91cd82d770ec7aafe8f35ad29b6c7cf))
+
 ## [0.2.4] - 2025-12-07
 
 ### Features
