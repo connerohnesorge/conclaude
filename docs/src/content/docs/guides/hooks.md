@@ -104,6 +104,87 @@ stop:
 
 With infinite mode, validation runs after every task completion, not just at session end.
 
+**Workflow Guardrails: PR Verification**
+
+Beyond code quality checks, Stop hooks can enforce workflow policies. This example ensures all changes are committed and a pull request exists before the session ends:
+
+```yaml
+stop:
+  commands:
+    # Ensure no uncommitted changes
+    - run: |
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "Error: Uncommitted changes detected"
+          git status --short
+          exit 1
+        fi
+      message: "Check for uncommitted changes"
+
+    # Ensure no untracked files
+    - run: |
+        UNTRACKED=$(git ls-files --others --exclude-standard)
+        if [ -n "$UNTRACKED" ]; then
+          echo "Error: Untracked files detected:"
+          echo "$UNTRACKED"
+          exit 1
+        fi
+      message: "Check for untracked files"
+
+    # Verify PR exists for current branch
+    - run: |
+        BRANCH=$(git branch --show-current)
+        if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
+          exit 0  # Skip PR check on main/master
+        fi
+        PR_COUNT=$(gh pr list --head "$BRANCH" --json number --jq 'length')
+        if [ "$PR_COUNT" -eq 0 ]; then
+          echo "Error: No open PR found for branch '$BRANCH'"
+          echo "Create a PR with: gh pr create"
+          exit 1
+        fi
+      message: "Verify pull request exists"
+```
+
+**Prerequisites:**
+- Git must be installed and the directory must be a Git repository
+- GitHub CLI (`gh`) must be installed and authenticated for PR verification
+- Run `gh auth login` to authenticate if needed
+
+**How It Works:**
+
+1. **Uncommitted changes check**: Uses `git status --porcelain` to detect any staged or unstaged modifications
+2. **Untracked files check**: Uses `git ls-files --others --exclude-standard` to find files not yet added to Git
+3. **PR verification**: Queries GitHub for open PRs from the current branch using `gh pr list`
+
+**When Checks Fail:**
+
+- If uncommitted changes exist, Claude sees the list of modified files and can commit them
+- If untracked files exist, Claude sees the file list and can add them to Git
+- If no PR exists, Claude sees instructions to create one with `gh pr create`
+- The session only completes when all checks pass
+
+**Combining with Code Quality:**
+
+```yaml
+stop:
+  commands:
+    # Code quality first
+    - run: cargo fmt --check
+      message: "Check formatting"
+    - run: cargo test
+      message: "Run tests"
+
+    # Then workflow checks
+    - run: test -z "$(git status --porcelain)"
+      message: "No uncommitted changes"
+    - run: |
+        BRANCH=$(git branch --show-current)
+        [ "$BRANCH" = "main" ] || gh pr list --head "$BRANCH" --json number --jq 'length' | grep -q '[1-9]'
+      message: "PR exists for branch"
+```
+
+This pattern ensures code quality AND workflow discipline before session completion.
+
 ---
 
 ### SessionStart
