@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "1.1",
+      "section": "",
+      "description": "Open `docs/src/content/docs/guides/hooks.md` and locate Stop hook section",
+      "status": "completed"
+    },
+    {
+      "id": "1.2",
+      "section": "",
+      "description": "Add new subsection titled \"**Workflow Guardrails: PR Verification**\"",
+      "status": "completed"
+    },
+    {
+      "id": "1.3",
+      "section": "",
+      "description": "Write example YAML configuration using `gh pr list --head $(git branch --show-current) --json number`",
+      "status": "completed"
+    },
+    {
+      "id": "1.4",
+      "section": "",
+      "description": "Include clear explanation of what the check does and when it fails",
+      "status": "completed"
+    },
+    {
+      "id": "1.5",
+      "section": "",
+      "description": "Document prerequisites (GitHub CLI installed and authenticated)",
+      "status": "completed"
+    },
+    {
+      "id": "1.6",
+      "section": "",
+      "description": "Show example error message when no PR exists",
+      "status": "completed"
+    },
+    {
+      "id": "1.7",
+      "section": "",
+      "description": "Add note about combining with other Stop commands (linting, testing)",
+      "status": "completed"
+    },
+    {
+      "id": "2.1",
+      "section": "",
+      "description": "Run `npm run build` in docs/ directory to ensure build succeeds",
+      "status": "completed"
+    },
+    {
+      "id": "2.2",
+      "section": "",
+      "description": "Verify internal links are valid (starlight-links-validator)",
+      "status": "completed"
+    },
+    {
+      "id": "2.3",
+      "section": "",
+      "description": "Review rendered output in browser to ensure formatting is correct",
+      "status": "completed"
+    },
+    {
+      "id": "2.4",
+      "section": "",
+      "description": "Test the example command manually to verify it works as expected",
+      "status": "completed"
+    },
+    {
+      "id": "3.1",
+      "section": "",
+      "description": "Run `spectr validate add-stop-hook-pr-check-example --strict`",
+      "status": "completed"
+    },
+    {
+      "id": "3.2",
+      "section": "",
+      "description": "Resolve any validation issues",
+      "status": "completed"
+    },
+    {
+      "id": "3.3",
+      "section": "",
+      "description": "Confirm all requirements have corresponding scenarios",
+      "status": "completed"
+    }
+  ]
+}
