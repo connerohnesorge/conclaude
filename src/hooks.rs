@@ -30,6 +30,7 @@ pub(crate) struct StopCommandConfig {
     pub(crate) show_stderr: bool,
     pub(crate) max_output_lines: Option<u32>,
     pub(crate) timeout: Option<u64>,
+    pub(crate) show_command: bool,
 }
 
 /// Represents a subagent stop command with its configuration
@@ -40,6 +41,7 @@ pub(crate) struct SubagentStopCommandConfig {
     pub(crate) show_stderr: bool,
     pub(crate) max_output_lines: Option<u32>,
     pub(crate) timeout: Option<u64>,
+    pub(crate) show_command: bool,
 }
 
 /// Cached configuration instance to avoid repeated loads
@@ -878,6 +880,7 @@ pub(crate) fn collect_stop_commands(config: &ConclaudeConfig) -> Result<Vec<Stop
         let extracted = extract_bash_commands(&cmd_config.run)?;
         let show_stdout = cmd_config.show_stdout.unwrap_or(false);
         let show_stderr = cmd_config.show_stderr.unwrap_or(false);
+        let show_command = cmd_config.show_command.unwrap_or(true);
         let max_output_lines = cmd_config.max_output_lines;
         for cmd in extracted {
             commands.push(StopCommandConfig {
@@ -887,6 +890,7 @@ pub(crate) fn collect_stop_commands(config: &ConclaudeConfig) -> Result<Vec<Stop
                 show_stderr,
                 max_output_lines,
                 timeout: cmd_config.timeout,
+                show_command,
             });
         }
     }
@@ -906,12 +910,20 @@ async fn execute_stop_commands(
     println!("Executing {} stop hook commands", commands.len());
 
     for (index, cmd_config) in commands.iter().enumerate() {
-        println!(
-            "Executing command {}/{}: {}",
-            index + 1,
-            commands.len(),
-            cmd_config.command
-        );
+        if cmd_config.show_command {
+            println!(
+                "Executing command {}/{}: {}",
+                index + 1,
+                commands.len(),
+                cmd_config.command
+            );
+        } else {
+            println!(
+                "Executing command {}/{}",
+                index + 1,
+                commands.len()
+            );
+        }
 
         let child = TokioCommand::new("bash")
             .arg("-c")
@@ -958,12 +970,19 @@ async fn execute_stop_commands(
             let exit_code = output.status.code().unwrap_or(1);
 
             // Log detailed failure information with command and outputs appended
-            // Respect showStdout and showStderr flags when logging to console
+            // Respect showCommand, showStdout and showStderr flags when logging to console
             // Build diagnostic output dynamically to omit sections when flags are false
-            let mut diagnostic = format!(
-                "Stop command failed:\n  Command: {}\n  Status: Failed (exit code: {})",
-                cmd_config.command, exit_code
-            );
+            let mut diagnostic = if cmd_config.show_command {
+                format!(
+                    "Stop command failed:\n  Command: {}\n  Status: Failed (exit code: {})",
+                    cmd_config.command, exit_code
+                )
+            } else {
+                format!(
+                    "Stop command failed:\n  Status: Failed (exit code: {})",
+                    exit_code
+                )
+            };
 
             // Only include Stdout section if showStdout is true
             if cmd_config.show_stdout {
@@ -1029,10 +1048,14 @@ async fn execute_stop_commands(
 
             let error_message = if let Some(custom_msg) = &cmd_config.message {
                 format!("{custom_msg}{stdout_section}{stderr_section}")
-            } else {
+            } else if cmd_config.show_command {
                 format!(
                     "Command failed with exit code {exit_code}: {}{stdout_section}{stderr_section}",
                     cmd_config.command
+                )
+            } else {
+                format!(
+                    "Command failed with exit code {exit_code}{stdout_section}{stderr_section}"
                 )
             };
 
@@ -1289,6 +1312,7 @@ pub(crate) fn collect_subagent_stop_commands(
                 let extracted = extract_bash_commands(&cmd_config.run)?;
                 let show_stdout = cmd_config.show_stdout.unwrap_or(false);
                 let show_stderr = cmd_config.show_stderr.unwrap_or(false);
+                let show_command = cmd_config.show_command.unwrap_or(true);
                 let max_output_lines = cmd_config.max_output_lines;
 
                 for cmd in extracted {
@@ -1299,6 +1323,7 @@ pub(crate) fn collect_subagent_stop_commands(
                         show_stderr,
                         max_output_lines,
                         timeout: cmd_config.timeout,
+                        show_command,
                     });
                 }
             }
@@ -1326,12 +1351,20 @@ async fn execute_subagent_stop_commands(
     println!("Executing {} subagent stop hook commands", commands.len());
 
     for (index, cmd_config) in commands.iter().enumerate() {
-        println!(
-            "Executing subagent stop command {}/{}: {}",
-            index + 1,
-            commands.len(),
-            cmd_config.command
-        );
+        if cmd_config.show_command {
+            println!(
+                "Executing subagent stop command {}/{}: {}",
+                index + 1,
+                commands.len(),
+                cmd_config.command
+            );
+        } else {
+            println!(
+                "Executing subagent stop command {}/{}",
+                index + 1,
+                commands.len()
+            );
+        }
 
         let child = TokioCommand::new("bash")
             .arg("-c")
@@ -1347,10 +1380,14 @@ async fn execute_subagent_stop_commands(
             Ok(c) => c,
             Err(e) => {
                 // Log error but continue to next command
-                eprintln!(
-                    "Failed to spawn subagent stop command '{}': {}",
-                    cmd_config.command, e
-                );
+                if cmd_config.show_command {
+                    eprintln!(
+                        "Failed to spawn subagent stop command '{}': {}",
+                        cmd_config.command, e
+                    );
+                } else {
+                    eprintln!("Failed to spawn subagent stop command: {}", e);
+                }
                 continue;
             }
         };
@@ -1361,20 +1398,31 @@ async fn execute_subagent_stop_commands(
                     Ok(o) => o,
                     Err(e) => {
                         // Log error but continue to next command
-                        eprintln!(
-                            "Failed to wait for subagent stop command '{}': {}",
-                            cmd_config.command, e
-                        );
+                        if cmd_config.show_command {
+                            eprintln!(
+                                "Failed to wait for subagent stop command '{}': {}",
+                                cmd_config.command, e
+                            );
+                        } else {
+                            eprintln!("Failed to wait for subagent stop command: {}", e);
+                        }
                         continue;
                     }
                 },
                 Err(_) => {
                     // Timeout occurred - log and continue
                     // Note: child is consumed by wait_with_output, so we can't kill it here
-                    eprintln!(
-                        "Subagent stop command timed out after {} seconds: {}",
-                        timeout_secs, cmd_config.command
-                    );
+                    if cmd_config.show_command {
+                        eprintln!(
+                            "Subagent stop command timed out after {} seconds: {}",
+                            timeout_secs, cmd_config.command
+                        );
+                    } else {
+                        eprintln!(
+                            "Subagent stop command timed out after {} seconds",
+                            timeout_secs
+                        );
+                    }
                     if let Some(custom_msg) = &cmd_config.message {
                         eprintln!("Message: {}", custom_msg);
                     }
@@ -1386,10 +1434,14 @@ async fn execute_subagent_stop_commands(
                 Ok(o) => o,
                 Err(e) => {
                     // Log error but continue to next command
-                    eprintln!(
-                        "Failed to wait for subagent stop command '{}': {}",
-                        cmd_config.command, e
-                    );
+                    if cmd_config.show_command {
+                        eprintln!(
+                            "Failed to wait for subagent stop command '{}': {}",
+                            cmd_config.command, e
+                        );
+                    } else {
+                        eprintln!("Failed to wait for subagent stop command: {}", e);
+                    }
                     continue;
                 }
             }
@@ -1402,10 +1454,18 @@ async fn execute_subagent_stop_commands(
             let exit_code = output.status.code().unwrap_or(1);
 
             // Log failure information
-            let mut diagnostic = format!(
-                "Subagent stop command failed:\n  Command: {}\n  Status: Failed (exit code: {})",
-                cmd_config.command, exit_code
-            );
+            // Respect showCommand flag when displaying command
+            let mut diagnostic = if cmd_config.show_command {
+                format!(
+                    "Subagent stop command failed:\n  Command: {}\n  Status: Failed (exit code: {})",
+                    cmd_config.command, exit_code
+                )
+            } else {
+                format!(
+                    "Subagent stop command failed:\n  Status: Failed (exit code: {})",
+                    exit_code
+                )
+            };
 
             if cmd_config.show_stdout && !stdout.trim().is_empty() {
                 let stdout_content = if let Some(max_lines) = cmd_config.max_output_lines {

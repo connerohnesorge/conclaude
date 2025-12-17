@@ -16,6 +16,9 @@ pub struct StopCommand {
     /// Custom error message to display when the command fails (exits with non-zero status)
     #[serde(default)]
     pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
     /// Whether to show the command's standard output to the user and Claude. Default: false
     #[serde(default, rename = "showStdout")]
     pub show_stdout: Option<bool>,
@@ -41,6 +44,9 @@ pub struct SubagentStopCommand {
     /// Custom error message to display when the command fails (exits with non-zero status)
     #[serde(default)]
     pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
     /// Whether to show the command's standard output to the user and Claude. Default: false
     #[serde(default, rename = "showStdout")]
     pub show_stdout: Option<bool>,
@@ -1351,6 +1357,20 @@ cd /tmp && echo "test""#;
             vec![
                 "run",
                 "message",
+                "showCommand",
+                "showStdout",
+                "showStderr",
+                "maxOutputLines",
+                "timeout"
+            ]
+        );
+
+        assert_eq!(
+            SubagentStopCommand::field_names(),
+            vec![
+                "run",
+                "message",
+                "showCommand",
                 "showStdout",
                 "showStderr",
                 "maxOutputLines",
@@ -2360,5 +2380,223 @@ notifications:
 
         // Verify default for caseInsensitive is None (which means false)
         assert_eq!(rule.case_insensitive, None);
+    }
+
+    // Task 3.1: Test showCommand: true explicit
+    #[test]
+    fn test_show_command_true_explicit() {
+        let yaml = r#"
+stop:
+  commands:
+    - run: "echo test"
+      showCommand: true
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_ok(),
+            "Config with showCommand: true should parse: {:?}",
+            result.err()
+        );
+
+        let config = result.unwrap();
+        assert_eq!(config.stop.commands.len(), 1);
+        assert_eq!(config.stop.commands[0].show_command, Some(true));
+    }
+
+    // Task 3.2: Test showCommand: false
+    #[test]
+    fn test_show_command_false() {
+        let yaml = r#"
+stop:
+  commands:
+    - run: "echo test"
+      showCommand: false
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_ok(),
+            "Config with showCommand: false should parse: {:?}",
+            result.err()
+        );
+
+        let config = result.unwrap();
+        assert_eq!(config.stop.commands.len(), 1);
+        assert_eq!(config.stop.commands[0].show_command, Some(false));
+    }
+
+    // Task 3.3: Test default showCommand behavior
+    #[test]
+    fn test_show_command_default_true() {
+        let yaml = r#"
+stop:
+  commands:
+    - run: "echo test"
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_ok(),
+            "Config without showCommand should parse: {:?}",
+            result.err()
+        );
+
+        let config = result.unwrap();
+        assert_eq!(config.stop.commands.len(), 1);
+        // Verify default is Some(true) when field is omitted
+        assert_eq!(
+            config.stop.commands[0].show_command,
+            Some(true),
+            "showCommand should default to Some(true) when omitted"
+        );
+    }
+
+    // Test SubagentStopCommand with showCommand: true explicit
+    #[test]
+    fn test_subagent_show_command_true_explicit() {
+        let yaml = r#"
+subagentStop:
+  commands:
+    "*":
+      - run: "npm run lint"
+        showCommand: true
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_ok(),
+            "SubagentStop config with showCommand: true should parse: {:?}",
+            result.err()
+        );
+
+        let config = result.unwrap();
+        let cmds = config.subagent_stop.commands.get("*").unwrap();
+        assert_eq!(cmds.len(), 1);
+        assert_eq!(cmds[0].show_command, Some(true));
+    }
+
+    // Test SubagentStopCommand with showCommand: false
+    #[test]
+    fn test_subagent_show_command_false() {
+        let yaml = r#"
+subagentStop:
+  commands:
+    "*":
+      - run: "npm run lint"
+        showCommand: false
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_ok(),
+            "SubagentStop config with showCommand: false should parse: {:?}",
+            result.err()
+        );
+
+        let config = result.unwrap();
+        let cmds = config.subagent_stop.commands.get("*").unwrap();
+        assert_eq!(cmds.len(), 1);
+        assert_eq!(cmds[0].show_command, Some(false));
+    }
+
+    // Test SubagentStopCommand default showCommand behavior
+    #[test]
+    fn test_subagent_show_command_default_true() {
+        let yaml = r#"
+subagentStop:
+  commands:
+    "*":
+      - run: "npm run lint"
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+"#;
+        let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+        assert!(
+            result.is_ok(),
+            "SubagentStop config without showCommand should parse: {:?}",
+            result.err()
+        );
+
+        let config = result.unwrap();
+        let cmds = config.subagent_stop.commands.get("*").unwrap();
+        assert_eq!(cmds.len(), 1);
+        // Verify default is Some(true) when field is omitted
+        assert_eq!(
+            cmds[0].show_command,
+            Some(true),
+            "showCommand should default to Some(true) when omitted"
+        );
     }
 }

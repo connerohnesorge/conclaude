@@ -1029,9 +1029,11 @@ stop:
   commands:
     - run: "cargo check"
       message: "Code compilation check"
+      showCommand: true  # Show "Executing command X/Y: cargo check" (default: true)
     - run: "cargo test"
       message: "Tests failed - fix failing tests before continuing"
       showStdout: true
+      showCommand: false  # Hide the "Executing command..." line
       maxOutputLines: 50
     - run: "cargo build"
       message: "Build failed - fix compilation errors"
@@ -1045,6 +1047,31 @@ stop:
     - filePattern: "**/*.rs"
       forbiddenPattern: "todo|fixme"
       description: "No TODO or FIXME comments allowed"
+
+### Command Configuration Options
+
+Commands in both `stop` and `subagentStop` hooks support the following fields:
+
+- **run** (required): The command to execute (string)
+- **message** (optional): Custom error message shown when command fails (string)
+- **showStdout** (optional): Show stdout to user/Claude (boolean, default: false)
+- **showStderr** (optional): Show stderr to user/Claude (boolean, default: false)
+- **showCommand** (optional): Show "Executing command X/Y: <command>" line (boolean, default: true)
+- **maxOutputLines** (optional): Limit output to last N lines, range 1-10000 (number)
+- **timeout** (optional): Command timeout in seconds (number)
+
+**Example:**
+```yaml
+stop:
+  commands:
+    - run: "npm test"
+      showStdout: true       # Show test output
+      showStderr: true       # Show test errors
+      showCommand: false     # Hide the "Executing command 1/2: npm test" line
+      message: "Tests failed - please fix before continuing"
+      maxOutputLines: 100    # Only show last 100 lines
+      timeout: 300           # Timeout after 5 minutes
+```
 
 # File and directory protection rules
 preToolUse:

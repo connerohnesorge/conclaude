@@ -190,6 +190,14 @@
           "description": "The shell command to execute",
           "type": "string"
         },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "showStderr": {
           "default": null,
           "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
@@ -277,6 +285,14 @@
         "run": {
           "description": "The shell command to execute. Environment variables are available: CONCLAUDE_AGENT_ID, CONCLAUDE_AGENT_TRANSCRIPT_PATH, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD",
           "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "showStderr": {
           "default": null,
