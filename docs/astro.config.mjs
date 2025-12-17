@@ -2,7 +2,6 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightContextualMenu from 'starlight-contextual-menu';
-import starlightChangelogs from 'starlight-changelogs';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightSiteGraph from 'starlight-site-graph';
@@ -51,7 +50,6 @@ export default defineConfig({
 				starlightContextualMenu({
 					actions: ['copy', 'view', 'chatgpt', 'claude'],
 				}),
-				starlightChangelogs(),
 				// starlightLinksValidator(), // Temporarily disabled - doesn't work with base path
 				starlightLlmsTxt(),
 				starlightSiteGraph(),
