@@ -12,11 +12,11 @@ tags: [spectr, apply]
 
 # Steps
 Track these steps as TODOs and complete them one by one.
-1. Run `spectr accept <id>` to convert `tasks.md` to `tasks.json` format for stable task tracking.
-2. Read `spectr/changes/<id>/proposal.md`, `design.md` (if present), and `tasks.json` to confirm scope and acceptance criteria.
-3. Work through tasks sequentially, keeping edits minimal and focused on the requested change. Update the task status in `tasks.json` after verifying the work.
-4. Confirm completion before updating statuses—make sure every item in `tasks.json` is finished.
-5. Verify/Update all task status in `tasks.json` after all work is done. Tasks have status values: `pending`, `in_progress`, `completed`.
+1. Run `spectr accept <id>` to convert `tasks.md` to `tasks.jsonc` format for stable task tracking.
+2. Read `spectr/changes/<id>/proposal.md`, `design.md` (if present), and `tasks.jsonc` to confirm scope and acceptance criteria.
+3. Work through tasks sequentially, keeping edits minimal and focused on the requested change. Update the task status in `tasks.jsonc` after verifying the work.
+4. Confirm completion before updating statuses—make sure every item in `tasks.jsonc` is finished.
+5. Verify/Update all task status in `tasks.jsonc` after all work is done. Tasks have status values: `pending`, `in_progress`, `completed`.
 6. Read `spectr/changes/` and `spectr/specs/` directories when additional context is required.
 
 # Reference
