@@ -3,6 +3,7 @@ pub mod config;
 pub mod gitignore;
 pub mod hooks;
 
+#[cfg(test)]
 mod config_test;
 #[cfg(test)]
 mod hooks_tests;

@@ -3,8 +3,6 @@ use crate::config::{
     ContextInjectionRule, NotificationsConfig, PermissionRequestConfig, PreToolUseConfig,
     StopCommand, StopConfig, SubagentStopCommand, UnEditableFileRule, UserPromptSubmitConfig,
 };
-use crate::hooks::*;
-use serde_json::Value;
 use std::path::Path;
 
 #[test]
@@ -262,10 +260,10 @@ notifications:
         "Should accept config without rules section: {:?}",
         result.err()
     );
-  }
+}
 
-  #[test]
-  fn test_permission_request_valid_config() {
+#[test]
+fn test_permission_request_valid_config() {
     // Test valid permissionRequest configuration
     let config_yaml = r#"
 permissionRequest:
@@ -311,10 +309,10 @@ notifications:
     assert_eq!(pr.default, "allow");
     assert_eq!(pr.allow.as_ref().unwrap().len(), 2);
     assert_eq!(pr.deny.as_ref().unwrap().len(), 1);
-  }
+}
 
-  #[test]
-  fn test_permission_request_invalid_default() {
+#[test]
+fn test_permission_request_invalid_default() {
     // Test that invalid default value is rejected
     let config_yaml = r#"
 permissionRequest:
@@ -349,10 +347,10 @@ notifications:
         error.contains("allow") && error.contains("deny"),
         "Error message should mention valid values"
     );
-  }
+}
 
-  #[test]
-  fn test_permission_request_optional() {
+#[test]
+fn test_permission_request_optional() {
     // Test that permissionRequest is optional
     let config_yaml = r#"
 stop:
@@ -386,19 +384,19 @@ notifications:
         config.permission_request.is_none(),
         "permission_request should be None when not specified"
     );
-  }
+}
 
-  #[test]
-  fn test_permission_request_field_list() {
+#[test]
+fn test_permission_request_field_list() {
     // Test that PermissionRequestConfig field names are correct
     assert_eq!(
         PermissionRequestConfig::field_names(),
         vec!["default", "allow", "deny"]
     );
-  }
+}
 
-  #[test]
-  fn test_uneditable_file_rule_simple_string_format() {
+#[test]
+fn test_uneditable_file_rule_simple_string_format() {
     // Test that simple string patterns deserialize correctly
     let yaml = r#"
 preToolUse:
@@ -431,10 +429,10 @@ notifications:
     // Verify no custom messages
     assert!(config.pre_tool_use.uneditable_files[0].message().is_none());
     assert!(config.pre_tool_use.uneditable_files[1].message().is_none());
-  }
+}
 
-  #[test]
-  fn test_uneditable_file_rule_detailed_object_format() {
+#[test]
+fn test_uneditable_file_rule_detailed_object_format() {
     // Test that detailed objects with pattern and message deserialize correctly
     let yaml = r#"
 preToolUse:
@@ -475,10 +473,10 @@ notifications:
         config.pre_tool_use.uneditable_files[1].message(),
         Some("Environment files contain secrets.")
     );
-  }
+}
 
-  #[test]
-  fn test_uneditable_file_rule_mixed_format() {
+#[test]
+fn test_uneditable_file_rule_mixed_format() {
     // Test that arrays can mix both simple strings and detailed objects
     let yaml = r#"
 preToolUse:
@@ -523,10 +521,10 @@ notifications:
         "package.json"
     );
     assert!(config.pre_tool_use.uneditable_files[2].message().is_none());
-  }
+}
 
-  #[test]
-  fn test_uneditable_file_rule_detailed_without_message() {
+#[test]
+fn test_uneditable_file_rule_detailed_without_message() {
     // Test that detailed format without message field works (message is optional)
     let yaml = r#"
 preToolUse:
@@ -552,10 +550,10 @@ notifications:
     assert_eq!(config.pre_tool_use.uneditable_files.len(), 1);
     assert_eq!(config.pre_tool_use.uneditable_files[0].pattern(), "*.lock");
     assert!(config.pre_tool_use.uneditable_files[0].message().is_none());
-  }
+}
 
-  #[test]
-  fn test_uneditable_file_rule_backward_compatibility() {
+#[test]
+fn test_uneditable_file_rule_backward_compatibility() {
     // Test that existing configs with simple string format still work
     let yaml = r#"
 preToolUse:
@@ -598,10 +596,10 @@ notifications:
         .map(|r| r.pattern())
         .collect();
     assert_eq!(patterns, vec!["*.lock", ".env", "package-lock.json"]);
-  }
+}
 
-  #[test]
-  fn test_uneditable_file_rule_pattern_extraction() {
+#[test]
+fn test_uneditable_file_rule_pattern_extraction() {
     // Test the pattern() method for both variants
     let simple = UnEditableFileRule::Simple("*.txt".to_string());
     assert_eq!(simple.pattern(), "*.txt");
@@ -611,10 +609,10 @@ notifications:
         message: Some("Custom message".to_string()),
     };
     assert_eq!(detailed.pattern(), "*.md");
-  }
+}
 
-  #[test]
-  fn test_uneditable_file_rule_message_extraction() {
+#[test]
+fn test_uneditable_file_rule_message_extraction() {
     // Test the message() method for all cases
     let simple = UnEditableFileRule::Simple("*.txt".to_string());
     assert!(simple.message().is_none());
@@ -630,10 +628,10 @@ notifications:
         message: None,
     };
     assert!(detailed_without_msg.message().is_none());
-  }
+}
 
-  #[test]
-  fn test_stop_command_timeout_parsing() {
+#[test]
+fn test_stop_command_timeout_parsing() {
     let yaml = r#"
 stop:
   commands:
@@ -664,10 +662,10 @@ notifications:
     assert_eq!(config.stop.commands.len(), 2);
     assert_eq!(config.stop.commands[0].timeout, Some(30));
     assert_eq!(config.stop.commands[1].timeout, None);
-  }
+}
 
-  #[test]
-  fn test_stop_command_timeout_invalid_too_large() {
+#[test]
+fn test_stop_command_timeout_invalid_too_large() {
     let yaml = r#"
 stop:
   commands:
@@ -697,10 +695,10 @@ notifications:
         "Error should mention timeout issue: {}",
         error
     );
-  }
+}
 
-  #[test]
-  fn test_stop_command_timeout_invalid_zero() {
+#[test]
+fn test_stop_command_timeout_invalid_zero() {
     let yaml = r#"
 stop:
   commands:
@@ -724,10 +722,10 @@ notifications:
         result.is_err(),
         "Config with timeout = 0 should fail validation"
     );
-  }
+}
 
-  #[test]
-  fn test_subagent_stop_command_timeout_parsing() {
+#[test]
+fn test_subagent_stop_command_timeout_parsing() {
     let yaml = r#"
 subagentStop:
   commands:
@@ -760,10 +758,10 @@ notifications:
     let cmds = config.subagent_stop.commands.get("*").unwrap();
     assert_eq!(cmds.len(), 1);
     assert_eq!(cmds[0].timeout, Some(60));
-  }
+}
 
-  #[test]
-  fn test_timeout_backward_compatibility() {
+#[test]
+fn test_timeout_backward_compatibility() {
     let yaml = r#"
 stop:
   commands:
@@ -792,19 +790,19 @@ notifications:
 
     let config = result.unwrap();
     assert_eq!(config.stop.commands[0].timeout, None);
-  }
+}
 
-  #[test]
-  fn test_stop_command_field_list_includes_timeout() {
+#[test]
+fn test_stop_command_field_list_includes_timeout() {
     let fields = StopCommand::field_names();
     assert!(
         fields.contains(&"timeout"),
         "StopCommand field_names should include 'timeout'"
     );
-  }
+}
 
-  #[test]
-  fn test_user_prompt_submit_config_basic() {
+#[test]
+fn test_user_prompt_submit_config_basic() {
     let yaml = r#"
 userPromptSubmit:
   contextRules:
@@ -842,10 +840,10 @@ notifications:
         config.user_prompt_submit.context_rules[0].prompt,
         "Read the sidebar docs"
     );
-  }
+}
 
-  #[test]
-  fn test_user_prompt_submit_config_with_all_fields() {
+#[test]
+fn test_user_prompt_submit_config_with_all_fields() {
     let yaml = r#"
 userPromptSubmit:
   contextRules:
@@ -881,10 +879,10 @@ notifications:
     assert_eq!(rule.prompt, "Review authentication docs");
     assert_eq!(rule.enabled, Some(true));
     assert_eq!(rule.case_insensitive, Some(true));
-  }
+}
 
-  #[test]
-  fn test_user_prompt_submit_config_invalid_regex() {
+#[test]
+fn test_user_prompt_submit_config_invalid_regex() {
     let yaml = r#"
 userPromptSubmit:
   contextRules:
@@ -916,10 +914,10 @@ notifications:
         "Error should mention invalid regex: {}",
         error
     );
-  }
+}
 
-  #[test]
-  fn test_user_prompt_submit_config_multiple_rules() {
+#[test]
+fn test_user_prompt_submit_config_multiple_rules() {
     let yaml = r#"
 userPromptSubmit:
   contextRules:
@@ -974,10 +972,10 @@ notifications:
         config.user_prompt_submit.context_rules[2].enabled,
         Some(false)
     );
-  }
+}
 
-  #[test]
-  fn test_user_prompt_submit_config_optional() {
+#[test]
+fn test_user_prompt_submit_config_optional() {
     let yaml = r#"
 stop:
   commands: []
@@ -1003,24 +1001,24 @@ notifications:
 
     let config = result.unwrap();
     assert_eq!(config.user_prompt_submit.context_rules.len(), 0);
-  }
+}
 
-  #[test]
-  fn test_user_prompt_submit_field_list() {
+#[test]
+fn test_user_prompt_submit_field_list() {
     assert_eq!(UserPromptSubmitConfig::field_names(), vec!["contextRules"]);
-  }
+}
 
-  #[test]
-  fn test_context_injection_rule_field_list() {
+#[test]
+fn test_context_injection_rule_field_list() {
     assert_eq!(
         ContextInjectionRule::field_names(),
         vec!["pattern", "prompt", "enabled", "caseInsensitive"]
     );
-  }
+}
 
-  // Tests for Task 4.1: ContextInjectionRule parsing
-  #[test]
-  fn test_context_injection_rule_parsing_all_fields() {
+// Tests for Task 4.1: ContextInjectionRule parsing
+#[test]
+fn test_context_injection_rule_parsing_all_fields() {
     let yaml = r#"
 userPromptSubmit:
   contextRules:
@@ -1056,10 +1054,10 @@ notifications:
     assert_eq!(rule.prompt, "Read the sidebar docs");
     assert_eq!(rule.enabled, Some(true));
     assert_eq!(rule.case_insensitive, Some(false));
-  }
+}
 
-  #[test]
-  fn test_context_injection_rule_parsing_minimal_fields() {
+#[test]
+fn test_context_injection_rule_parsing_minimal_fields() {
     let yaml = r#"
 userPromptSubmit:
   contextRules:
@@ -1097,10 +1095,10 @@ notifications:
         rule.case_insensitive, None,
         "Default caseInsensitive should be None (false)"
     );
-  }
+}
 
-  #[test]
-  fn test_context_injection_rule_default_values() {
+#[test]
+fn test_context_injection_rule_default_values() {
     let yaml = r#"
 userPromptSubmit:
   contextRules:
@@ -1129,11 +1127,11 @@ notifications:
 
     // Verify default for caseInsensitive is None (which means false)
     assert_eq!(rule.case_insensitive, None);
-  }
+}
 
-  // Task 3.1: Test showCommand: true explicit
-  #[test]
-  fn test_show_command_true_explicit() {
+// Task 3.1: Test showCommand: true explicit
+#[test]
+fn test_show_command_true_explicit() {
     let yaml = r#"
 stop:
   commands:
@@ -1162,11 +1160,11 @@ notifications:
     let config = result.unwrap();
     assert_eq!(config.stop.commands.len(), 1);
     assert_eq!(config.stop.commands[0].show_command, Some(true));
-  }
+}
 
-  // Task 3.2: Test showCommand: false
-  #[test]
-  fn test_show_command_false() {
+// Task 3.2: Test showCommand: false
+#[test]
+fn test_show_command_false() {
     let yaml = r#"
 stop:
   commands:
@@ -1195,11 +1193,11 @@ notifications:
     let config = result.unwrap();
     assert_eq!(config.stop.commands.len(), 1);
     assert_eq!(config.stop.commands[0].show_command, Some(false));
-  }
+}
 
-  // Task 3.3: Test default showCommand behavior
-  #[test]
-  fn test_show_command_default_true() {
+// Task 3.3: Test default showCommand behavior
+#[test]
+fn test_show_command_default_true() {
     let yaml = r#"
 stop:
   commands:
@@ -1232,11 +1230,11 @@ notifications:
         Some(true),
         "showCommand should default to Some(true) when omitted"
     );
-  }
+}
 
-  // Test SubagentStopCommand with showCommand: true explicit
-  #[test]
-  fn test_subagent_show_command_true_explicit() {
+// Test SubagentStopCommand with showCommand: true explicit
+#[test]
+fn test_subagent_show_command_true_explicit() {
     let yaml = r#"
 subagentStop:
   commands:
@@ -1269,11 +1267,11 @@ notifications:
     let cmds = config.subagent_stop.commands.get("*").unwrap();
     assert_eq!(cmds.len(), 1);
     assert_eq!(cmds[0].show_command, Some(true));
-  }
+}
 
-  // Test SubagentStopCommand with showCommand: false
-  #[test]
-  fn test_subagent_show_command_false() {
+// Test SubagentStopCommand with showCommand: false
+#[test]
+fn test_subagent_show_command_false() {
     let yaml = r#"
 subagentStop:
   commands:
@@ -1306,11 +1304,11 @@ notifications:
     let cmds = config.subagent_stop.commands.get("*").unwrap();
     assert_eq!(cmds.len(), 1);
     assert_eq!(cmds[0].show_command, Some(false));
-  }
+}
 
-  // Test SubagentStopCommand default showCommand behavior
-  #[test]
-  fn test_subagent_show_command_default_true() {
+// Test SubagentStopCommand default showCommand behavior
+#[test]
+fn test_subagent_show_command_default_true() {
     let yaml = r#"
 subagentStop:
   commands:
@@ -1347,4 +1345,4 @@ notifications:
         Some(true),
         "showCommand should default to Some(true) when omitted"
     );
-  }
+}
