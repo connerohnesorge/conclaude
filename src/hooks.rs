@@ -454,6 +454,9 @@ async fn check_file_validation_rules(payload: &PreToolUsePayload) -> Result<Opti
         .to_string_lossy()
         .to_string();
 
+    // Detect current agent context once at the start (Task 3.1)
+    let current_agent = detect_current_agent();
+
     // Check preventRootAdditions rule - only applies to Write tool for NEW files
     // File existence check allows modifications to existing root files (e.g., package.json)
     // but prevents creation of new files at root
@@ -477,6 +480,12 @@ async fn check_file_validation_rules(payload: &PreToolUsePayload) -> Result<Opti
 
     // Check uneditableFiles rule
     for rule in &config.pre_tool_use.uneditable_files {
+        // Task 3.2-3.4: Check agent match BEFORE file pattern match
+        let agent_pattern = rule.agent().unwrap_or("*");  // Default to "*" if not specified
+        if !matches_agent_pattern(&current_agent, agent_pattern) {
+            continue;  // This rule doesn't apply to current agent
+        }
+
         let pattern = rule.pattern();
         if matches_uneditable_pattern(
             &file_path,
@@ -488,15 +497,25 @@ async fn check_file_validation_rules(payload: &PreToolUsePayload) -> Result<Opti
             let error_message = if let Some(custom_msg) = rule.message() {
                 custom_msg.to_string()
             } else {
-                format!(
-                    "Blocked {} operation: file matches preToolUse.uneditableFiles pattern '{}'. File: {}",
-                    payload.tool_name, pattern, file_path
-                )
+                // Task 3.5-3.6: Include agent context in blocked operation messages
+                if agent_pattern == "*" {
+                    // All agents - don't mention agent in message
+                    format!(
+                        "Blocked {} operation: file matches preToolUse.uneditableFiles pattern '{}'. File: {}",
+                        payload.tool_name, pattern, file_path
+                    )
+                } else {
+                    // Specific agent - include agent in message
+                    format!(
+                        "Blocked {} operation: file matches preToolUse.uneditableFiles pattern '{}' (agent: {}). File: {}",
+                        payload.tool_name, pattern, agent_pattern, file_path
+                    )
+                }
             };
 
             eprintln!(
-                "PreToolUse blocked by preToolUse.uneditableFiles pattern: tool_name={}, file_path={}, pattern={}",
-                payload.tool_name, file_path, pattern
+                "PreToolUse blocked by preToolUse.uneditableFiles pattern: tool_name={}, file_path={}, pattern={}, agent={}",
+                payload.tool_name, file_path, pattern, current_agent
             );
 
             return Ok(Some(HookResult::blocked(error_message)));
@@ -1684,6 +1703,104 @@ pub fn extract_agent_name_from_transcript(
         tool_use_id
     );
     Ok(None)
+}
+
+/// Detect the current agent from the execution context.
+///
+/// Returns "main" for the orchestrator/main session, or the subagent type
+/// (e.g., "coder", "tester") when running within a subagent context.
+///
+/// Detection strategy:
+/// 1. Check CONCLAUDE_AGENT_NAME environment variable (set by SubagentStart/Stop hooks)
+/// 2. If not set, return "main" (we're in the main session)
+///
+/// # Examples
+///
+/// ```
+/// use conclaude::hooks::detect_current_agent;
+///
+/// // In main session
+/// std::env::remove_var("CONCLAUDE_AGENT_NAME");
+/// let agent = detect_current_agent();
+/// assert_eq!(agent, "main");
+///
+/// // In subagent context (after SubagentStart sets CONCLAUDE_AGENT_NAME)
+/// std::env::set_var("CONCLAUDE_AGENT_NAME", "coder");
+/// let agent = detect_current_agent();
+/// assert_eq!(agent, "coder");
+/// std::env::remove_var("CONCLAUDE_AGENT_NAME");
+/// ```
+#[must_use]
+pub fn detect_current_agent() -> String {
+    // Check CONCLAUDE_AGENT_NAME environment variable
+    match std::env::var("CONCLAUDE_AGENT_NAME") {
+        Ok(agent_name) => {
+            // Handle edge case: empty environment variable defaults to "main"
+            if agent_name.trim().is_empty() {
+                "main".to_string()
+            } else {
+                agent_name
+            }
+        }
+        Err(_) => {
+            // Environment variable not set - we're in the main session
+            "main".to_string()
+        }
+    }
+}
+
+/// Check if an agent name matches a given glob pattern.
+///
+/// Patterns follow glob syntax:
+/// - `"*"` matches all agents
+/// - `"coder"` exact match
+/// - `"code*"` matches coder, coder-v2, etc.
+///
+/// Returns true if the pattern matches, false otherwise.
+/// Invalid patterns log a warning and return false (no match = rule doesn't apply).
+///
+/// # Arguments
+///
+/// * `agent_name` - The agent name to check (e.g., "main", "coder", "tester")
+/// * `pattern` - The glob pattern to match against (e.g., "*", "coder", "code*")
+///
+/// # Examples
+///
+/// ```
+/// use conclaude::hooks::matches_agent_pattern;
+///
+/// // Wildcard matches all
+/// assert!(matches_agent_pattern("main", "*"));
+/// assert!(matches_agent_pattern("coder", "*"));
+///
+/// // Exact match
+/// assert!(matches_agent_pattern("coder", "coder"));
+/// assert!(!matches_agent_pattern("main", "coder"));
+///
+/// // Glob pattern
+/// assert!(matches_agent_pattern("coder", "code*"));
+/// assert!(matches_agent_pattern("coder-v2", "code*"));
+/// assert!(!matches_agent_pattern("tester", "code*"));
+/// ```
+#[must_use]
+pub fn matches_agent_pattern(agent_name: &str, pattern: &str) -> bool {
+    // Handle wildcard specially - it always matches
+    if pattern == "*" {
+        return true;
+    }
+
+    // Use glob::Pattern for pattern matching (same as file patterns)
+    match Pattern::new(pattern) {
+        Ok(glob_pattern) => glob_pattern.matches(agent_name),
+        Err(e) => {
+            // Invalid pattern: log warning and return false (conservative - don't block if pattern is bad)
+            eprintln!(
+                "Warning: Invalid agent pattern '{}': {}. Rule will not apply.",
+                pattern, e
+            );
+            false
+        }
+    }
 }
 
 /// Handles `SubagentStop` hook events when Claude subagents complete their tasks.

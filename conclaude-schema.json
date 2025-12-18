@@ -395,6 +395,14 @@
         {
           "description": "Detailed format with pattern and optional custom message.\n\nAllows providing a custom error message that will be shown when Claude attempts to edit a file matching this pattern.",
           "properties": {
+            "agent": {
+              "default": null,
+              "description": "Optional agent pattern to restrict this rule to specific agents (e.g., \"*\", \"coder\", \"code*\", \"main\") When omitted, defaults to \"*\" (all agents) for backward compatibility",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "message": {
               "default": null,
               "description": "Optional custom message to display when blocking edits to matching files",

@@ -607,6 +607,7 @@ fn test_uneditable_file_rule_pattern_extraction() {
     let detailed = UnEditableFileRule::Detailed {
         pattern: "*.md".to_string(),
         message: Some("Custom message".to_string()),
+        agent: None,
     };
     assert_eq!(detailed.pattern(), "*.md");
 }
@@ -620,14 +621,98 @@ fn test_uneditable_file_rule_message_extraction() {
     let detailed_with_msg = UnEditableFileRule::Detailed {
         pattern: "*.md".to_string(),
         message: Some("Custom message".to_string()),
+        agent: None,
     };
     assert_eq!(detailed_with_msg.message(), Some("Custom message"));
 
     let detailed_without_msg = UnEditableFileRule::Detailed {
         pattern: "*.md".to_string(),
         message: None,
+        agent: None,
     };
     assert!(detailed_without_msg.message().is_none());
+}
+
+#[test]
+fn test_uneditable_file_rule_agent_extraction() {
+    // Test the agent() method for all cases
+    let simple = UnEditableFileRule::Simple("*.txt".to_string());
+    assert!(simple.agent().is_none());
+
+    let detailed_with_agent = UnEditableFileRule::Detailed {
+        pattern: "*.md".to_string(),
+        message: None,
+        agent: Some("coder".to_string()),
+    };
+    assert_eq!(detailed_with_agent.agent(), Some("coder"));
+
+    let detailed_without_agent = UnEditableFileRule::Detailed {
+        pattern: "*.md".to_string(),
+        message: None,
+        agent: None,
+    };
+    assert!(detailed_without_agent.agent().is_none());
+
+    // Test with glob patterns
+    let detailed_with_glob = UnEditableFileRule::Detailed {
+        pattern: "src/**/*.test.ts".to_string(),
+        message: Some("Test files".to_string()),
+        agent: Some("code*".to_string()),
+    };
+    assert_eq!(detailed_with_glob.agent(), Some("code*"));
+}
+
+#[test]
+fn test_uneditable_file_rule_agent_yaml_parsing() {
+    // Test parsing YAML with agent field in camelCase format
+    let yaml = r#"
+preToolUse:
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles:
+    - ".conclaude.yml"
+    - pattern: "*.lock"
+      message: "Lock files"
+      agent: "*"
+    - pattern: "spectr/changes/**/tasks.jsonc"
+      message: "Task files"
+      agent: "coder"
+    - pattern: "src/**/*.test.ts"
+      agent: "code*"
+  toolUsageValidation: []
+
+stop:
+  commands: []
+
+notifications:
+  enabled: false
+  hooks: []
+  "#;
+
+    let config: ConclaudeConfig = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(config.pre_tool_use.uneditable_files.len(), 4);
+
+    // Simple variant - no agent
+    assert!(config.pre_tool_use.uneditable_files[0].agent().is_none());
+
+    // Detailed with agent "*"
+    assert_eq!(
+        config.pre_tool_use.uneditable_files[1].agent(),
+        Some("*")
+    );
+
+    // Detailed with agent "coder"
+    assert_eq!(
+        config.pre_tool_use.uneditable_files[2].agent(),
+        Some("coder")
+    );
+
+    // Detailed with agent glob pattern "code*"
+    assert_eq!(
+        config.pre_tool_use.uneditable_files[3].agent(),
+        Some("code*")
+    );
 }
 
 #[test]

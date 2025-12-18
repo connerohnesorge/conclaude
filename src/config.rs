@@ -220,6 +220,10 @@ pub enum UnEditableFileRule {
         /// Optional custom message to display when blocking edits to matching files
         #[serde(default)]
         message: Option<String>,
+        /// Optional agent pattern to restrict this rule to specific agents (e.g., "*", "coder", "code*", "main")
+        /// When omitted, defaults to "*" (all agents) for backward compatibility
+        #[serde(default)]
+        agent: Option<String>,
     },
     /// Simple format: just a glob pattern string.
     ///
@@ -245,6 +249,18 @@ impl UnEditableFileRule {
             UnEditableFileRule::Detailed {
                 message: Some(msg), ..
             } => Some(msg),
+            _ => None,
+        }
+    }
+
+    /// Get the agent pattern if present (only from Detailed variant)
+    /// Returns None for Simple variant and when agent field is not specified
+    #[must_use]
+    pub fn agent(&self) -> Option<&str> {
+        match self {
+            UnEditableFileRule::Detailed {
+                agent: Some(a), ..
+            } => Some(a),
             _ => None,
         }
     }

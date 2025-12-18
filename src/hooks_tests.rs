@@ -2,6 +2,10 @@ use crate::config::{ConclaudeConfig, NotificationsConfig};
 use crate::hooks::*;
 use serde_json::Value;
 use std::path::Path;
+use std::sync::Mutex;
+
+// Mutex to synchronize tests that modify CONCLAUDE_AGENT_NAME environment variable
+static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
 #[test]
 fn test_is_system_event_hook() {
@@ -1100,4 +1104,197 @@ fn test_extract_agent_name_from_transcript_different_agent_types() {
 
         assert_eq!(result, Some(agent_type.to_string()));
     }
+}
+
+// Tests for detect_current_agent function (Tasks 2.1-2.4)
+
+#[test]
+fn test_detect_current_agent_main_session() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    // Ensure CONCLAUDE_AGENT_NAME is not set
+    std::env::remove_var("CONCLAUDE_AGENT_NAME");
+
+    let agent = detect_current_agent();
+    assert_eq!(agent, "main", "Should return 'main' when CONCLAUDE_AGENT_NAME is not set");
+}
+
+#[test]
+fn test_detect_current_agent_coder_subagent() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    // Set CONCLAUDE_AGENT_NAME to "coder"
+    std::env::set_var("CONCLAUDE_AGENT_NAME", "coder");
+
+    let agent = detect_current_agent();
+    assert_eq!(agent, "coder", "Should return 'coder' when CONCLAUDE_AGENT_NAME is set to 'coder'");
+
+    // Clean up
+    std::env::remove_var("CONCLAUDE_AGENT_NAME");
+}
+
+#[test]
+fn test_detect_current_agent_tester_subagent() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    // Set CONCLAUDE_AGENT_NAME to "tester"
+    std::env::set_var("CONCLAUDE_AGENT_NAME", "tester");
+
+    let agent = detect_current_agent();
+    assert_eq!(agent, "tester", "Should return 'tester' when CONCLAUDE_AGENT_NAME is set to 'tester'");
+
+    // Clean up
+    std::env::remove_var("CONCLAUDE_AGENT_NAME");
+}
+
+#[test]
+fn test_detect_current_agent_empty_env_var() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    // Set CONCLAUDE_AGENT_NAME to empty string
+    std::env::set_var("CONCLAUDE_AGENT_NAME", "");
+
+    let agent = detect_current_agent();
+    assert_eq!(agent, "main", "Should return 'main' when CONCLAUDE_AGENT_NAME is empty");
+
+    // Clean up
+    std::env::remove_var("CONCLAUDE_AGENT_NAME");
+}
+
+#[test]
+fn test_detect_current_agent_whitespace_only_env_var() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    // Set CONCLAUDE_AGENT_NAME to whitespace only
+    std::env::set_var("CONCLAUDE_AGENT_NAME", "   \n\t   ");
+
+    let agent = detect_current_agent();
+    assert_eq!(agent, "main", "Should return 'main' when CONCLAUDE_AGENT_NAME is whitespace only");
+
+    // Clean up
+    std::env::remove_var("CONCLAUDE_AGENT_NAME");
+}
+
+#[test]
+fn test_detect_current_agent_custom_agent_name() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    // Set CONCLAUDE_AGENT_NAME to a custom agent name
+    std::env::set_var("CONCLAUDE_AGENT_NAME", "custom-agent-123");
+
+    let agent = detect_current_agent();
+    assert_eq!(agent, "custom-agent-123", "Should return custom agent name");
+
+    // Clean up
+    std::env::remove_var("CONCLAUDE_AGENT_NAME");
+}
+
+// Tests for matches_agent_pattern function (Tasks 2.5-2.8)
+
+#[test]
+fn test_matches_agent_pattern_wildcard() {
+    // Wildcard should match all agents
+    assert!(matches_agent_pattern("main", "*"));
+    assert!(matches_agent_pattern("coder", "*"));
+    assert!(matches_agent_pattern("tester", "*"));
+    assert!(matches_agent_pattern("any-custom-agent", "*"));
+    assert!(matches_agent_pattern("", "*"));
+}
+
+#[test]
+fn test_matches_agent_pattern_exact_match() {
+    // Exact match should only match the exact string
+    assert!(matches_agent_pattern("coder", "coder"));
+    assert!(matches_agent_pattern("tester", "tester"));
+    assert!(matches_agent_pattern("main", "main"));
+
+    // Should not match different strings
+    assert!(!matches_agent_pattern("coder", "tester"));
+    assert!(!matches_agent_pattern("main", "coder"));
+    assert!(!matches_agent_pattern("coder-v2", "coder"));
+}
+
+#[test]
+fn test_matches_agent_pattern_prefix_glob() {
+    // Prefix glob pattern
+    assert!(matches_agent_pattern("coder", "code*"));
+    assert!(matches_agent_pattern("coder-v2", "code*"));
+    assert!(matches_agent_pattern("code", "code*"));
+    assert!(matches_agent_pattern("codebase", "code*"));
+
+    // Should not match if prefix doesn't match
+    assert!(!matches_agent_pattern("tester", "code*"));
+    assert!(!matches_agent_pattern("main", "code*"));
+    assert!(!matches_agent_pattern("mycoder", "code*"));
+}
+
+#[test]
+fn test_matches_agent_pattern_suffix_glob() {
+    // Suffix glob pattern
+    assert!(matches_agent_pattern("coder", "*coder"));
+    assert!(matches_agent_pattern("auto-coder", "*coder"));
+    assert!(matches_agent_pattern("smart-coder", "*coder"));
+
+    // Should not match if suffix doesn't match
+    assert!(!matches_agent_pattern("coder-v2", "*coder"));
+    assert!(!matches_agent_pattern("tester", "*coder"));
+}
+
+#[test]
+fn test_matches_agent_pattern_middle_glob() {
+    // Pattern with glob in the middle
+    assert!(matches_agent_pattern("coder-agent", "coder-*"));
+    assert!(matches_agent_pattern("coder-v2", "coder-*"));
+    assert!(matches_agent_pattern("coder-test-agent", "coder-*"));
+
+    // Should not match if prefix doesn't match
+    assert!(!matches_agent_pattern("auto-coder", "coder-*"));
+    assert!(!matches_agent_pattern("tester-v1", "coder-*"));
+}
+
+#[test]
+fn test_matches_agent_pattern_character_class() {
+    // Pattern with character class
+    assert!(matches_agent_pattern("agent1", "agent[0-9]"));
+    assert!(matches_agent_pattern("agent5", "agent[0-9]"));
+    assert!(!matches_agent_pattern("agentX", "agent[0-9]"));
+    assert!(!matches_agent_pattern("agent", "agent[0-9]"));
+}
+
+#[test]
+fn test_matches_agent_pattern_question_mark() {
+    // Pattern with ? (matches single character)
+    assert!(matches_agent_pattern("agent1", "agent?"));
+    assert!(matches_agent_pattern("agentX", "agent?"));
+    assert!(!matches_agent_pattern("agent12", "agent?"));
+    assert!(!matches_agent_pattern("agent", "agent?"));
+}
+
+#[test]
+fn test_matches_agent_pattern_invalid_pattern() {
+    // Invalid patterns should log warning and return false
+    assert!(!matches_agent_pattern("coder", "[invalid"));
+    assert!(!matches_agent_pattern("tester", "(unclosed"));
+    assert!(!matches_agent_pattern("main", "[[]"));
+}
+
+#[test]
+fn test_matches_agent_pattern_empty_strings() {
+    // Edge cases with empty strings
+    assert!(matches_agent_pattern("", "*"));
+    assert!(matches_agent_pattern("", ""));
+    assert!(!matches_agent_pattern("coder", ""));
+    assert!(!matches_agent_pattern("", "coder"));
+}
+
+#[test]
+fn test_matches_agent_pattern_case_sensitive() {
+    // Glob patterns are case-sensitive by default
+    assert!(matches_agent_pattern("coder", "coder"));
+    assert!(!matches_agent_pattern("Coder", "coder"));
+    assert!(!matches_agent_pattern("CODER", "coder"));
+    assert!(matches_agent_pattern("Coder", "Coder"));
+}
+
+#[test]
+fn test_matches_agent_pattern_multiple_wildcards() {
+    // Pattern with multiple wildcards
+    assert!(matches_agent_pattern("coder-test-agent", "coder-*-agent"));
+    assert!(matches_agent_pattern("coder-v2-agent", "coder-*-agent"));
+    assert!(!matches_agent_pattern("coder-agent", "coder-*-agent"));
+    assert!(!matches_agent_pattern("tester-test-agent", "coder-*-agent"));
 }
