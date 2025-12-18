@@ -2425,8 +2425,6 @@ mod prompt_context_tests {
 #[cfg(test)]
 mod agent_session_tests {
     use super::*;
-    use std::fs;
-    use tempfile::tempdir;
 
     #[test]
     fn test_matches_agent_pattern_wildcard() {
