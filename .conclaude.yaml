@@ -8,6 +8,11 @@ stop:
   # Structured command format with optional custom error messages
   # Each command can have its own error message, and control output display
   commands:
+    - run: "spectr validate --all"
+      showStdout: true
+      showStderr: true
+      message: "Spec validation (spectr validate --all) failed - please fix errors before continuing"
+      maxOutputLines: 100
     - run: "nix develop -c lint"
       showStdout: true
       showStderr: true
