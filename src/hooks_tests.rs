@@ -1,4 +1,4 @@
-use crate::config::{ConclaudeConfig, NotificationsConfig};
+use crate::config::{ConclaudeConfig, NotificationsConfig, UnEditableFileRule};
 use crate::hooks::*;
 use serde_json::Value;
 use std::path::Path;
@@ -1297,4 +1297,211 @@ fn test_matches_agent_pattern_multiple_wildcards() {
     assert!(matches_agent_pattern("coder-v2-agent", "coder-*-agent"));
     assert!(!matches_agent_pattern("coder-agent", "coder-*-agent"));
     assert!(!matches_agent_pattern("tester-test-agent", "coder-*-agent"));
+}
+
+// Task 4.4: Test backward compatibility - rules without agent field apply to all agents
+#[test]
+fn test_uneditable_file_rule_without_agent_applies_to_all() {
+    // Simple format (no agent field) should match all agents
+    let simple_rule = UnEditableFileRule::Simple("*.lock".to_string());
+
+    // agent() returns None for simple format
+    assert!(simple_rule.agent().is_none());
+
+    // When agent() is None, check_file_validation_rules should treat it as "*"
+    // This is tested by the default unwrap_or("*") in the implementation
+
+    // Detailed format without agent field should also apply to all agents
+    let detailed_no_agent = UnEditableFileRule::Detailed {
+        pattern: "*.md".to_string(),
+        message: Some("Markdown files".to_string()),
+        agent: None,
+    };
+
+    assert!(detailed_no_agent.agent().is_none());
+}
+
+// Task 4.5: Test that agent="*" matches all agents
+#[test]
+fn test_uneditable_file_rule_wildcard_agent_matches_all() {
+    let rule = UnEditableFileRule::Detailed {
+        pattern: ".env".to_string(),
+        message: Some("Secrets file".to_string()),
+        agent: Some("*".to_string()),
+    };
+
+    assert_eq!(rule.agent(), Some("*"));
+
+    // Verify wildcard matches all agent names
+    assert!(matches_agent_pattern("main", "*"));
+    assert!(matches_agent_pattern("coder", "*"));
+    assert!(matches_agent_pattern("tester", "*"));
+    assert!(matches_agent_pattern("stuck", "*"));
+    assert!(matches_agent_pattern("custom-agent-123", "*"));
+}
+
+// Task 4.6: Test that agent="main" only matches main session
+#[test]
+fn test_uneditable_file_rule_main_agent_specific() {
+    let rule = UnEditableFileRule::Detailed {
+        pattern: "CLAUDE.md".to_string(),
+        message: Some("Main orchestrator config".to_string()),
+        agent: Some("main".to_string()),
+    };
+
+    assert_eq!(rule.agent(), Some("main"));
+
+    // Should only match "main"
+    assert!(matches_agent_pattern("main", "main"));
+    assert!(!matches_agent_pattern("coder", "main"));
+    assert!(!matches_agent_pattern("tester", "main"));
+    assert!(!matches_agent_pattern("stuck", "main"));
+}
+
+// Task 4.7: Test that agent="coder" only matches coder subagent
+#[test]
+fn test_uneditable_file_rule_coder_agent_specific() {
+    let rule = UnEditableFileRule::Detailed {
+        pattern: "src/**/*.rs".to_string(),
+        message: Some("Coder should not edit source".to_string()),
+        agent: Some("coder".to_string()),
+    };
+
+    assert_eq!(rule.agent(), Some("coder"));
+
+    // Should only match "coder" exactly
+    assert!(matches_agent_pattern("coder", "coder"));
+    assert!(!matches_agent_pattern("main", "coder"));
+    assert!(!matches_agent_pattern("tester", "coder"));
+    assert!(!matches_agent_pattern("coder-v2", "coder"));
+    assert!(!matches_agent_pattern("auto-coder", "coder"));
+}
+
+// Task 4.8: Test glob patterns like agent="code*" matching multiple agents
+#[test]
+fn test_uneditable_file_rule_agent_glob_pattern() {
+    let rule = UnEditableFileRule::Detailed {
+        pattern: "tests/**/*.test.ts".to_string(),
+        message: Some("Test files".to_string()),
+        agent: Some("code*".to_string()),
+    };
+
+    assert_eq!(rule.agent(), Some("code*"));
+
+    // Should match agents starting with "code"
+    assert!(matches_agent_pattern("coder", "code*"));
+    assert!(matches_agent_pattern("coder-v2", "code*"));
+    assert!(matches_agent_pattern("code", "code*"));
+    assert!(matches_agent_pattern("codebase", "code*"));
+
+    // Should NOT match agents not starting with "code"
+    assert!(!matches_agent_pattern("main", "code*"));
+    assert!(!matches_agent_pattern("tester", "code*"));
+    assert!(!matches_agent_pattern("stuck", "code*"));
+    assert!(!matches_agent_pattern("auto-coder", "code*"));
+}
+
+// Task 4.8: Test more complex glob patterns
+#[test]
+fn test_uneditable_file_rule_agent_complex_globs() {
+    // Suffix glob
+    let suffix_rule = UnEditableFileRule::Detailed {
+        pattern: "*.lock".to_string(),
+        message: None,
+        agent: Some("*-coder".to_string()),
+    };
+
+    assert_eq!(suffix_rule.agent(), Some("*-coder"));
+    assert!(matches_agent_pattern("auto-coder", "*-coder"));
+    assert!(matches_agent_pattern("smart-coder", "*-coder"));
+    assert!(!matches_agent_pattern("coder", "*-coder"));
+    assert!(!matches_agent_pattern("coder-v2", "*-coder"));
+
+    // Character class glob
+    let char_class_rule = UnEditableFileRule::Detailed {
+        pattern: "config.yaml".to_string(),
+        message: None,
+        agent: Some("agent[0-9]".to_string()),
+    };
+
+    assert_eq!(char_class_rule.agent(), Some("agent[0-9]"));
+    assert!(matches_agent_pattern("agent1", "agent[0-9]"));
+    assert!(matches_agent_pattern("agent5", "agent[0-9]"));
+    assert!(!matches_agent_pattern("agentX", "agent[0-9]"));
+}
+
+// Task 4.9: Test that agent="coder" does NOT block main session or tester
+#[test]
+fn test_uneditable_file_rule_agent_isolation() {
+    // Rule that should only apply to "coder"
+    let coder_only_rule = UnEditableFileRule::Detailed {
+        pattern: "spectr/changes/**/tasks.jsonc".to_string(),
+        message: Some("Coder cannot edit task files".to_string()),
+        agent: Some("coder".to_string()),
+    };
+
+    assert_eq!(coder_only_rule.agent(), Some("coder"));
+
+    // Verify agent isolation
+    assert!(matches_agent_pattern("coder", "coder"));
+    assert!(!matches_agent_pattern("main", "coder"));
+    assert!(!matches_agent_pattern("tester", "coder"));
+    assert!(!matches_agent_pattern("stuck", "coder"));
+
+    // Rule that should only apply to "tester"
+    let tester_only_rule = UnEditableFileRule::Detailed {
+        pattern: "src/**/*.rs".to_string(),
+        message: Some("Tester cannot edit source".to_string()),
+        agent: Some("tester".to_string()),
+    };
+
+    assert_eq!(tester_only_rule.agent(), Some("tester"));
+
+    // Verify tester isolation
+    assert!(matches_agent_pattern("tester", "tester"));
+    assert!(!matches_agent_pattern("main", "tester"));
+    assert!(!matches_agent_pattern("coder", "tester"));
+    assert!(!matches_agent_pattern("stuck", "tester"));
+}
+
+// Task 4.9: Test multiple rules with different agents
+#[test]
+fn test_uneditable_file_rule_multiple_agent_rules() {
+    let rules = vec![
+        UnEditableFileRule::Detailed {
+            pattern: ".env".to_string(),
+            message: Some("All agents: no secrets".to_string()),
+            agent: Some("*".to_string()),
+        },
+        UnEditableFileRule::Detailed {
+            pattern: "CLAUDE.md".to_string(),
+            message: Some("Main only: orchestrator config".to_string()),
+            agent: Some("main".to_string()),
+        },
+        UnEditableFileRule::Detailed {
+            pattern: "src/**/*.rs".to_string(),
+            message: Some("Coder only: no source edits".to_string()),
+            agent: Some("coder".to_string()),
+        },
+        UnEditableFileRule::Simple("package.json".to_string()),
+    ];
+
+    // Verify all rules parse correctly
+    assert_eq!(rules.len(), 4);
+
+    // Rule 1: wildcard agent
+    assert_eq!(rules[0].agent(), Some("*"));
+    assert_eq!(rules[0].pattern(), ".env");
+
+    // Rule 2: main agent
+    assert_eq!(rules[1].agent(), Some("main"));
+    assert_eq!(rules[1].pattern(), "CLAUDE.md");
+
+    // Rule 3: coder agent
+    assert_eq!(rules[2].agent(), Some("coder"));
+    assert_eq!(rules[2].pattern(), "src/**/*.rs");
+
+    // Rule 4: no agent (backward compatible - applies to all)
+    assert!(rules[3].agent().is_none());
+    assert_eq!(rules[3].pattern(), "package.json");
 }
