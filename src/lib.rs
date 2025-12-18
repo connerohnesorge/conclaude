@@ -4,6 +4,8 @@ pub mod gitignore;
 pub mod hooks;
 
 #[cfg(test)]
+mod config_test;
+#[cfg(test)]
 mod hooks_tests;
 
 /// Schema generation and validation utilities.

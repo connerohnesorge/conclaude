@@ -4,15 +4,15 @@ Instructions for AI coding assistants using Spectr for spec-driven development.
 
 ## TL;DR Quick Checklist
 
-- Search existing work: `spectr spec list --long`, `spectr list` (use `rg` only for full-text search)
+- Search existing work: Read `spectr/changes/` and `spectr/specs/` directories (use `rg` for full-text search)
 - Decide scope: new capability vs modify existing capability
 - Pick a unique `change-id`: kebab-case, verb-led (`add-`, `update-`, `remove-`, `refactor-`)
 - Scaffold: `proposal.md`, `tasks.md`, `design.md` (only if needed), and delta specs per affected capability
 - Write deltas: use `## ADDED|MODIFIED|REMOVED|RENAMED Requirements`; include at least one `#### Scenario:` per requirement
-- Validate: `spectr validate [change-id] --strict` and fix issues
+- Validate: `spectr validate [change-id]` and fix issues
 - Request approval: Do not start implementation until proposal is approved
 
-## Three-Stage Workflow
+## Two-Stage Workflow
 
 ### Stage 1: Creating Changes
 Create proposal when you need to:
@@ -21,13 +21,6 @@ Create proposal when you need to:
 - Change architecture or patterns
 - Optimize performance (changes behavior)
 - Update security patterns
-
-Triggers (examples):
-- "Help me create a change proposal"
-- "Help me plan a change"
-- "Help me create a proposal"
-- "I want to create a spec proposal"
-- "I want to create a spec"
 
 Loose matching guidance:
 - Contains one of: `proposal`, `change`, `spec`
@@ -40,50 +33,43 @@ Skip proposal for:
 - Configuration changes
 - Tests for existing behavior
 
-**Workflow**
-1. Review `spectr/project.md`, `spectr list`, and `spectr list --specs` to understand current context.
+Workflow:
+1. Review `spectr/project.md` and read `spectr/specs/` and `spectr/changes/` directories to understand current context.
 2. Choose a unique verb-led `change-id` and scaffold `proposal.md`, `tasks.md`, optional `design.md`, and spec deltas under `spectr/changes/<id>/`.
 3. Draft spec deltas using `## ADDED|MODIFIED|REMOVED Requirements` with at least one `#### Scenario:` per requirement.
-4. Run `spectr validate <id> --strict` and resolve any issues before sharing the proposal.
+4. Run `spectr validate <id>` and resolve any issues before sharing the proposal.
 
 ### Stage 2: Implementing Changes
 Track these steps as TODOs and complete them one by one.
-1. **Read proposal.md** - Understand what's being built
-2. **Read design.md** (if exists) - Review technical decisions
-3. **Read tasks.md** - Get implementation checklist
-4. **Implement tasks sequentially** - Complete in order
-5. **Confirm completion** - Ensure every item in `tasks.md` is finished before updating statuses
-6. **Update checklist** - After all work is done, set every task to `- [x]` so the list reflects reality
-7. **Approval gate** - Do not start implementation until the proposal is reviewed and approved
-
-### Stage 3: Archiving Changes
-After deployment, create separate PR to:
-- Move `changes/[name]/` → `changes/archive/YYYY-MM-DD-[name]/`
-- Update `specs/` if capabilities changed
-- Use `spectr archive <change-id> --skip-specs --yes` for tooling-only changes (always pass the change ID explicitly)
-- Run `spectr validate --strict` to confirm the archived change passes checks
+1. Read proposal.md - Understand what's being built
+2. Read design.md (if exists) - Review technical decisions
+3. Read tasks.md - Get implementation checklist
+4. Implement tasks sequentially - Complete in order
+5. Confirm completion - Ensure every item in `tasks.md` is finished before updating statuses
+6. Update checklist - After all work is done, set every task to `- [x]` so the list reflects reality
+7. Approval gate - Do not start implementation until the proposal is reviewed and approved
 
 ## Before Any Task
 
-**Context Checklist:**
+Context Checklist:
 - [ ] Read relevant specs in `specs/[capability]/spec.md`
 - [ ] Check pending changes in `changes/` for conflicts
 - [ ] Read `spectr/project.md` for conventions
-- [ ] Run `spectr list` to see active changes
-- [ ] Run `spectr list --specs` to see existing capabilities
+- [ ] Read `spectr/changes/` directory to see active changes
+- [ ] Read `spectr/specs/` directory to see existing capabilities
 
-**Before Creating Specs:**
+Before Creating Specs:
 - Always check if capability already exists
 - Prefer modifying existing specs over creating duplicates
-- Use `spectr show [spec]` to review current state
-- If request is ambiguous, ask 1–2 clarifying questions before scaffolding
+- Read `spectr/specs/<capability>/spec.md` directly to review current state
+- If request is ambiguous, ask 1-2 clarifying questions before scaffolding
 
 ### Search Guidance
-- Enumerate specs: `spectr spec list --long` (or `--json` for scripts)
-- Enumerate changes: `spectr list` (or `spectr change list --json` - deprecated but available)
-- Show details:
-  - Spec: `spectr show <spec-id> --type spec` (use `--json` for filters)
-  - Change: `spectr show <change-id> --json --deltas-only`
+- Enumerate specs: Read `spectr/specs/` directory (or `spectr spec list --long` for formatted output)
+- Enumerate changes: Read `spectr/changes/` directory (or `spectr list` for formatted output)
+- Read details directly:
+  - Spec: Read `spectr/specs/<capability>/spec.md`
+  - Change: Read `spectr/changes/<change-id>/proposal.md`
 - Full-text search (use ripgrep): `rg -n "Requirement:|Scenario:" spectr/specs`
 
 ## Quick Start
@@ -94,31 +80,28 @@ After deployment, create separate PR to:
 # Essential commands
 spectr list                  # List active changes
 spectr list --specs          # List specifications
-spectr show [item]           # Display change or spec
 spectr validate [item]       # Validate changes or specs
-spectr archive <change-id> [--yes|-y]   # Archive after deployment (add --yes for non-interactive runs)
 
 # Project management
-spectr init [path]           # Initialize Spectr
-spectr update [path]         # Update instruction files
+spectr init [path]           # Initialize or update instruction files
 
 # Interactive mode
-spectr show                  # Prompts for selection
 spectr validate              # Bulk validation mode
 
 # Debugging
-spectr show [change] --json --deltas-only
-spectr validate [change] --strict
+spectr validate [change]
 ```
+
+Reading Specs and Changes (for AI agents):
+- Specs: Read `spectr/specs/<capability>/spec.md` directly
+- Changes: Read `spectr/changes/<change-id>/proposal.md` directly
+- Tasks: Read `spectr/changes/<change-id>/tasks.md` directly
 
 ### Command Flags
 
 - `--json` - Machine-readable output
 - `--type change|spec` - Disambiguate items
-- `--strict` - Comprehensive validation
 - `--no-interactive` - Disable prompts
-- `--skip-specs` - Archive without spec updates
-- `--yes`/`-y` - Skip confirmation prompts (non-interactive archive)
 
 ## Directory Structure
 
@@ -156,9 +139,9 @@ New request?
 
 ### Proposal Structure
 
-1. **Create directory:** `changes/[change-id]/` (kebab-case, verb-led, unique)
+1. Create directory: `changes/[change-id]/` (kebab-case, verb-led, unique)
 
-2. **Write proposal.md:**
+2. Write proposal.md:
 ```markdown
 # Change: [Brief description of change]
 
@@ -167,22 +150,22 @@ New request?
 
 ## What Changes
 - [Bullet list of changes]
-- [Mark breaking changes with **BREAKING**]
+- [Mark breaking changes with BREAKING]
 
 ## Impact
 - Affected specs: [list capabilities]
 - Affected code: [key files/systems]
 ```
 
-3. **Create spec deltas:** `specs/[capability]/spec.md`
+3. Create spec deltas: `specs/[capability]/spec.md`
 ```markdown
 ## ADDED Requirements
 ### Requirement: New Feature
 The system SHALL provide...
 
 #### Scenario: Success case
-- **WHEN** user performs action
-- **THEN** expected result
+- WHEN user performs action
+- THEN expected result
 
 ## MODIFIED Requirements
 ### Requirement: Existing Feature
@@ -190,12 +173,12 @@ The system SHALL provide...
 
 ## REMOVED Requirements
 ### Requirement: Old Feature
-**Reason**: [Why removing]
-**Migration**: [How to handle]
+Reason: [Why removing]
+Migration: [How to handle]
 ```
 If multiple capabilities are affected, create multiple delta files under `changes/[change-id]/specs/<capability>/spec.md`—one per capability.
 
-4. **Create tasks.md:**
+4. Create tasks.md:
 ```markdown
 ## 1. Implementation
 - [ ] 1.1 Create database schema
@@ -204,7 +187,7 @@ If multiple capabilities are affected, create multiple delta files under `change
 - [ ] 1.4 Write tests
 ```
 
-5. **Create design.md when needed:**
+5. Create design.md when needed:
 Create `design.md` if any of the following apply; otherwise omit it:
 - Cross-cutting change (multiple services/modules) or a new architectural pattern
 - New external dependency or significant data model changes
@@ -238,17 +221,17 @@ Minimal `design.md` skeleton:
 
 ### Critical: Scenario Formatting
 
-**CORRECT** (use #### headers):
+CORRECT (use #### headers):
 ```markdown
 #### Scenario: User login success
-- **WHEN** valid credentials provided
-- **THEN** return JWT token
+- WHEN valid credentials provided
+- THEN return JWT token
 ```
 
-**WRONG** (don't use bullets or bold):
+WRONG (don't use bullets or bold):
 ```markdown
-- **Scenario: User login**  ❌
-**Scenario**: User login     ❌
+- Scenario: User login  ❌
+Scenario: User login     ❌
 ### Scenario: User login      ❌
 ```
 
@@ -290,30 +273,28 @@ Example for RENAMED:
 
 ### Common Errors
 
-**"Change must have at least one delta"**
+"Change must have at least one delta"
 - Check `changes/[name]/specs/` exists with .md files
 - Verify files have operation prefixes (## ADDED Requirements)
 
-**"Requirement must have at least one scenario"**
+"Requirement must have at least one scenario"
 - Check scenarios use `#### Scenario:` format (4 hashtags)
 - Don't use bullet points or bold for scenario headers
 
-**Silent scenario parsing failures**
+Silent scenario parsing failures
 - Exact format required: `#### Scenario: Name`
-- Debug with: `spectr show [change] --json --deltas-only`
+- Debug by reading the delta spec file directly: `spectr/changes/<change-id>/specs/<capability>/spec.md`
 
 ### Validation Tips
 
 ```bash
-# Always use strict mode for comprehensive checks
-spectr validate [change] --strict
-
-# Debug delta parsing
-spectr show [change] --json | jq '.deltas'
-
-# Check specific requirement
-spectr show [spec] --json -r 1
+# Validate a change (validation is always strict by default)
+spectr validate [change]
 ```
+
+For validation debugging:
+- Read delta specs directly: `spectr/changes/<change-id>/specs/<capability>/spec.md`
+- Check spec content by reading: `spectr/specs/<capability>/spec.md`
 
 ## Happy Path Script
 
@@ -338,12 +319,12 @@ cat > spectr/changes/$CHANGE/specs/auth/spec.md << 'EOF'
 Users MUST provide a second factor during login.
 
 #### Scenario: OTP required
-- **WHEN** valid credentials are provided
-- **THEN** an OTP challenge is required
+- WHEN valid credentials are provided
+- THEN an OTP challenge is required
 EOF
 
 # 4) Validate
-spectr validate $CHANGE --strict
+spectr validate $CHANGE
 ```
 
 ## Multi-Capability Example
@@ -415,13 +396,13 @@ Only add complexity with:
 ## Error Recovery
 
 ### Change Conflicts
-1. Run `spectr list` to see active changes
+1. Read `spectr/changes/` directory to see active changes
 2. Check for overlapping specs
 3. Coordinate with change owners
 4. Consider combining proposals
 
 ### Validation Failures
-1. Run with `--strict` flag
+1. Run `spectr validate` (validation is always strict)
 2. Check JSON output for details
 3. Verify spec file format
 4. Ensure scenarios properly formatted
@@ -442,15 +423,18 @@ Only add complexity with:
 ### File Purposes
 - `proposal.md` - Why and what
 - `tasks.md` - Implementation steps
-- `design.md` - Technical decisions
 - `spec.md` - Requirements and behavior
+- `design.md` - Technical decisions (optional)
 
 ### CLI Essentials
 ```bash
 spectr list              # What's in progress?
-spectr show [item]       # View details
-spectr validate --strict # Is it correct?
+spectr validate          # Is it correct?
 spectr archive <change-id> [--yes|-y]  # Mark complete (add --yes for automation)
 ```
+
+Reading Details (for AI agents):
+- Read `spectr/specs/<capability>/spec.md` for spec details
+- Read `spectr/changes/<change-id>/proposal.md` for change details
 
 Remember: Specs are truth. Changes are proposals. Keep them in sync.

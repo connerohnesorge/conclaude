@@ -211,7 +211,7 @@ Use `@/spectr/AGENTS.md` to learn:
 
 When delegating tasks from a change proposal to subagents:
 - Provide the proposal path: `spectr/changes/<id>/proposal.md`
-- Include task context: `spectr/changes/<id>/tasks.json`
+- Include task context: `spectr/changes/<id>/tasks.jsonc`
 - Reference delta specs: `spectr/changes/<id>/specs/<capability>/spec.md`
 
 <!-- spectr:END -->
