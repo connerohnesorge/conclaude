@@ -399,7 +399,10 @@ mod tests {
         let result = HookResult::with_context("Read the sidebar documentation");
         assert_eq!(result.blocked, Some(false));
         assert_eq!(result.message, None);
-        assert_eq!(result.system_prompt, Some("Read the sidebar documentation".to_string()));
+        assert_eq!(
+            result.system_prompt,
+            Some("Read the sidebar documentation".to_string())
+        );
     }
 
     #[test]

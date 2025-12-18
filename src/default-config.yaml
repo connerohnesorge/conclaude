@@ -46,6 +46,18 @@ preToolUse:
   # - "*.lock"
   # - pattern: ".env*"
   #   message: "Environment files contain secrets"
+  #
+  # Agent-specific protection examples (blocks specific subagents):
+  # - pattern: "spectr/changes/**/tasks.jsonc"
+  #   message: "Task files managed by orchestrator"
+  #   agent: "coder"  # Only blocks coder subagent
+  #
+  # - pattern: "src/**/*.test.ts"
+  #   message: "Test files managed by tester agent"
+  #   agent: "code*"  # Blocks coder, coder-v2, etc.
+  #
+  # - pattern: "docs/**"
+  #   agent: "*"  # Blocks all agents (same as omitting agent field)
 
   # Prevent editing git-ignored files
   preventUpdateGitIgnored: false

@@ -202,6 +202,14 @@ pub struct ToolUsageRule {
 ///     message: "Environment files contain secrets. Use .env.example instead."
 ///   - pattern: "{package,tsconfig}.json"
 ///     message: "Configuration files require team review before changes."
+///
+///   # Agent-scoped patterns (only applied to specific agents)
+///   - pattern: "src/**/*.test.ts"
+///     agent: "coder"
+///     message: "The coder agent should not modify test files."
+///   - pattern: "dist/**"
+///     agent: "test*"
+///     message: "Test agents should not modify build output."
 /// ```
 ///
 /// The `#[serde(untagged)]` attribute allows serde to automatically handle both
@@ -220,6 +228,9 @@ pub enum UnEditableFileRule {
         /// Optional custom message to display when blocking edits to matching files
         #[serde(default)]
         message: Option<String>,
+        /// Optional agent pattern to scope this rule to specific agents (e.g., "coder", "tester", "main", or glob patterns like "code*")
+        #[serde(default)]
+        agent: Option<String>,
     },
     /// Simple format: just a glob pattern string.
     ///
@@ -245,6 +256,15 @@ impl UnEditableFileRule {
             UnEditableFileRule::Detailed {
                 message: Some(msg), ..
             } => Some(msg),
+            _ => None,
+        }
+    }
+
+    /// Get the agent pattern if present (only from Detailed variant)
+    #[must_use]
+    pub fn agent(&self) -> Option<&str> {
+        match self {
+            UnEditableFileRule::Detailed { agent: Some(a), .. } => Some(a),
             _ => None,
         }
     }
@@ -358,6 +378,7 @@ pub struct PreToolUseConfig {
     /// Supports two formats:
     /// 1. Simple string patterns: `"*.lock"`
     /// 2. Detailed objects with custom messages: `{pattern: "*.lock", message: "..."}`
+    /// 3. Detailed objects with agent scoping: `{pattern: "*.lock", agent: "coder"}`
     ///
     /// # Examples
     ///
@@ -368,6 +389,9 @@ pub struct PreToolUseConfig {
     ///   - "*.lock"            # Lock files
     ///   - pattern: ".env*"
     ///     message: "Environment files contain secrets. Use .env.example instead."
+    ///   - pattern: "src/**/*.test.ts"
+    ///     agent: "coder"
+    ///     message: "The coder agent should not modify test files."
     /// ```
     ///
     /// Default: `[".conclaude.yml", ".conclaude.yaml"]`

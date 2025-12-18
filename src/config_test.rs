@@ -607,6 +607,7 @@ fn test_uneditable_file_rule_pattern_extraction() {
     let detailed = UnEditableFileRule::Detailed {
         pattern: "*.md".to_string(),
         message: Some("Custom message".to_string()),
+        agent: None,
     };
     assert_eq!(detailed.pattern(), "*.md");
 }
@@ -620,14 +621,92 @@ fn test_uneditable_file_rule_message_extraction() {
     let detailed_with_msg = UnEditableFileRule::Detailed {
         pattern: "*.md".to_string(),
         message: Some("Custom message".to_string()),
+        agent: None,
     };
     assert_eq!(detailed_with_msg.message(), Some("Custom message"));
 
     let detailed_without_msg = UnEditableFileRule::Detailed {
         pattern: "*.md".to_string(),
         message: None,
+        agent: None,
     };
     assert!(detailed_without_msg.message().is_none());
+}
+
+#[test]
+fn test_uneditable_file_rule_agent_extraction() {
+    // Test the agent() method for all cases
+    let simple = UnEditableFileRule::Simple("*.txt".to_string());
+    assert!(simple.agent().is_none());
+
+    let detailed_with_agent = UnEditableFileRule::Detailed {
+        pattern: "*.md".to_string(),
+        message: None,
+        agent: Some("coder".to_string()),
+    };
+    assert_eq!(detailed_with_agent.agent(), Some("coder"));
+
+    let detailed_without_agent = UnEditableFileRule::Detailed {
+        pattern: "*.md".to_string(),
+        message: None,
+        agent: None,
+    };
+    assert!(detailed_without_agent.agent().is_none());
+
+    // Test glob pattern agent
+    let detailed_with_glob_agent = UnEditableFileRule::Detailed {
+        pattern: "src/**/*.ts".to_string(),
+        message: Some("Test agents cannot modify source files".to_string()),
+        agent: Some("test*".to_string()),
+    };
+    assert_eq!(detailed_with_glob_agent.agent(), Some("test*"));
+}
+
+#[test]
+fn test_uneditable_file_rule_agent_field_parsing_from_yaml() {
+    // Test that agent field can be parsed from YAML correctly
+    let yaml = r#"
+stop:
+  commands: []
+preToolUse:
+  uneditableFiles:
+    - pattern: "*.lock"
+      message: "Lock files are auto-generated"
+      agent: "coder"
+    - pattern: "dist/**"
+      agent: "test*"
+    - pattern: ".env*"
+      message: "Environment files contain secrets"
+    - "*.md"
+"#;
+
+    let config = parse_and_validate_config(yaml, Path::new("test.yaml")).unwrap();
+    let rules = &config.pre_tool_use.uneditable_files;
+
+    assert_eq!(rules.len(), 4);
+
+    // First rule: has agent, message, and pattern
+    assert_eq!(rules[0].pattern(), "*.lock");
+    assert_eq!(rules[0].agent(), Some("coder"));
+    assert_eq!(rules[0].message(), Some("Lock files are auto-generated"));
+
+    // Second rule: has agent and pattern, no message
+    assert_eq!(rules[1].pattern(), "dist/**");
+    assert_eq!(rules[1].agent(), Some("test*"));
+    assert_eq!(rules[1].message(), None);
+
+    // Third rule: has message and pattern, no agent
+    assert_eq!(rules[2].pattern(), ".env*");
+    assert_eq!(rules[2].agent(), None);
+    assert_eq!(
+        rules[2].message(),
+        Some("Environment files contain secrets")
+    );
+
+    // Fourth rule: simple format (only pattern)
+    assert_eq!(rules[3].pattern(), "*.md");
+    assert_eq!(rules[3].agent(), None);
+    assert_eq!(rules[3].message(), None);
 }
 
 #[test]
