@@ -3,7 +3,7 @@ members = [".", "crates/conclaude-field-derive"]
 
 [package]
 name = "conclaude"
-version = "0.2.5"
+version = "0.2.6"
 edition = "2021"
 description = "Claude Code hook handler CLI tool that processes hook events and manages lifecycle hooks for tool usage, session management, and transcript processing"
 license = "MIT"
