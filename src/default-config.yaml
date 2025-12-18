@@ -39,13 +39,42 @@ preToolUse:
   preventRootAdditions: true
 
   # Protected files (glob patterns)
+  # Supports both simple and detailed formats with agent-aware filtering
   uneditableFiles:
     - ".conclaude.yml"
     - ".conclaude.yaml"
+
   # Examples:
+  # Simple format - applies to ALL agents (backward compatible):
   # - "*.lock"
+
+  # Detailed format with custom message:
   # - pattern: ".env*"
   #   message: "Environment files contain secrets"
+
+  # Agent-aware format - protect files for specific agents:
+  # - pattern: "spectr/changes/**/tasks.jsonc"
+  #   message: "Task files should only be updated by orchestrator"
+  #   agent: "coder"  # Only blocks the 'coder' subagent
+
+  # Agent field explanation:
+  # - Omitting 'agent' defaults to "*" (all agents including main session)
+  # - agent: "*" - Explicitly applies to all agents
+  # - agent: "main" - Only applies to main/orchestrator session
+  # - agent: "coder" - Only applies to 'coder' subagent
+  # - agent: "test*" - Glob pattern matching 'tester', 'test-runner', etc.
+  # - agent: "code*" - Matches 'coder', 'coder-v2', etc.
+
+  # More examples:
+  # Block subagents from modifying specs (orchestrator can still edit):
+  # - pattern: "spectr/specs/**/*.md"
+  #   agent: "code*"
+  #   message: "Specs should only be modified by orchestrator"
+
+  # Protect test files from coder (allow tester to modify):
+  # - pattern: "src/**/*.test.ts"
+  #   agent: "coder"
+  #   message: "Tests should be created by tester agent"
 
   # Prevent editing git-ignored files
   preventUpdateGitIgnored: false
