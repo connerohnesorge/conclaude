@@ -1009,7 +1009,8 @@ fn test_extract_agent_name_from_transcript_success() {
     writeln!(
         temp_file,
         r#"{{"message":{{"role":"user","content":"Test message"}}}}"#
-    ).unwrap();
+    )
+    .unwrap();
 
     // Write a tool_result line with matching agentId
     writeln!(
@@ -1019,10 +1020,8 @@ fn test_extract_agent_name_from_transcript_success() {
 
     temp_file.flush().unwrap();
 
-    let result = extract_agent_name_from_transcript(
-        temp_file.path().to_str().unwrap(),
-        "adb0a8b"
-    ).unwrap();
+    let result =
+        extract_agent_name_from_transcript(temp_file.path().to_str().unwrap(), "adb0a8b").unwrap();
 
     assert_eq!(result, Some("coder".to_string()));
 }
@@ -1047,20 +1046,18 @@ fn test_extract_agent_name_from_transcript_agent_not_found() {
 
     temp_file.flush().unwrap();
 
-    let result = extract_agent_name_from_transcript(
-        temp_file.path().to_str().unwrap(),
-        "nonexistent_id"
-    ).unwrap();
+    let result =
+        extract_agent_name_from_transcript(temp_file.path().to_str().unwrap(), "nonexistent_id")
+            .unwrap();
 
     assert_eq!(result, None);
 }
 
 #[test]
 fn test_extract_agent_name_from_transcript_file_not_found() {
-    let result = extract_agent_name_from_transcript(
-        "/nonexistent/path/to/transcript.jsonl",
-        "some_id"
-    ).unwrap();
+    let result =
+        extract_agent_name_from_transcript("/nonexistent/path/to/transcript.jsonl", "some_id")
+            .unwrap();
 
     assert_eq!(result, None);
 }
@@ -1093,10 +1090,9 @@ fn test_extract_agent_name_from_transcript_different_agent_types() {
 
         temp_file.flush().unwrap();
 
-        let result = extract_agent_name_from_transcript(
-            temp_file.path().to_str().unwrap(),
-            agent_id
-        ).unwrap();
+        let result =
+            extract_agent_name_from_transcript(temp_file.path().to_str().unwrap(), agent_id)
+                .unwrap();
 
         assert_eq!(result, Some(agent_type.to_string()));
     }

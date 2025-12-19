@@ -117,7 +117,7 @@ Files that Claude cannot edit, using glob patterns.
 
 Supports various glob patterns for flexible file protection. By default, conclaude's own config files are protected to prevent the AI from modifying guardrail settings - this is a security best practice.
 
-Supports two formats: 1. Simple string patterns: `"*.lock"` 2. Detailed objects with custom messages: `{pattern: "*.lock", message: "..."}`
+Supports two formats: 1. Simple string patterns: `"*.lock"` 2. Detailed objects with custom messages: `{pattern: "*.lock", message: "..."}` 3. Detailed objects with agent scoping: `{pattern: "*.lock", agent: "coder"}`
 
 | Attribute | Value |
 |-----------|-------|
@@ -127,7 +127,7 @@ Supports two formats: 1. Simple string patterns: `"*.lock"` 2. Detailed objects 
 **Examples:**
 
 ```yaml
-uneditableFiles: - ".conclaude.yml"    # Protect config - ".conclaude.yaml"   # Alternative extension - "*.lock"            # Lock files - pattern: ".env*" message: "Environment files contain secrets. Use .env.example instead."
+uneditableFiles: - ".conclaude.yml"    # Protect config - ".conclaude.yaml"   # Alternative extension - "*.lock"            # Lock files - pattern: ".env*" message: "Environment files contain secrets. Use .env.example instead." - pattern: "src/**/*.test.ts" agent: "coder" message: "The coder agent should not modify test files."
 ```
 
 ## Nested Types
@@ -172,6 +172,7 @@ Two formats are supported for backward compatibility:
 Allows providing a custom error message that will be shown when Claude attempts to edit a file matching this pattern.
 
    Properties:
+   - `agent` (string | null): Optional agent pattern to scope this rule to specific agents (e.g., "coder", "tester", "main", or glob patterns like "code*")
    - `message` (string | null): Optional custom message to display when blocking edits to matching files
    - `pattern` (string): Glob pattern matching files to protect (e.g., "*.lock", ".env*", "src/**/*.ts")
 

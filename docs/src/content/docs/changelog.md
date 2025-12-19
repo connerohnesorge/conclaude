@@ -10,6 +10,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2025-12-18
+
+### Features
+
+- Add showCommand configuration option (#175) ([7e1ce37](https://github.com/connerohnesorge/conclaude/commit/7e1ce379018c76b16ab3d2649cf8a88403f59280))
+
+### Documentation
+
+- Add auto import of changelog from root of repo (#178) ([8d98e98](https://github.com/connerohnesorge/conclaude/commit/8d98e9893c122785d0d0bc39484660cef852333a))
+
+### Miscellaneous Tasks
+
+- **release:** Update CHANGELOG.md for v0.2.5 ([a8e3726](https://github.com/connerohnesorge/conclaude/commit/a8e3726f678d83976263ca4f2e6ca3a2ceeefb41))
+
+### Spectr
+
+- **archive:** Add-prompt-context-injection (#172) ([bc9bc28](https://github.com/connerohnesorge/conclaude/commit/bc9bc2800ff19db210309f24f4b9bc9153051144))
+- **archive:** Replace-download-ts-sdk-script (#173) ([bdc6d90](https://github.com/connerohnesorge/conclaude/commit/bdc6d90db1212f2cba043a4de9a79e7b5a10c36a))
+- **apply:** Add-stop-hook-pr-check-example (#174) ([dcce924](https://github.com/connerohnesorge/conclaude/commit/dcce92466fe0fc528386b697f425df14eae9ef1f))
+- **archive:** Add-stop-hook-pr-check-example (#176) ([6f59475](https://github.com/connerohnesorge/conclaude/commit/6f594754f697e9f9ad28a7fd015dad92518d1463))
+- **proposal:** Document-file-protection-example (#177) ([cbe1be8](https://github.com/connerohnesorge/conclaude/commit/cbe1be8dde798827f44ae2d11759dc81ab11d1c9))
+
 ## [0.2.5] - 2025-12-16
 
 ### Features

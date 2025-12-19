@@ -10,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Hooks UserPromptSubmit"
+            "command": "./target/release/conclaude Hooks UserPromptSubmit"
           }
         ]
       }
@@ -21,7 +21,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Hooks PreToolUse"
+            "command": "./target/release/conclaude Hooks PreToolUse"
           }
         ]
       }
@@ -32,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Hooks Stop"
+            "command": "./target/release/conclaude Hooks Stop"
           }
         ]
       }
@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Hooks SubagentStop"
+            "command": "./target/release/conclaude Hooks SubagentStop"
           }
         ]
       }
@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Hooks PermissionRequest"
+            "command": "./target/release/conclaude Hooks PermissionRequest"
           }
         ]
       }
@@ -65,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Hooks SessionEnd"
+            "command": "./target/release/conclaude Hooks SessionEnd"
           }
         ]
       }
@@ -76,7 +76,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Hooks Notification"
+            "command": "./target/release/conclaude Hooks Notification"
           }
         ]
       }
@@ -87,7 +87,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Hooks SubagentStart"
+            "command": "./target/release/conclaude Hooks SubagentStart"
           }
         ]
       }
@@ -98,7 +98,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Hooks PostToolUse"
+            "command": "./target/release/conclaude Hooks PostToolUse"
           }
         ]
       }
@@ -109,7 +109,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Hooks PreCompact"
+            "command": "./target/release/conclaude Hooks PreCompact"
           }
         ]
       }
@@ -120,7 +120,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Hooks SessionStart"
+            "command": "./target/release/conclaude Hooks SessionStart"
           }
         ]
       }

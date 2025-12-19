@@ -154,7 +154,7 @@
         },
         "uneditableFiles": {
           "default": [],
-          "description": "Files that Claude cannot edit, using glob patterns.\n\nSupports various glob patterns for flexible file protection. By default, conclaude's own config files are protected to prevent the AI from modifying guardrail settings - this is a security best practice.\n\nSupports two formats: 1. Simple string patterns: `\"*.lock\"` 2. Detailed objects with custom messages: `{pattern: \"*.lock\", message: \"...\"}`\n\n# Examples\n\n```yaml uneditableFiles: - \".conclaude.yml\"    # Protect config - \".conclaude.yaml\"   # Alternative extension - \"*.lock\"            # Lock files - pattern: \".env*\" message: \"Environment files contain secrets. Use .env.example instead.\" ```\n\nDefault: `[\".conclaude.yml\", \".conclaude.yaml\"]`",
+          "description": "Files that Claude cannot edit, using glob patterns.\n\nSupports various glob patterns for flexible file protection. By default, conclaude's own config files are protected to prevent the AI from modifying guardrail settings - this is a security best practice.\n\nSupports two formats: 1. Simple string patterns: `\"*.lock\"` 2. Detailed objects with custom messages: `{pattern: \"*.lock\", message: \"...\"}` 3. Detailed objects with agent scoping: `{pattern: \"*.lock\", agent: \"coder\"}`\n\n# Examples\n\n```yaml uneditableFiles: - \".conclaude.yml\"    # Protect config - \".conclaude.yaml\"   # Alternative extension - \"*.lock\"            # Lock files - pattern: \".env*\" message: \"Environment files contain secrets. Use .env.example instead.\" - pattern: \"src/**/*.test.ts\" agent: \"coder\" message: \"The coder agent should not modify test files.\" ```\n\nDefault: `[\".conclaude.yml\", \".conclaude.yaml\"]`",
           "items": {
             "$ref": "#/definitions/UnEditableFileRule"
           },
@@ -395,6 +395,14 @@
         {
           "description": "Detailed format with pattern and optional custom message.\n\nAllows providing a custom error message that will be shown when Claude attempts to edit a file matching this pattern.",
           "properties": {
+            "agent": {
+              "default": null,
+              "description": "Optional agent pattern to scope this rule to specific agents (e.g., \"coder\", \"tester\", \"main\", or glob patterns like \"code*\")",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "message": {
               "default": null,
               "description": "Optional custom message to display when blocking edits to matching files",
@@ -418,7 +426,7 @@
           "type": "string"
         }
       ],
-      "description": "Configuration for an uneditable file rule.\n\nFiles that Claude cannot edit, using glob patterns. Supports various glob patterns for flexible file protection.\n\n# Formats\n\nTwo formats are supported for backward compatibility:\n\n1. **Simple string patterns**: `\"*.lock\"` - Just the glob pattern as a string - Uses a generic error message when blocking\n\n2. **Detailed objects with custom messages**: `{pattern: \"*.lock\", message: \"...\"}` - Allows specifying a custom error message - More descriptive feedback when files are blocked\n\n# Examples\n\n```yaml uneditableFiles: # Simple patterns (backward compatible) - \"./package.json\"      # specific file - \"*.md\"                # file extension - \"src/**/*.ts\"         # nested patterns - \"docs/**\"             # entire directories\n\n# Detailed patterns with custom error messages - pattern: \"*.lock\" message: \"Lock files are automatically created. Run 'npm install' to update.\" - pattern: \".env*\" message: \"Environment files contain secrets. Use .env.example instead.\" - pattern: \"{package,tsconfig}.json\" message: \"Configuration files require team review before changes.\" ```\n\nThe `#[serde(untagged)]` attribute allows serde to automatically handle both plain string patterns and detailed object configurations."
+      "description": "Configuration for an uneditable file rule.\n\nFiles that Claude cannot edit, using glob patterns. Supports various glob patterns for flexible file protection.\n\n# Formats\n\nTwo formats are supported for backward compatibility:\n\n1. **Simple string patterns**: `\"*.lock\"` - Just the glob pattern as a string - Uses a generic error message when blocking\n\n2. **Detailed objects with custom messages**: `{pattern: \"*.lock\", message: \"...\"}` - Allows specifying a custom error message - More descriptive feedback when files are blocked\n\n# Examples\n\n```yaml uneditableFiles: # Simple patterns (backward compatible) - \"./package.json\"      # specific file - \"*.md\"                # file extension - \"src/**/*.ts\"         # nested patterns - \"docs/**\"             # entire directories\n\n# Detailed patterns with custom error messages - pattern: \"*.lock\" message: \"Lock files are automatically created. Run 'npm install' to update.\" - pattern: \".env*\" message: \"Environment files contain secrets. Use .env.example instead.\" - pattern: \"{package,tsconfig}.json\" message: \"Configuration files require team review before changes.\"\n\n# Agent-scoped patterns (only applied to specific agents) - pattern: \"src/**/*.test.ts\" agent: \"coder\" message: \"The coder agent should not modify test files.\" - pattern: \"dist/**\" agent: \"test*\" message: \"Test agents should not modify build output.\" ```\n\nThe `#[serde(untagged)]` attribute allows serde to automatically handle both plain string patterns and detailed object configurations."
     },
     "UserPromptSubmitConfig": {
       "additionalProperties": false,

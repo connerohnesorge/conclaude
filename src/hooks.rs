@@ -16,11 +16,55 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{self, BufRead, BufReader, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::OnceLock;
 use tokio::process::Command as TokioCommand;
 use tokio::time::{timeout, Duration};
+
+/// Get the path to the agent session file for a given session.
+fn get_agent_session_file_path(session_id: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("conclaude-agent-{}.json", session_id))
+}
+
+/// Write agent info to session file during SubagentStart.
+///
+/// # Errors
+///
+/// Returns an error if the session file cannot be written.
+pub fn write_agent_session_file(session_id: &str, subagent_type: &str) -> std::io::Result<()> {
+    let path = get_agent_session_file_path(session_id);
+    let content = serde_json::json!({
+        "subagent_type": subagent_type
+    });
+    fs::write(&path, content.to_string())
+}
+
+/// Read agent info from session file during PreToolUse.
+/// Returns "main" if no session file exists (we're in the orchestrator session).
+#[must_use]
+pub fn read_agent_from_session_file(session_id: &str) -> String {
+    let path = get_agent_session_file_path(session_id);
+    match fs::read_to_string(&path) {
+        Ok(content) => {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                json.get("subagent_type")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "main".to_string())
+            } else {
+                "main".to_string()
+            }
+        }
+        Err(_) => "main".to_string(), // No file = main session
+    }
+}
+
+/// Clean up agent session file during SubagentStop.
+pub fn cleanup_agent_session_file(session_id: &str) {
+    let path = get_agent_session_file_path(session_id);
+    let _ = fs::remove_file(path); // Ignore errors
+}
 
 /// Represents a stop command with its configuration
 pub(crate) struct StopCommandConfig {
@@ -475,8 +519,17 @@ async fn check_file_validation_rules(payload: &PreToolUsePayload) -> Result<Opti
         return Ok(Some(HookResult::blocked(error_message)));
     }
 
+    // Detect current agent context from session file
+    let current_agent = read_agent_from_session_file(&payload.base.session_id);
+
     // Check uneditableFiles rule
     for rule in &config.pre_tool_use.uneditable_files {
+        // Check agent match first - skip rule if it doesn't apply to current agent
+        let agent_pattern = rule.agent().unwrap_or("*");
+        if !matches_agent_pattern(&current_agent, agent_pattern) {
+            continue; // Rule doesn't apply to this agent
+        }
+
         let pattern = rule.pattern();
         if matches_uneditable_pattern(
             &file_path,
@@ -484,19 +537,25 @@ async fn check_file_validation_rules(payload: &PreToolUsePayload) -> Result<Opti
             &resolved_path.to_string_lossy(),
             pattern,
         )? {
-            // Use custom message if provided, otherwise use generic message
+            // Include agent context in error message when agent-specific rule triggered
+            let agent_suffix = if agent_pattern != "*" {
+                format!(" (agent: {})", current_agent)
+            } else {
+                String::new()
+            };
+
             let error_message = if let Some(custom_msg) = rule.message() {
-                custom_msg.to_string()
+                format!("{}{}", custom_msg, agent_suffix)
             } else {
                 format!(
-                    "Blocked {} operation: file matches preToolUse.uneditableFiles pattern '{}'. File: {}",
-                    payload.tool_name, pattern, file_path
+                    "Blocked {} operation: file matches preToolUse.uneditableFiles pattern '{}'{} File: {}",
+                    payload.tool_name, pattern, agent_suffix, file_path
                 )
             };
 
             eprintln!(
-                "PreToolUse blocked by preToolUse.uneditableFiles pattern: tool_name={}, file_path={}, pattern={}",
-                payload.tool_name, file_path, pattern
+                "PreToolUse blocked by preToolUse.uneditableFiles pattern: tool_name={}, file_path={}, pattern={}, agent={}",
+                payload.tool_name, file_path, pattern, current_agent
             );
 
             return Ok(Some(HookResult::blocked(error_message)));
@@ -611,6 +670,23 @@ pub fn matches_uneditable_pattern(
         || glob_pattern.matches(resolved_path))
 }
 
+/// Check if an agent name matches a pattern.
+/// Supports "*" wildcard and glob patterns.
+#[must_use]
+pub fn matches_agent_pattern(agent_name: &str, pattern: &str) -> bool {
+    if pattern == "*" {
+        return true;
+    }
+
+    match Pattern::new(pattern) {
+        Ok(glob_pattern) => glob_pattern.matches(agent_name),
+        Err(e) => {
+            eprintln!("Invalid agent pattern '{}': {}", pattern, e);
+            false // Invalid pattern = no match (safe default)
+        }
+    }
+}
+
 /// Handles `PostToolUse` hook events fired after Claude executes a tool.
 ///
 /// # Errors
@@ -687,15 +763,13 @@ fn expand_file_references(prompt: &str, config_dir: &Path) -> String {
         match fs::read_to_string(&file_path) {
             Ok(content) => content,
             Err(e) => {
-                eprintln!(
-                    "Warning: Failed to expand @{} reference: {}",
-                    file_ref, e
-                );
+                eprintln!("Warning: Failed to expand @{} reference: {}", file_ref, e);
                 // Leave the reference as-is if file can't be read
                 format!("@{}", file_ref)
             }
         }
-    }).to_string()
+    })
+    .to_string()
 }
 
 /// Compile a context injection rule's pattern to a regex.
@@ -918,11 +992,7 @@ async fn execute_stop_commands(
                 cmd_config.command
             );
         } else {
-            println!(
-                "Executing command {}/{}",
-                index + 1,
-                commands.len()
-            );
+            println!("Executing command {}/{}", index + 1, commands.len());
         }
 
         let child = TokioCommand::new("bash")
@@ -1054,9 +1124,7 @@ async fn execute_stop_commands(
                     cmd_config.command
                 )
             } else {
-                format!(
-                    "Command failed with exit code {exit_code}{stdout_section}{stderr_section}"
-                )
+                format!("Command failed with exit code {exit_code}{stdout_section}{stderr_section}")
             };
 
             return Ok(Some(HookResult::blocked(error_message)));
@@ -1181,6 +1249,11 @@ pub async fn handle_subagent_start() -> Result<HookResult> {
         &payload.agent_transcript_path,
     );
 
+    // Write agent session file for cross-process agent detection
+    if let Err(e) = write_agent_session_file(&payload.base.session_id, &payload.subagent_type) {
+        eprintln!("Warning: Failed to write agent session file: {}", e);
+    }
+
     // Send notification for subagent start with agent ID included
     send_notification(
         "SubagentStart",
@@ -1266,7 +1339,10 @@ pub(crate) fn build_subagent_env_vars(
 
     // Set CONCLAUDE_AGENT_NAME to the extracted name, or fall back to agent_id
     let agent_name_value = agent_name.unwrap_or(&payload.agent_id);
-    env_vars.insert("CONCLAUDE_AGENT_NAME".to_string(), agent_name_value.to_string());
+    env_vars.insert(
+        "CONCLAUDE_AGENT_NAME".to_string(),
+        agent_name_value.to_string(),
+    );
 
     // Session-level environment variables
     env_vars.insert(
@@ -1601,8 +1677,7 @@ pub fn extract_agent_name_from_transcript(
 
         // Check if this is a tool_result with matching agentId
         if let Some(tool_use_result) = parsed.get("toolUseResult") {
-            if let Some(result_agent_id) = tool_use_result.get("agentId").and_then(|v| v.as_str())
-            {
+            if let Some(result_agent_id) = tool_use_result.get("agentId").and_then(|v| v.as_str()) {
                 if result_agent_id == agent_id {
                     // Found the matching tool result, extract tool_use_id
                     if let Some(message) = parsed.get("message") {
@@ -1710,10 +1785,8 @@ pub async fn handle_subagent_stop() -> Result<HookResult> {
     );
 
     // Extract agent name from main transcript
-    let agent_name = extract_agent_name_from_transcript(
-        &payload.base.transcript_path,
-        &payload.agent_id,
-    )?;
+    let agent_name =
+        extract_agent_name_from_transcript(&payload.base.transcript_path, &payload.agent_id)?;
 
     // Set environment variables for the subagent's information
     std::env::set_var("CONCLAUDE_AGENT_ID", &payload.agent_id);
@@ -1778,6 +1851,10 @@ pub async fn handle_subagent_stop() -> Result<HookResult> {
         "success",
         Some(&format!("Subagent '{}' completed", payload.agent_id)),
     );
+
+    // Clean up agent session file
+    cleanup_agent_session_file(&payload.base.session_id);
+
     Ok(HookResult::success())
 }
 
@@ -2342,5 +2419,57 @@ mod prompt_context_tests {
 
         let result = compile_rule_pattern(&rule);
         assert!(result.is_none(), "Invalid regex should return None");
+    }
+}
+
+#[cfg(test)]
+mod agent_session_tests {
+    use super::*;
+
+    #[test]
+    fn test_matches_agent_pattern_wildcard() {
+        assert!(matches_agent_pattern("coder", "*"));
+        assert!(matches_agent_pattern("tester", "*"));
+        assert!(matches_agent_pattern("main", "*"));
+    }
+
+    #[test]
+    fn test_matches_agent_pattern_exact() {
+        assert!(matches_agent_pattern("coder", "coder"));
+        assert!(!matches_agent_pattern("coder", "tester"));
+        assert!(matches_agent_pattern("main", "main"));
+    }
+
+    #[test]
+    fn test_matches_agent_pattern_glob() {
+        assert!(matches_agent_pattern("coder", "code*"));
+        assert!(matches_agent_pattern("coder-v2", "code*"));
+        assert!(!matches_agent_pattern("tester", "code*"));
+    }
+
+    #[test]
+    fn test_read_agent_from_session_file_not_exists() {
+        // Should return "main" when no session file exists
+        let result = read_agent_from_session_file("nonexistent-session-id-12345");
+        assert_eq!(result, "main");
+    }
+
+    #[test]
+    fn test_write_and_read_agent_session_file() {
+        let session_id = format!("test-session-{}", std::process::id());
+
+        // Write session file
+        write_agent_session_file(&session_id, "coder").expect("Failed to write session file");
+
+        // Read it back
+        let result = read_agent_from_session_file(&session_id);
+        assert_eq!(result, "coder");
+
+        // Cleanup
+        cleanup_agent_session_file(&session_id);
+
+        // Verify cleanup
+        let result_after = read_agent_from_session_file(&session_id);
+        assert_eq!(result_after, "main");
     }
 }
