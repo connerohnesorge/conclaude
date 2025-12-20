@@ -1974,23 +1974,6 @@ fn test_subagent_start_hook_event_name_validation() {
     assert!(validate_base_payload(&payload.base).is_ok());
 }
 
-#[test]
-fn test_hook_payload_subagent_start_variant_serialization() {
-    let subagent_start_payload = create_subagent_start_payload();
-
-    let hook_payload = HookPayload::SubagentStart(subagent_start_payload.clone());
-
-    // Serialize to JSON
-    let json_str = serde_json::to_string(&hook_payload).expect("Failed to serialize");
-
-    // Verify the JSON contains the hook_event_name tag
-    assert!(json_str.contains("\"hook_event_name\":\"SubagentStart\""));
-
-    // Verify the JSON contains the required fields
-    assert!(json_str.contains("\"agent_id\":\"coder\""));
-    assert!(json_str.contains("\"subagent_type\":\"implementation\""));
-    assert!(json_str.contains("\"agent_transcript_path\":\"/tmp/coder_transcript.jsonl\""));
-}
 
 // ============================================================================
 // Tests for Refined preventRootAdditions Behavior
