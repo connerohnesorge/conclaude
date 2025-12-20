@@ -138,13 +138,14 @@ This section uses the following nested type definitions:
 
 Tool usage validation rule for fine-grained control over tool usage based on file patterns.
 
-Allows controlling which tools can be used on which files or with which command patterns. Rules are evaluated in order and the first matching rule determines the action.
+Allows controlling which tools can be used on which files or with which command patterns. Rules are evaluated in order and the first matching rule determines the action. Supports optional agent scoping to apply rules only to specific agents.
 
 **Properties:**
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `action` | `string` | - | Action to take when the rule matches: "allow" or "block" |
+| `agent` | `string | null` | `null` | Optional agent pattern to scope this rule to specific agents (e |
 | `commandPattern` | `string | null` | - | Optional command pattern to match for Bash tool |
 | `matchMode` | `string | null` | - | Optional match mode for pattern matching (reserved for future use) |
 | `message` | `string | null` | - | Optional custom message to display when the rule blocks an action |

@@ -419,6 +419,7 @@ async fn test_bash_validation_block_exact_command() -> anyhow::Result<()> {
                 message: Some("Dangerous command blocked!".to_string()),
                 command_pattern: Some("rm -rf /".to_string()),
                 match_mode: Some("full".to_string()),
+                agent: None,
             }],
             ..Default::default()
         },
@@ -476,6 +477,7 @@ async fn test_bash_validation_block_command_family() -> anyhow::Result<()> {
                 message: Some("Git force push blocked!".to_string()),
                 command_pattern: Some("git push --force*".to_string()),
                 match_mode: Some("prefix".to_string()),
+                agent: None,
             }],
             ..Default::default()
         },
@@ -538,6 +540,7 @@ async fn test_bash_validation_allow_whitelist() -> anyhow::Result<()> {
                 message: Some("Only safe commands allowed".to_string()),
                 command_pattern: Some("echo *".to_string()),
                 match_mode: Some("full".to_string()),
+                agent: None,
             }],
             ..Default::default()
         },
@@ -618,6 +621,7 @@ async fn test_bash_validation_custom_message() -> anyhow::Result<()> {
                 message: Some(custom_message.to_string()),
                 command_pattern: Some("rm -rf*".to_string()),
                 match_mode: Some("full".to_string()),
+                agent: None,
             }],
             ..Default::default()
         },
@@ -667,6 +671,7 @@ async fn test_bash_validation_default_match_mode() -> anyhow::Result<()> {
                 message: None,
                 command_pattern: Some("curl *".to_string()),
                 match_mode: None, // No explicit mode - should default to "full"
+                agent: None,
             }],
             ..Default::default()
         },
@@ -718,6 +723,7 @@ async fn test_bash_validation_backward_compatible() -> anyhow::Result<()> {
                 message: Some("Cannot write to .env files".to_string()),
                 command_pattern: None, // No command pattern - uses file path pattern
                 match_mode: None,
+                agent: None,
             }],
             ..Default::default()
         },
@@ -768,6 +774,7 @@ async fn test_bash_validation_wildcard_tool() -> anyhow::Result<()> {
                 message: Some("Wildcard rule blocks this Bash command".to_string()),
                 command_pattern: Some("sudo *".to_string()),
                 match_mode: Some("full".to_string()),
+                agent: None,
             }],
             ..Default::default()
         },
@@ -822,6 +829,7 @@ async fn test_bash_validation_prefix_mode_no_match_in_middle() -> anyhow::Result
                 message: None,
                 command_pattern: Some("curl *".to_string()),
                 match_mode: Some("prefix".to_string()),
+                agent: None,
             }],
             ..Default::default()
         },
@@ -886,6 +894,7 @@ async fn test_bash_validation_multiple_rules() -> anyhow::Result<()> {
                     message: Some("Blocked: rm commands".to_string()),
                     command_pattern: Some("rm *".to_string()),
                     match_mode: Some("full".to_string()),
+                    agent: None,
                 },
                 ToolUsageRule {
                     tool: "Bash".to_string(),
@@ -894,6 +903,7 @@ async fn test_bash_validation_multiple_rules() -> anyhow::Result<()> {
                     message: Some("Blocked: curl commands".to_string()),
                     command_pattern: Some("curl *".to_string()),
                     match_mode: Some("full".to_string()),
+                    agent: None,
                 },
             ],
             ..Default::default()
@@ -2822,4 +2832,131 @@ fn test_prevent_additions_with_nested_directories() {
             pattern, file_path, should_match
         );
     }
+}
+
+// ============================================================================
+// Integration Tests for Agent-Scoped Tool Usage Validation
+// ============================================================================
+
+#[test]
+fn test_agent_pattern_exact_match() {
+    use conclaude::hooks::matches_agent_pattern;
+
+    assert!(matches_agent_pattern("coder", "coder"));
+    assert!(!matches_agent_pattern("tester", "coder"));
+    assert!(matches_agent_pattern("orchestrator", "orchestrator"));
+    assert!(!matches_agent_pattern("orchestrator", "coder"));
+}
+
+#[test]
+fn test_agent_pattern_wildcard() {
+    use conclaude::hooks::matches_agent_pattern;
+
+    // "*" should match all agents
+    assert!(matches_agent_pattern("coder", "*"));
+    assert!(matches_agent_pattern("tester", "*"));
+    assert!(matches_agent_pattern("orchestrator", "*"));
+    assert!(matches_agent_pattern("any_agent_name", "*"));
+    assert!(matches_agent_pattern("", "*"));
+}
+
+#[test]
+fn test_agent_pattern_glob() {
+    use conclaude::hooks::matches_agent_pattern;
+
+    // Test "code*" glob pattern
+    assert!(matches_agent_pattern("coder", "code*"));
+    assert!(matches_agent_pattern("code", "code*"));
+    assert!(matches_agent_pattern("codesmith", "code*"));
+    assert!(!matches_agent_pattern("tester", "code*"));
+    assert!(!matches_agent_pattern("decoder", "code*"));
+
+    // Test "test*" glob pattern
+    assert!(matches_agent_pattern("tester", "test*"));
+    assert!(matches_agent_pattern("test", "test*"));
+    assert!(matches_agent_pattern("testing", "test*"));
+    assert!(!matches_agent_pattern("coder", "test*"));
+    assert!(!matches_agent_pattern("contest", "test*"));
+}
+
+#[test]
+fn test_agent_pattern_no_match() {
+    use conclaude::hooks::matches_agent_pattern;
+
+    // Test that non-matching patterns return false
+    assert!(!matches_agent_pattern("coder", "tester"));
+    assert!(!matches_agent_pattern("orchestrator", "agent*"));
+    assert!(!matches_agent_pattern("myagent", "your*"));
+    assert!(!matches_agent_pattern("test", "testing"));
+}
+
+#[tokio::test]
+async fn test_tool_usage_rule_with_agent_filter() -> anyhow::Result<()> {
+    use conclaude::config::{ConclaudeConfig, PreToolUseConfig, ToolUsageRule};
+
+    // Create test configuration with a rule that only applies to "coder" agent
+    let config = ConclaudeConfig {
+        pre_tool_use: PreToolUseConfig {
+            tool_usage_validation: vec![
+                ToolUsageRule {
+                    tool: "Bash".to_string(),
+                    pattern: String::new(),
+                    action: "block".to_string(),
+                    message: Some("Command blocked for coder agent!".to_string()),
+                    command_pattern: Some("rm -rf /".to_string()),
+                    match_mode: Some("full".to_string()),
+                    agent: Some("coder".to_string()),
+                },
+                ToolUsageRule {
+                    tool: "Bash".to_string(),
+                    pattern: String::new(),
+                    action: "block".to_string(),
+                    message: Some("Command blocked for test* agents!".to_string()),
+                    command_pattern: Some("drop database".to_string()),
+                    match_mode: Some("full".to_string()),
+                    agent: Some("test*".to_string()),
+                },
+            ],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    // Test that the first rule matches "coder" agent
+    let rule1 = &config.pre_tool_use.tool_usage_validation[0];
+    assert!(rule1.agent.is_some());
+    let agent_pattern1 = rule1.agent.as_deref().unwrap();
+
+    assert!(
+        conclaude::hooks::matches_agent_pattern("coder", agent_pattern1),
+        "Rule should match 'coder' agent"
+    );
+    assert!(
+        !conclaude::hooks::matches_agent_pattern("tester", agent_pattern1),
+        "Rule should not match 'tester' agent"
+    );
+    assert!(
+        !conclaude::hooks::matches_agent_pattern("orchestrator", agent_pattern1),
+        "Rule should not match 'orchestrator' agent"
+    );
+
+    // Test that the second rule matches "test*" pattern
+    let rule2 = &config.pre_tool_use.tool_usage_validation[1];
+    assert!(rule2.agent.is_some());
+    let agent_pattern2 = rule2.agent.as_deref().unwrap();
+
+    assert!(
+        conclaude::hooks::matches_agent_pattern("tester", agent_pattern2),
+        "Rule should match 'tester' agent"
+    );
+    assert!(
+        conclaude::hooks::matches_agent_pattern("testing", agent_pattern2),
+        "Rule should match 'testing' agent"
+    );
+    assert!(
+        !conclaude::hooks::matches_agent_pattern("coder", agent_pattern2),
+        "Rule should not match 'coder' agent"
+    );
+
+    Ok(())
 }
