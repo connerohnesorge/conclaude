@@ -72,6 +72,29 @@ preToolUse:
   #   commandPattern: "git push --force*"
   #   action: "block"
   #   message: "Force push not allowed"
+  #
+  # Agent-scoped rules (only apply to specific agents):
+  # - tool: "Bash"
+  #   pattern: ""
+  #   commandPattern: "rm -rf *"
+  #   action: "block"
+  #   agent: "coder"
+  #   message: "Coder agent cannot run destructive rm commands"
+  # - tool: "Write"
+  #   pattern: "**/*.test.ts"
+  #   action: "block"
+  #   agent: "coder"
+  #   message: "Coder agent should not modify test files"
+  # - tool: "*"
+  #   pattern: "src/**"
+  #   action: "block"
+  #   agent: "test*"
+  #   message: "Test agents cannot modify source files"
+  #
+  # Agent pattern examples:
+  #   - agent: "coder"    # Exact match - only "coder" subagent
+  #   - agent: "test*"    # Glob pattern - matches "tester", "test-runner"
+  #   - agent: "*"        # Wildcard - matches all agents (default if omitted)
 
   # Directories where additions are prevented
   preventAdditions: []

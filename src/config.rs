@@ -149,6 +149,7 @@ pub struct StopConfig {
 ///
 /// Allows controlling which tools can be used on which files or with which command patterns.
 /// Rules are evaluated in order and the first matching rule determines the action.
+/// Supports optional agent scoping to apply rules only to specific agents.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ToolUsageRule {
@@ -166,6 +167,9 @@ pub struct ToolUsageRule {
     /// Optional match mode for pattern matching (reserved for future use)
     #[serde(rename = "matchMode")]
     pub match_mode: Option<String>,
+    /// Optional agent pattern to scope this rule to specific agents (e.g., "coder", "tester", "main", or glob patterns like "code*")
+    #[serde(default)]
+    pub agent: Option<String>,
 }
 
 /// Configuration for an uneditable file rule.

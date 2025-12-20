@@ -1425,3 +1425,143 @@ notifications:
         "showCommand should default to Some(true) when omitted"
     );
 }
+
+// Tests for ToolUsageRule deserialization with agent field
+#[test]
+fn test_tool_usage_rule_deserialization_without_agent() {
+    // Test that a ToolUsageRule without the agent field deserializes correctly (agent defaults to None)
+    let yaml = r#"
+preToolUse:
+  toolUsageValidation:
+    - tool: "Bash"
+      pattern: ""
+      action: "block"
+      commandPattern: "rm -rf *"
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+stop:
+  commands: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config with ToolUsageRule without agent should parse: {:?}",
+        result.err()
+    );
+
+    let config = result.unwrap();
+    assert_eq!(config.pre_tool_use.tool_usage_validation.len(), 1);
+
+    let rule = &config.pre_tool_use.tool_usage_validation[0];
+    assert_eq!(rule.tool, "Bash");
+    assert_eq!(rule.pattern, "");
+    assert_eq!(rule.action, "block");
+    assert_eq!(rule.command_pattern, Some("rm -rf *".to_string()));
+    assert_eq!(rule.agent, None, "agent should default to None when not specified");
+}
+
+#[test]
+fn test_tool_usage_rule_deserialization_with_agent() {
+    // Test that a ToolUsageRule with an agent field deserializes correctly
+    let yaml = r#"
+preToolUse:
+  toolUsageValidation:
+    - tool: "Bash"
+      pattern: ""
+      action: "block"
+      commandPattern: "rm -rf *"
+      agent: "coder"
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+stop:
+  commands: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config with ToolUsageRule with agent should parse: {:?}",
+        result.err()
+    );
+
+    let config = result.unwrap();
+    assert_eq!(config.pre_tool_use.tool_usage_validation.len(), 1);
+
+    let rule = &config.pre_tool_use.tool_usage_validation[0];
+    assert_eq!(rule.tool, "Bash");
+    assert_eq!(rule.pattern, "");
+    assert_eq!(rule.action, "block");
+    assert_eq!(rule.command_pattern, Some("rm -rf *".to_string()));
+    assert_eq!(rule.agent, Some("coder".to_string()), "agent should be 'coder'");
+}
+
+#[test]
+fn test_tool_usage_rule_deserialization_with_agent_pattern() {
+    // Test that a ToolUsageRule with a glob agent pattern (e.g., "code*") deserializes correctly
+    let yaml = r#"
+preToolUse:
+  toolUsageValidation:
+    - tool: "Write"
+      pattern: "**/*.rs"
+      action: "block"
+      agent: "test*"
+      message: "Test agents cannot modify Rust files"
+    - tool: "Bash"
+      pattern: ""
+      action: "allow"
+      commandPattern: "cargo test"
+      agent: "code*"
+  preventAdditions: []
+  preventGeneratedFileEdits: true
+  preventRootAdditions: true
+  uneditableFiles: []
+stop:
+  commands: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config with ToolUsageRule with agent glob patterns should parse: {:?}",
+        result.err()
+    );
+
+    let config = result.unwrap();
+    assert_eq!(config.pre_tool_use.tool_usage_validation.len(), 2);
+
+    // First rule: glob pattern "test*"
+    let rule1 = &config.pre_tool_use.tool_usage_validation[0];
+    assert_eq!(rule1.tool, "Write");
+    assert_eq!(rule1.pattern, "**/*.rs");
+    assert_eq!(rule1.action, "block");
+    assert_eq!(rule1.agent, Some("test*".to_string()), "agent should be 'test*' glob pattern");
+    assert_eq!(rule1.message, Some("Test agents cannot modify Rust files".to_string()));
+
+    // Second rule: glob pattern "code*"
+    let rule2 = &config.pre_tool_use.tool_usage_validation[1];
+    assert_eq!(rule2.tool, "Bash");
+    assert_eq!(rule2.pattern, "");
+    assert_eq!(rule2.action, "allow");
+    assert_eq!(rule2.command_pattern, Some("cargo test".to_string()));
+    assert_eq!(rule2.agent, Some("code*".to_string()), "agent should be 'code*' glob pattern");
+}

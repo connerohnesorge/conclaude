@@ -1891,8 +1891,16 @@ pub async fn handle_pre_compact() -> Result<HookResult> {
 async fn check_tool_usage_rules(payload: &PreToolUsePayload) -> Result<Option<HookResult>> {
     let (config, _config_path) = get_config().await?;
 
+    // Detect current agent context from session file
+    let current_agent = read_agent_from_session_file(&payload.base.session_id);
+
     for rule in &config.pre_tool_use.tool_usage_validation {
         if rule.tool == payload.tool_name || rule.tool == "*" {
+            // Check agent match - skip rule if it doesn't apply to current agent
+            let agent_pattern = rule.agent.as_deref().unwrap_or("*");
+            if !matches_agent_pattern(&current_agent, agent_pattern) {
+                continue;
+            }
             // Check if this is a Bash command with a commandPattern rule
             if payload.tool_name == "Bash" && rule.command_pattern.is_some() {
                 // Extract the command

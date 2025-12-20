@@ -347,11 +347,19 @@
     },
     "ToolUsageRule": {
       "additionalProperties": false,
-      "description": "Tool usage validation rule for fine-grained control over tool usage based on file patterns.\n\nAllows controlling which tools can be used on which files or with which command patterns. Rules are evaluated in order and the first matching rule determines the action.",
+      "description": "Tool usage validation rule for fine-grained control over tool usage based on file patterns.\n\nAllows controlling which tools can be used on which files or with which command patterns. Rules are evaluated in order and the first matching rule determines the action. Supports optional agent scoping to apply rules only to specific agents.",
       "properties": {
         "action": {
           "description": "Action to take when the rule matches: \"allow\" or \"block\"",
           "type": "string"
+        },
+        "agent": {
+          "default": null,
+          "description": "Optional agent pattern to scope this rule to specific agents (e.g., \"coder\", \"tester\", \"main\", or glob patterns like \"code*\")",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "commandPattern": {
           "description": "Optional command pattern to match for Bash tool. Uses glob syntax (e.g., \"git push --force*\", \"git *\")",
