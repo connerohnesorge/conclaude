@@ -77,6 +77,29 @@ Default: `true`
 | **Type** | `boolean` |
 | **Default** | `true` |
 
+### `preventRootAdditionsMessage`
+
+Custom message when blocking file creation at repository root.
+
+Available placeholders: - `{file_path}` - The path to the file being blocked - `{tool}` - The tool name that attempted the operation (e.g., "Write")
+
+# Example
+
+```yaml preventRootAdditionsMessage: "Files must go in src/. Cannot create {file_path} using {tool}." ```
+
+Default: `null` (uses a generic error message)
+
+| Attribute | Value |
+|-----------|-------|
+| **Type** | `string | null` |
+| **Default** | `null` |
+
+**Examples:**
+
+```yaml
+preventRootAdditionsMessage: "Files must go in src/. Cannot create {file_path} using {tool}."
+```
+
 ### `preventUpdateGitIgnored`
 
 Block Claude from modifying or creating files that match .gitignore patterns.

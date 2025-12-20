@@ -506,10 +506,17 @@ async fn check_file_validation_rules(payload: &PreToolUsePayload) -> Result<Opti
         && is_root_addition(&file_path, &relative_path, config_path)
         && !resolved_path.exists()
     {
-        let error_message = format!(
-            "Blocked {} operation: preToolUse.preventRootAdditions setting prevents creating files at repository root. File: {}",
-            payload.tool_name, file_path
-        );
+        // Use custom message if configured, otherwise use default
+        let error_message = if let Some(custom_msg) = &config.pre_tool_use.prevent_root_additions_message {
+            custom_msg
+                .replace("{file_path}", &file_path)
+                .replace("{tool}", &payload.tool_name)
+        } else {
+            format!(
+                "Blocked {} operation: preToolUse.preventRootAdditions setting prevents creating files at repository root. File: {}",
+                payload.tool_name, file_path
+            )
+        };
 
         eprintln!(
             "PreToolUse blocked by preToolUse.preventRootAdditions setting: tool_name={}, file_path={}",

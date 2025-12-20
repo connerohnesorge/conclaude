@@ -139,6 +139,14 @@
           "description": "Prevent Claude from creating or modifying files at the repository root.\n\nHelps maintain clean project structure by preventing clutter at the root level. This is a security best practice to avoid accidental modification of important configuration files.\n\nDefault: `true`",
           "type": "boolean"
         },
+        "preventRootAdditionsMessage": {
+          "default": null,
+          "description": "Custom message when blocking file creation at repository root.\n\nAvailable placeholders: - `{file_path}` - The path to the file being blocked - `{tool}` - The tool name that attempted the operation (e.g., \"Write\")\n\n# Example\n\n```yaml preventRootAdditionsMessage: \"Files must go in src/. Cannot create {file_path} using {tool}.\" ```\n\nDefault: `null` (uses a generic error message)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "preventUpdateGitIgnored": {
           "default": false,
           "description": "Block Claude from modifying or creating files that match .gitignore patterns.\n\nWhen enabled, files matching patterns in .gitignore will be protected. Uses your existing .gitignore as the source of truth for file protection.\n\nDefault: `false`",
@@ -490,6 +498,7 @@
         "preventAdditions": [],
         "preventGeneratedFileEdits": true,
         "preventRootAdditions": true,
+        "preventRootAdditionsMessage": null,
         "preventUpdateGitIgnored": false,
         "toolUsageValidation": [],
         "uneditableFiles": []

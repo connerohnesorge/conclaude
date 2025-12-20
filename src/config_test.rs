@@ -64,6 +64,7 @@ fn test_field_list_generation() {
             "preventGeneratedFileEdits",
             "generatedFileMessage",
             "preventRootAdditions",
+            "preventRootAdditionsMessage",
             "uneditableFiles",
             "preventUpdateGitIgnored",
             "toolUsageValidation"

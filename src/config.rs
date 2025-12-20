@@ -373,6 +373,21 @@ pub struct PreToolUseConfig {
     /// Default: `true`
     #[serde(default = "default_true", rename = "preventRootAdditions")]
     pub prevent_root_additions: bool,
+    /// Custom message when blocking file creation at repository root.
+    ///
+    /// Available placeholders:
+    /// - `{file_path}` - The path to the file being blocked
+    /// - `{tool}` - The tool name that attempted the operation (e.g., "Write")
+    ///
+    /// # Example
+    ///
+    /// ```yaml
+    /// preventRootAdditionsMessage: "Files must go in src/. Cannot create {file_path} using {tool}."
+    /// ```
+    ///
+    /// Default: `null` (uses a generic error message)
+    #[serde(default, rename = "preventRootAdditionsMessage")]
+    pub prevent_root_additions_message: Option<String>,
     /// Files that Claude cannot edit, using glob patterns.
     ///
     /// Supports various glob patterns for flexible file protection. By default,
@@ -448,6 +463,7 @@ impl Default for PreToolUseConfig {
             prevent_generated_file_edits: true,
             generated_file_message: None,
             prevent_root_additions: true,
+            prevent_root_additions_message: None,
             uneditable_files: Vec::new(),
             prevent_update_git_ignored: false,
             tool_usage_validation: Vec::new(),
@@ -907,7 +923,7 @@ fn format_parse_error(error: &serde_yaml::Error, config_path: &Path) -> String {
         parts.push("  stop: commands, infinite, infiniteMessage".to_string());
         parts.push("  subagentStop: commands".to_string());
         parts.push(
-            "  preToolUse: preventAdditions, preventGeneratedFileEdits, generatedFileMessage, preventRootAdditions, uneditableFiles, preventUpdateGitIgnored, toolUsageValidation"
+            "  preToolUse: preventAdditions, preventGeneratedFileEdits, generatedFileMessage, preventRootAdditions, preventRootAdditionsMessage, uneditableFiles, preventUpdateGitIgnored, toolUsageValidation"
                 .to_string(),
         );
         parts.push(
