@@ -37,6 +37,9 @@ subagentStop:
 preToolUse:
   # Prevent files at repository root
   preventRootAdditions: true
+  # Custom message for root additions block (supports {file_path} and {tool} placeholders)
+  # Example: "Files must go in src/. Cannot create {file_path} using {tool}."
+  preventRootAdditionsMessage: null
 
   # Protected files (glob patterns)
   uneditableFiles:
