@@ -1,4 +1,5 @@
 # conclaude
+<img src="https://github.com/connerohnesorge/conclaude/blob/main/docs/src/assets/logo.png" alt="Logo" width="105">
 
 **The guardrails your Claude Code sessions need.**
 
@@ -9,6 +10,7 @@ A high-performance Rust CLI tool that provides essential guardrails for Claude C
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org)
 [![CI](https://github.com/connerohnesorge/conclaude/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/connerohnesorge/conclaude/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/connerohnesorge/conclaude?display_name=tag&sort=semver)](https://github.com/connerohnesorge/conclaude/releases)
+
 
 Born from real developer frustration, conclaude transforms chaotic AI coding sessions into controlled, validated workflows. It's not just another CLI tool—it's your project's guardian, ensuring that every Claude Code session respects your standards, follows your rules, and maintains your code quality.
 
