@@ -24,7 +24,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use conclaude::schema::{generate_config_schema, write_schema_to_file, validate_config_against_schema};
+//! use conclaude::schema::{generate_config_schema, write_schema_to_file};
 //! use std::path::PathBuf;
 //!
 //! // Generate a schema
@@ -33,15 +33,6 @@
 //! // Write to file
 //! let path = PathBuf::from("schema.json");
 //! write_schema_to_file(&schema, &path).unwrap();
-//!
-//! // Validate configuration
-//! let config_yaml = r#"
-//! stop:
-//!   commands:
-//!     - run: "cargo test"
-//!   infinite: false
-//! "#;
-//! validate_config_against_schema(config_yaml).unwrap();
 //! ```
 
 use anyhow::{Context, Result};
@@ -108,7 +99,7 @@ pub fn write_schema_to_file(schema: &Value, output_path: &PathBuf) -> Result<()>
 /// # Errors
 ///
 /// Returns an error if the YAML content is invalid or does not match the expected structure.
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn validate_config_against_schema(config_content: &str) -> Result<()> {
     // Parse the YAML to ensure it's valid
     let _: ConclaudeConfig = serde_yaml::from_str(config_content).map_err(|e| {

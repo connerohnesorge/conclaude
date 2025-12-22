@@ -197,91 +197,6 @@ pub struct SessionEndPayload {
     pub reason: String,
 }
 
-/// Union type of all possible hook event payloads.
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "hook_event_name")]
-pub enum HookPayload {
-    #[serde(rename = "PreToolUse")]
-    PreToolUse(PreToolUsePayload),
-    #[serde(rename = "PostToolUse")]
-    PostToolUse(PostToolUsePayload),
-    #[serde(rename = "PermissionRequest")]
-    PermissionRequest(PermissionRequestPayload),
-    #[serde(rename = "Notification")]
-    Notification(NotificationPayload),
-    #[serde(rename = "Stop")]
-    Stop(StopPayload),
-    #[serde(rename = "SubagentStart")]
-    SubagentStart(SubagentStartPayload),
-    #[serde(rename = "SubagentStop")]
-    SubagentStop(SubagentStopPayload),
-    #[serde(rename = "UserPromptSubmit")]
-    UserPromptSubmit(UserPromptSubmitPayload),
-    #[serde(rename = "PreCompact")]
-    PreCompact(PreCompactPayload),
-    #[serde(rename = "SessionStart")]
-    SessionStart(SessionStartPayload),
-    #[serde(rename = "SessionEnd")]
-    SessionEnd(SessionEndPayload),
-}
-
-impl HookPayload {
-    #[allow(dead_code)]
-    #[must_use]
-    pub fn session_id(&self) -> &str {
-        match self {
-            HookPayload::PreToolUse(p) => &p.base.session_id,
-            HookPayload::PostToolUse(p) => &p.base.session_id,
-            HookPayload::PermissionRequest(p) => &p.base.session_id,
-            HookPayload::Notification(p) => &p.base.session_id,
-            HookPayload::Stop(p) => &p.base.session_id,
-            HookPayload::SubagentStart(p) => &p.base.session_id,
-            HookPayload::SubagentStop(p) => &p.base.session_id,
-            HookPayload::UserPromptSubmit(p) => &p.base.session_id,
-            HookPayload::PreCompact(p) => &p.base.session_id,
-            HookPayload::SessionStart(p) => &p.base.session_id,
-            HookPayload::SessionEnd(p) => &p.base.session_id,
-        }
-    }
-
-    #[allow(dead_code)]
-    #[must_use]
-    pub fn transcript_path(&self) -> &str {
-        match self {
-            HookPayload::PreToolUse(p) => &p.base.transcript_path,
-            HookPayload::PostToolUse(p) => &p.base.transcript_path,
-            HookPayload::PermissionRequest(p) => &p.base.transcript_path,
-            HookPayload::Notification(p) => &p.base.transcript_path,
-            HookPayload::Stop(p) => &p.base.transcript_path,
-            HookPayload::SubagentStart(p) => &p.base.transcript_path,
-            HookPayload::SubagentStop(p) => &p.base.transcript_path,
-            HookPayload::UserPromptSubmit(p) => &p.base.transcript_path,
-            HookPayload::PreCompact(p) => &p.base.transcript_path,
-            HookPayload::SessionStart(p) => &p.base.transcript_path,
-            HookPayload::SessionEnd(p) => &p.base.transcript_path,
-        }
-    }
-
-    #[allow(dead_code)]
-    #[must_use]
-    pub fn hook_event_name(&self) -> &str {
-        match self {
-            HookPayload::PreToolUse(p) => &p.base.hook_event_name,
-            HookPayload::PostToolUse(p) => &p.base.hook_event_name,
-            HookPayload::PermissionRequest(p) => &p.base.hook_event_name,
-            HookPayload::Notification(p) => &p.base.hook_event_name,
-            HookPayload::Stop(p) => &p.base.hook_event_name,
-            HookPayload::SubagentStart(p) => &p.base.hook_event_name,
-            HookPayload::SubagentStop(p) => &p.base.hook_event_name,
-            HookPayload::UserPromptSubmit(p) => &p.base.hook_event_name,
-            HookPayload::PreCompact(p) => &p.base.hook_event_name,
-            HookPayload::SessionStart(p) => &p.base.hook_event_name,
-            HookPayload::SessionEnd(p) => &p.base.hook_event_name,
-        }
-    }
-}
-
 /// Validates that a payload contains all required base fields.
 ///
 /// # Errors
@@ -308,7 +223,6 @@ pub fn validate_base_payload(base: &BasePayload) -> Result<(), String> {
 /// # Errors
 ///
 /// Returns an error if any required field is missing or empty (after trimming whitespace).
-#[allow(dead_code)]
 pub fn validate_permission_request_payload(
     payload: &PermissionRequestPayload,
 ) -> Result<(), String> {
@@ -328,7 +242,6 @@ pub fn validate_permission_request_payload(
 /// # Errors
 ///
 /// Returns an error if any required field is missing or empty (after trimming whitespace).
-#[allow(dead_code)]
 pub fn validate_subagent_start_payload(payload: &SubagentStartPayload) -> Result<(), String> {
     // First validate the base payload
     validate_base_payload(&payload.base)?;
@@ -356,7 +269,6 @@ pub fn validate_subagent_start_payload(payload: &SubagentStartPayload) -> Result
 /// # Errors
 ///
 /// Returns an error if any required field is missing or empty (after trimming whitespace).
-#[allow(dead_code)]
 pub fn validate_subagent_stop_payload(payload: &SubagentStopPayload) -> Result<(), String> {
     // First validate the base payload
     validate_base_payload(&payload.base)?;
@@ -958,29 +870,6 @@ mod tests {
 
         let result: Result<SubagentStartPayload, _> = serde_json::from_str(json);
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_hook_payload_subagent_start_serialization() {
-        let subagent_start = SubagentStartPayload {
-            base: BasePayload {
-                session_id: "test_session".to_string(),
-                transcript_path: "/path/to/transcript".to_string(),
-                hook_event_name: "SubagentStart".to_string(),
-                cwd: "/current/dir".to_string(),
-                permission_mode: Some("default".to_string()),
-            },
-            agent_id: "coder".to_string(),
-            subagent_type: "implementation".to_string(),
-            agent_transcript_path: "/path/to/agent/transcript".to_string(),
-        };
-
-        let hook_payload = HookPayload::SubagentStart(subagent_start);
-        let json = serde_json::to_string(&hook_payload).unwrap();
-
-        assert!(json.contains("\"hook_event_name\":\"SubagentStart\""));
-        assert!(json.contains("\"agent_id\":\"coder\""));
-        assert!(json.contains("\"subagent_type\":\"implementation\""));
     }
 
     // Tests for context injection - verifying HookResult behavior

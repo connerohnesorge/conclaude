@@ -48,10 +48,6 @@ impl Args {
 /// Schema definition extracted from JSON Schema
 #[derive(Debug)]
 struct Schema {
-    #[allow(dead_code)]
-    title: String,
-    #[allow(dead_code)]
-    description: String,
     properties: HashMap<String, PropertyDefinition>,
     definitions: HashMap<String, DefinitionSchema>,
 }
@@ -59,8 +55,6 @@ struct Schema {
 /// Property definition for a schema property
 #[derive(Debug)]
 struct PropertyDefinition {
-    #[allow(dead_code)]
-    name: String,
     description: String,
     property_type: String,
     default_value: Option<String>,
@@ -125,18 +119,6 @@ fn main() -> Result<()> {
 
 /// Extract schema information from JSON
 fn extract_schema(schema_json: &Value) -> Result<Schema> {
-    let title = schema_json
-        .get("title")
-        .and_then(|v| v.as_str())
-        .unwrap_or("Configuration Schema")
-        .to_string();
-
-    let description = schema_json
-        .get("description")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
     let properties = extract_properties(
         schema_json
             .get("properties")
@@ -150,8 +132,6 @@ fn extract_schema(schema_json: &Value) -> Result<Schema> {
     )?;
 
     Ok(Schema {
-        title,
-        description,
         properties,
         definitions,
     })
@@ -176,7 +156,6 @@ fn extract_properties(properties_json: &Value) -> Result<HashMap<String, Propert
             properties.insert(
                 name.clone(),
                 PropertyDefinition {
-                    name: name.clone(),
                     description,
                     property_type,
                     default_value,
