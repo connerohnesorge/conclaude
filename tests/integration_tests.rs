@@ -150,7 +150,6 @@ preToolUse:
     - "package-lock.json"
   toolUsageValidation: []
   preventAdditions: []
-  preventGeneratedFileEdits: true
 notifications:
   enabled: false
   hooks: []

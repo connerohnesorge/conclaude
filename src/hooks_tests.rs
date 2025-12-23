@@ -1031,7 +1031,6 @@ fn test_extract_agent_name_from_transcript_agent_not_found() {
     use std::io::Write;
     use tempfile::NamedTempFile;
 
-    // Create a temporary transcript file
     let mut temp_file = NamedTempFile::new().unwrap();
 
     writeln!(
