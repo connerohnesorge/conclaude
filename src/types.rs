@@ -302,28 +302,6 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_base_payload() {
-        let valid_base = BasePayload {
-            session_id: "test_session".to_string(),
-            transcript_path: "/path/to/transcript".to_string(),
-            hook_event_name: "PreToolUse".to_string(),
-            cwd: "/current/dir".to_string(),
-            permission_mode: Some("default".to_string()),
-        };
-        assert!(validate_base_payload(&valid_base).is_ok());
-
-        let invalid_base = BasePayload {
-            session_id: String::new(),
-            transcript_path: "/path/to/transcript".to_string(),
-            hook_event_name: "PreToolUse".to_string(),
-            cwd: "/current/dir".to_string(),
-            permission_mode: Some("default".to_string()),
-        };
-        assert!(validate_base_payload(&invalid_base).is_err());
-    }
-
-
-    #[test]
     fn test_pre_tool_use_payload_serialization_with_tool_use_id() {
         let mut tool_input = HashMap::new();
         tool_input.insert("param1".to_string(), serde_json::json!("value1"));
@@ -454,24 +432,6 @@ mod tests {
     // Tests for context injection - verifying HookResult behavior
 
     #[test]
-    fn test_hook_result_with_context_creates_correct_result() {
-        let context = "Read the documentation at @docs/example.md";
-        let result = HookResult::with_context(context);
-
-        assert_eq!(result.blocked, Some(false));
-        assert_eq!(result.message, None);
-        assert_eq!(result.system_prompt, Some(context.to_string()));
-    }
-
-    #[test]
-    fn test_hook_result_with_context_string_type() {
-        let context = String::from("Test context");
-        let result = HookResult::with_context(context);
-
-        assert_eq!(result.system_prompt, Some("Test context".to_string()));
-    }
-
-    #[test]
     fn test_hook_result_with_context_serialization() {
         let result = HookResult::with_context("Injected context");
         let json = serde_json::to_string(&result).unwrap();
@@ -492,22 +452,6 @@ mod tests {
         assert_eq!(result.system_prompt, Some("Test context".to_string()));
         assert_eq!(result.blocked, Some(false));
         assert_eq!(result.message, None);
-    }
-
-    #[test]
-    fn test_hook_result_success_no_context() {
-        let result = HookResult::success();
-        assert_eq!(result.system_prompt, None);
-        assert_eq!(result.blocked, Some(false));
-        assert_eq!(result.message, None);
-    }
-
-    #[test]
-    fn test_hook_result_blocked_no_context() {
-        let result = HookResult::blocked("Test error");
-        assert_eq!(result.system_prompt, None);
-        assert_eq!(result.blocked, Some(true));
-        assert_eq!(result.message, Some("Test error".to_string()));
     }
 
     #[test]

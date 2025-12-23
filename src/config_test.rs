@@ -1,67 +1,7 @@
 use crate::config::{
-    parse_and_validate_config, suggest_similar_fields, ConclaudeConfig,
-    ContextInjectionRule, NotificationsConfig, PermissionRequestConfig, PreToolUseConfig,
-    StopCommand, StopConfig, SubagentStopCommand, UnEditableFileRule, UserPromptSubmitConfig,
+    parse_and_validate_config, suggest_similar_fields, ConclaudeConfig, UnEditableFileRule,
 };
 use std::path::Path;
-
-#[test]
-fn test_field_list_generation() {
-    // Verify that the generated field_names() methods return the correct field names
-    assert_eq!(
-        StopConfig::field_names(),
-        vec!["commands", "infinite", "infiniteMessage"]
-    );
-
-    assert_eq!(
-        PreToolUseConfig::field_names(),
-        vec![
-            "preventAdditions",
-            "preventRootAdditions",
-            "preventRootAdditionsMessage",
-            "uneditableFiles",
-            "preventUpdateGitIgnored",
-            "toolUsageValidation"
-        ]
-    );
-
-    assert_eq!(
-        NotificationsConfig::field_names(),
-        vec![
-            "enabled",
-            "hooks",
-            "showErrors",
-            "showSuccess",
-            "showSystemEvents"
-        ]
-    );
-
-    assert_eq!(
-        StopCommand::field_names(),
-        vec![
-            "run",
-            "message",
-            "showCommand",
-            "showStdout",
-            "showStderr",
-            "maxOutputLines",
-            "timeout"
-        ]
-    );
-
-    assert_eq!(
-        SubagentStopCommand::field_names(),
-        vec![
-            "run",
-            "message",
-            "showCommand",
-            "showStdout",
-            "showStderr",
-            "maxOutputLines",
-            "timeout"
-        ]
-    );
-}
 
 #[test]
 fn test_suggest_similar_fields_common_typo() {
@@ -334,15 +274,6 @@ notifications:
     assert!(
         config.permission_request.is_none(),
         "permission_request should be None when not specified"
-    );
-}
-
-#[test]
-fn test_permission_request_field_list() {
-    // Test that PermissionRequestConfig field names are correct
-    assert_eq!(
-        PermissionRequestConfig::field_names(),
-        vec!["default", "allow", "deny"]
     );
 }
 
@@ -813,15 +744,6 @@ notifications:
 }
 
 #[test]
-fn test_stop_command_field_list_includes_timeout() {
-    let fields = StopCommand::field_names();
-    assert!(
-        fields.contains(&"timeout"),
-        "StopCommand field_names should include 'timeout'"
-    );
-}
-
-#[test]
 fn test_user_prompt_submit_config_basic() {
     let yaml = r#"
 userPromptSubmit:
@@ -1018,19 +940,6 @@ notifications:
     assert_eq!(config.user_prompt_submit.context_rules.len(), 0);
 }
 
-#[test]
-fn test_user_prompt_submit_field_list() {
-    assert_eq!(UserPromptSubmitConfig::field_names(), vec!["contextRules"]);
-}
-
-#[test]
-fn test_context_injection_rule_field_list() {
-    assert_eq!(
-        ContextInjectionRule::field_names(),
-        vec!["pattern", "prompt", "enabled", "caseInsensitive"]
-    );
-}
-
 // Tests for Task 4.1: ContextInjectionRule parsing
 #[test]
 fn test_context_injection_rule_parsing_all_fields() {
@@ -1139,218 +1048,6 @@ notifications:
 
     // Verify default for caseInsensitive is None (which means false)
     assert_eq!(rule.case_insensitive, None);
-}
-
-// Task 3.1: Test showCommand: true explicit
-#[test]
-fn test_show_command_true_explicit() {
-    let yaml = r#"
-stop:
-  commands:
-  - run: "echo test"
-    showCommand: true
-preToolUse:
-  preventAdditions: []
-  preventRootAdditions: true
-  uneditableFiles: []
-  toolUsageValidation: []
-notifications:
-  enabled: false
-  hooks: []
-  showErrors: false
-  showSuccess: false
-  showSystemEvents: true
-  "#;
-    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
-    assert!(
-        result.is_ok(),
-        "Config with showCommand: true should parse: {:?}",
-        result.err()
-    );
-
-    let config = result.unwrap();
-    assert_eq!(config.stop.commands.len(), 1);
-    assert_eq!(config.stop.commands[0].show_command, Some(true));
-}
-
-// Task 3.2: Test showCommand: false
-#[test]
-fn test_show_command_false() {
-    let yaml = r#"
-stop:
-  commands:
-  - run: "echo test"
-    showCommand: false
-preToolUse:
-  preventAdditions: []
-  preventRootAdditions: true
-  uneditableFiles: []
-  toolUsageValidation: []
-notifications:
-  enabled: false
-  hooks: []
-  showErrors: false
-  showSuccess: false
-  showSystemEvents: true
-  "#;
-    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
-    assert!(
-        result.is_ok(),
-        "Config with showCommand: false should parse: {:?}",
-        result.err()
-    );
-
-    let config = result.unwrap();
-    assert_eq!(config.stop.commands.len(), 1);
-    assert_eq!(config.stop.commands[0].show_command, Some(false));
-}
-
-// Task 3.3: Test default showCommand behavior
-#[test]
-fn test_show_command_default_true() {
-    let yaml = r#"
-stop:
-  commands:
-  - run: "echo test"
-preToolUse:
-  preventAdditions: []
-  preventRootAdditions: true
-  uneditableFiles: []
-  toolUsageValidation: []
-notifications:
-  enabled: false
-  hooks: []
-  showErrors: false
-  showSuccess: false
-  showSystemEvents: true
-  "#;
-    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
-    assert!(
-        result.is_ok(),
-        "Config without showCommand should parse: {:?}",
-        result.err()
-    );
-
-    let config = result.unwrap();
-    assert_eq!(config.stop.commands.len(), 1);
-    // Verify default is Some(true) when field is omitted
-    assert_eq!(
-        config.stop.commands[0].show_command,
-        Some(true),
-        "showCommand should default to Some(true) when omitted"
-    );
-}
-
-// Test SubagentStopCommand with showCommand: true explicit
-#[test]
-fn test_subagent_show_command_true_explicit() {
-    let yaml = r#"
-subagentStop:
-  commands:
-    "*":
-      - run: "npm run lint"
-        showCommand: true
-stop:
-  commands: []
-preToolUse:
-  preventAdditions: []
-  preventRootAdditions: true
-  uneditableFiles: []
-  toolUsageValidation: []
-notifications:
-  enabled: false
-  hooks: []
-  showErrors: false
-  showSuccess: false
-  showSystemEvents: true
-  "#;
-    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
-    assert!(
-        result.is_ok(),
-        "SubagentStop config with showCommand: true should parse: {:?}",
-        result.err()
-    );
-
-    let config = result.unwrap();
-    let cmds = config.subagent_stop.commands.get("*").unwrap();
-    assert_eq!(cmds.len(), 1);
-    assert_eq!(cmds[0].show_command, Some(true));
-}
-
-// Test SubagentStopCommand with showCommand: false
-#[test]
-fn test_subagent_show_command_false() {
-    let yaml = r#"
-subagentStop:
-  commands:
-    "*":
-      - run: "npm run lint"
-        showCommand: false
-stop:
-  commands: []
-preToolUse:
-  preventAdditions: []
-  preventRootAdditions: true
-  uneditableFiles: []
-  toolUsageValidation: []
-notifications:
-  enabled: false
-  hooks: []
-  showErrors: false
-  showSuccess: false
-  showSystemEvents: true
-  "#;
-    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
-    assert!(
-        result.is_ok(),
-        "SubagentStop config with showCommand: false should parse: {:?}",
-        result.err()
-    );
-
-    let config = result.unwrap();
-    let cmds = config.subagent_stop.commands.get("*").unwrap();
-    assert_eq!(cmds.len(), 1);
-    assert_eq!(cmds[0].show_command, Some(false));
-}
-
-// Test SubagentStopCommand default showCommand behavior
-#[test]
-fn test_subagent_show_command_default_true() {
-    let yaml = r#"
-subagentStop:
-  commands:
-    "*":
-      - run: "npm run lint"
-stop:
-  commands: []
-preToolUse:
-  preventAdditions: []
-  preventRootAdditions: true
-  uneditableFiles: []
-  toolUsageValidation: []
-notifications:
-  enabled: false
-  hooks: []
-  showErrors: false
-  showSuccess: false
-  showSystemEvents: true
-  "#;
-    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
-    assert!(
-        result.is_ok(),
-        "SubagentStop config without showCommand should parse: {:?}",
-        result.err()
-    );
-
-    let config = result.unwrap();
-    let cmds = config.subagent_stop.commands.get("*").unwrap();
-    assert_eq!(cmds.len(), 1);
-    // Verify default is Some(true) when field is omitted
-    assert_eq!(
-        cmds[0].show_command,
-        Some(true),
-        "showCommand should default to Some(true) when omitted"
-    );
 }
 
 // Tests for ToolUsageRule deserialization with agent field

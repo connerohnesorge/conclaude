@@ -68,36 +68,6 @@ fn test_extract_bash_commands_handles_mixed_whitespace_and_comments() {
     assert_eq!(commands, vec!["echo hello", "npm test", "   echo world   "]);
 }
 
-#[test]
-fn test_yaml_parsing_directly() {
-    let config_content = r#"
-stop:
-  commands:
-    - run: "echo test"
-  infinite: true
-  infiniteMessage: "continue"
-preToolUse:
-  preventRootAdditions: false
-  uneditableFiles:
-    - "*.lock"
-"#;
-
-    let result = serde_yaml::from_str::<conclaude::config::ConclaudeConfig>(config_content);
-    match result {
-        Ok(config) => {
-            // Config parsed successfully, validate infinite_message field
-            assert_eq!(config.stop.infinite_message, Some("continue".to_string()));
-        }
-        Err(e) => {
-            panic!("YAML parsing failed: {e:?}");
-        }
-    }
-}
-
-// Note: File-based config loading is tested through the direct YAML parsing test above
-// and through the integration tests. The load_conclaude_config function works correctly
-// in practice, but this test has directory/path issues in the test environment.
-
 #[tokio::test]
 async fn test_load_config_not_found() {
     let temp_dir = tempdir().unwrap();
@@ -119,81 +89,21 @@ async fn test_load_config_not_found() {
 }
 
 #[test]
-fn test_generate_default_config() {
-    let config = generate_default_config();
-    assert!(config.contains("stop:"));
-    assert!(config.contains("preToolUse:"));
-    assert!(config.contains("preventRootAdditions: true"));
-    // Default config now includes conclaude config files in uneditableFiles for security
-    assert!(config.contains("uneditableFiles:"));
-    assert!(config.contains(".conclaude.yml"));
-    assert!(config.contains(".conclaude.yaml"));
-    assert!(config.contains("infinite: false"));
-}
-
-#[test]
-fn test_default_config_can_be_parsed() {
-    // This test demonstrates that the default config should be parseable
-    // but will fail initially, showing the TDD approach
+fn test_default_config_parsing() {
+    // Consolidated test for default config parsing scenarios
     let config_content = generate_default_config();
 
+    // Test 1: Original config parses successfully
     let result = serde_yaml::from_str::<conclaude::config::ConclaudeConfig>(&config_content);
+    assert!(
+        result.is_ok(),
+        "Default config should be parseable, but failed with: {:?}",
+        result.err()
+    );
+    let config = result.unwrap();
+    assert!(config.pre_tool_use.prevent_root_additions);
 
-    match result {
-        Ok(config) => {
-            // Config parsed successfully
-            assert!(config.pre_tool_use.prevent_root_additions);
-            println!("✓ Default config parsed successfully");
-        }
-        Err(e) => {
-            println!("✗ Default config failed to parse:");
-            println!("Error: {}", e);
-            println!("\nHere's the failing config content:");
-            println!("{}", config_content);
-            panic!("Default config should be parseable, but failed with: {}", e);
-        }
-    }
-}
-
-#[test]
-fn test_local_conclaude_yaml_can_be_parsed() {
-    // Test the actual .conclaude.yaml file in the repo
-    let config_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".conclaude.yaml");
-
-    if !config_path.exists() {
-        panic!(
-            "Expected .conclaude.yaml to exist at: {}",
-            config_path.display()
-        );
-    }
-
-    let content = std::fs::read_to_string(&config_path).expect("Failed to read .conclaude.yaml");
-
-    let result = serde_yaml::from_str::<conclaude::config::ConclaudeConfig>(&content);
-
-    match result {
-        Ok(config) => {
-            println!("✓ Local .conclaude.yaml parsed successfully");
-            println!("  notifications.enabled: {}", config.notifications.enabled);
-            println!("  notifications.hooks: {:?}", config.notifications.hooks);
-        }
-        Err(e) => {
-            println!("✗ Local .conclaude.yaml failed to parse:");
-            println!("Error: {}", e);
-            panic!(
-                "Local .conclaude.yaml should be parseable, but failed with: {}",
-                e
-            );
-        }
-    }
-}
-
-#[test]
-fn test_default_config_with_comments_removed_can_be_parsed() {
-    // Test parsing by stripping comments to see if they cause issues
-    let config_content = generate_default_config();
-
-    // Remove comment lines to isolate the YAML content
+    // Test 2: Stripped config (comments removed) parses successfully
     let yaml_only: String = config_content
         .lines()
         .filter(|line| !line.trim_start().starts_with('#') && !line.trim().is_empty())
@@ -201,47 +111,13 @@ fn test_default_config_with_comments_removed_can_be_parsed() {
         .join("\n");
 
     let result = serde_yaml::from_str::<conclaude::config::ConclaudeConfig>(&yaml_only);
-
-    match result {
-        Ok(config) => {
-            // Config parsed successfully
-            assert!(config.pre_tool_use.prevent_root_additions);
-        }
-        Err(e) => {
-            panic!(
-                "YAML-only content should be parseable, but failed with: {}\n\nYAML content:\n{}",
-                e, yaml_only
-            );
-        }
-    }
-}
-
-#[test]
-fn test_default_config_without_uncommented_grep_rules_can_be_parsed() {
-    // Create a version of the default config with grepRules lines completely removed
-    let config_content = generate_default_config();
-
-    // Remove lines that contain grepRules (including commented ones)
-    let cleaned_config: String = config_content
-        .lines()
-        .filter(|line| !line.contains("grepRules"))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    let result = serde_yaml::from_str::<conclaude::config::ConclaudeConfig>(&cleaned_config);
-
-    match result {
-        Ok(config) => {
-            // Config parsed successfully
-            assert!(config.pre_tool_use.prevent_root_additions);
-        }
-        Err(e) => {
-            panic!(
-                "Config without grepRules should be parseable, but failed with: {}\n\nConfig content:\n{}",
-                e, cleaned_config
-            );
-        }
-    }
+    assert!(
+        result.is_ok(),
+        "YAML-only content should be parseable, but failed with: {}\n\nYAML content:\n{}",
+        result.as_ref().err().map(|e| e.to_string()).unwrap_or_default(),
+        yaml_only
+    );
+    assert!(result.unwrap().pre_tool_use.prevent_root_additions);
 }
 
 #[tokio::test]

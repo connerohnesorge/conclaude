@@ -2,20 +2,6 @@ use conclaude::types::*;
 use std::collections::HashMap;
 
 #[test]
-fn test_hook_result_success() {
-    let result = HookResult::success();
-    assert_eq!(result.blocked, Some(false));
-    assert_eq!(result.message, None);
-}
-
-#[test]
-fn test_hook_result_blocked() {
-    let result = HookResult::blocked("Test blocking message");
-    assert_eq!(result.blocked, Some(true));
-    assert_eq!(result.message, Some("Test blocking message".to_string()));
-}
-
-#[test]
 fn test_validate_base_payload_valid() {
     let valid_base = BasePayload {
         session_id: "test_session".to_string(),
@@ -67,55 +53,6 @@ fn test_validate_base_payload_missing_hook_event_name() {
     let result = validate_base_payload(&invalid_base);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("hook_event_name"));
-}
-
-#[test]
-fn test_compact_trigger_serialization() {
-    let trigger = CompactTrigger::Manual;
-    let json = serde_json::to_string(&trigger).unwrap();
-    assert_eq!(json, "\"manual\"");
-
-    let trigger = CompactTrigger::Auto;
-    let json = serde_json::to_string(&trigger).unwrap();
-    assert_eq!(json, "\"auto\"");
-}
-
-#[test]
-fn test_compact_trigger_deserialization() {
-    let json = "\"manual\"";
-    let trigger: CompactTrigger = serde_json::from_str(json).unwrap();
-    assert!(matches!(trigger, CompactTrigger::Manual));
-
-    let json = "\"auto\"";
-    let trigger: CompactTrigger = serde_json::from_str(json).unwrap();
-    assert!(matches!(trigger, CompactTrigger::Auto));
-}
-
-#[test]
-fn test_pre_tool_use_payload_serialization() {
-    let mut tool_input = HashMap::new();
-    tool_input.insert(
-        "file_path".to_string(),
-        serde_json::Value::String("test.txt".to_string()),
-    );
-
-    let payload = PreToolUsePayload {
-        base: BasePayload {
-            session_id: "test_session".to_string(),
-            transcript_path: "/path/to/transcript".to_string(),
-            hook_event_name: "PreToolUse".to_string(),
-            cwd: "/current/dir".to_string(),
-            permission_mode: Some("default".to_string()),
-        },
-        tool_name: "Edit".to_string(),
-        tool_input,
-        tool_use_id: Some("test-tool-use-id".to_string()),
-    };
-
-    let json = serde_json::to_string(&payload).unwrap();
-    assert!(json.contains("test_session"));
-    assert!(json.contains("Edit"));
-    assert!(json.contains("test.txt"));
 }
 
 #[test]

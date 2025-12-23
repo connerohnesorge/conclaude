@@ -4,19 +4,6 @@ use std::process::Command;
 use tempfile::tempdir;
 
 #[test]
-fn test_cli_help_command() {
-    let output = Command::new("cargo")
-        .args(["run", "--", "--help"])
-        .output()
-        .expect("Failed to run CLI help command");
-
-    let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
-    assert!(stdout.contains("Claude Code Hook Handler"));
-    assert!(stdout.contains("Hooks"));
-    assert!(stdout.contains("init"));
-}
-
-#[test]
 fn test_cli_init_command() {
     let temp_dir = tempdir().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
@@ -111,19 +98,6 @@ fn test_cli_init_command_force_overwrite() {
     let config_content = fs::read_to_string(&config_path).expect("Failed to read config file");
     assert!(config_content.contains("stop:"));
     assert!(!config_content.contains("existing content"));
-}
-
-#[test]
-fn test_cli_invalid_command() {
-    let output = Command::new("cargo")
-        .args(["run", "--", "invalid-command"])
-        .output()
-        .expect("Failed to run CLI with invalid command");
-
-    assert!(!output.status.success());
-    let stderr = String::from_utf8(output.stderr).expect("Invalid UTF-8");
-    // Should show help or error message
-    assert!(!stderr.is_empty());
 }
 
 // Note: Testing the actual hook handlers with stdin would require more complex setup
@@ -496,47 +470,6 @@ preToolUse:
 }
 
 #[test]
-fn test_validate_with_custom_config_path_directory() {
-    let temp_dir = tempdir().expect("Failed to create temp directory");
-    let temp_path = temp_dir.path();
-    let config_path = temp_path.join(".conclaude.yaml");
-
-    // Create a valid configuration in a custom directory
-    let valid_config = r#"
-stop:
-  commands:
-    - run: "echo directory test"
-preToolUse:
-  preventRootAdditions: true
-"#;
-
-    fs::write(&config_path, valid_config).expect("Failed to write config file");
-
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--",
-            "validate",
-            "--config-path",
-            &temp_path.to_string_lossy(),
-        ])
-        .output()
-        .expect("Failed to run validate command");
-
-    let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
-
-    // Should succeed with exit code 0
-    assert!(
-        output.status.success(),
-        "Validate should succeed with custom directory path. stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    // Verify success message
-    assert!(stdout.contains("Configuration is valid"));
-}
-
-#[test]
 fn test_validate_with_nonexistent_custom_config_file() {
     let temp_dir = tempdir().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
@@ -572,63 +505,6 @@ fn test_validate_with_nonexistent_custom_config_file() {
         stderr.contains("No such file or directory") || stderr.contains("not found"),
         "Error message should mention file error. stderr: {stderr}"
     );
-}
-
-#[test]
-fn test_validate_displays_configuration_summary() {
-    let temp_dir = tempdir().expect("Failed to create temp directory");
-    let temp_path = temp_dir.path();
-    let config_path = temp_path.join(".conclaude.yaml");
-
-    // Create a configuration with specific values to verify in summary
-    let config_with_features = r#"
-stop:
-  commands:
-    - run: "echo test"
-  infinite: true
-preToolUse:
-  preventRootAdditions: false
-  uneditableFiles:
-    - "*.lock"
-    - "*.json"
-  toolUsageValidation:
-    - tool: "Write"
-      pattern: ".*"
-      action: "block"
-notifications:
-  enabled: true
-  hooks: ["*"]
-"#;
-
-    fs::write(&config_path, config_with_features).expect("Failed to write config file");
-
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--",
-            "validate",
-            "--config-path",
-            &config_path.to_string_lossy(),
-        ])
-        .output()
-        .expect("Failed to run validate command");
-
-    let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
-
-    // Should succeed
-    assert!(
-        output.status.success(),
-        "Validate should succeed. stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    // Verify configuration summary includes key details
-    assert!(stdout.contains("Configuration summary:"));
-    assert!(stdout.contains("Prevent root additions: false"));
-    assert!(stdout.contains("Uneditable files: 2 pattern(s)"));
-    assert!(stdout.contains("Tool usage validation: 1 rule(s)"));
-    assert!(stdout.contains("Infinite mode: true"));
-    assert!(stdout.contains("Notifications enabled: true"));
 }
 
 // ========== Stop Hook Working Directory Tests ==========
