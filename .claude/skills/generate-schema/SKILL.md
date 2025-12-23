@@ -1,6 +1,8 @@
 ---
 name: generate-schema
-description: Generate the conclaude-schema.json configuration schema file using src/bin/generate-schema.rs. Use when the configuration format changes, new config fields are added, or the schema needs to be updated for release.
+description: |
+   Generate the conclaude-schema.json configuration schema file using src/bin/generate-schema.rs.
+   USE WHEN the configuration format changes, new config fields are added, or the schema needs to be updated for release or testing.
 ---
 
 # Generate Schema
