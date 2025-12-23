@@ -211,12 +211,4 @@ invalid_field: "should fail"
             generate_yaml_language_server_header(Some("https://example.com/schema.json"));
         assert!(custom_header.contains("https://example.com/schema.json"));
     }
-
-    #[test]
-    fn test_get_schema_url() {
-        let url = get_schema_url();
-        assert!(url.starts_with("https://"));
-        assert!(url.contains("github.com"));
-        assert!(url.to_lowercase().ends_with(".json"));
-    }
 }

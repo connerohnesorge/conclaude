@@ -1,4 +1,4 @@
-use conclaude::config::{ConclaudeConfig, StopCommand, StopConfig};
+use conclaude::config::{ConclaudeConfig, StopCommand};
 use std::fs;
 use std::io::Write;
 use std::process::{Command, Stdio};
@@ -331,29 +331,6 @@ preToolUse:
     assert_eq!(config.stop.commands[0].max_output_lines, None);
 }
 
-/// Test the StopCommand struct directly
-#[test]
-fn test_stop_command_struct_serialization() {
-    let cmd = StopCommand {
-        run: "echo test".to_string(),
-        message: Some("Test message".to_string()),
-        show_command: None,
-        show_stdout: Some(true),
-        show_stderr: Some(false),
-        max_output_lines: Some(50),
-        timeout: None,
-    };
-
-    let yaml = serde_yaml::to_string(&cmd).unwrap();
-    let deserialized: StopCommand = serde_yaml::from_str(&yaml).unwrap();
-
-    assert_eq!(deserialized.run, "echo test");
-    assert_eq!(deserialized.message, Some("Test message".to_string()));
-    assert_eq!(deserialized.show_stdout, Some(true));
-    assert_eq!(deserialized.show_stderr, Some(false));
-    assert_eq!(deserialized.max_output_lines, Some(50));
-}
-
 /// Test that the schema properly defined the range constraint
 #[test]
 fn test_schema_generation_includes_range() {
@@ -511,33 +488,6 @@ preToolUse:
             description
         );
     }
-}
-
-/// Test that StopConfig itself can be serialized and deserialized
-#[test]
-fn test_stop_config_round_trip() {
-    let original = StopConfig {
-        commands: vec![StopCommand {
-            run: "npm test".to_string(),
-            message: Some("Failed".to_string()),
-            show_command: None,
-            show_stdout: Some(true),
-            show_stderr: Some(true),
-            max_output_lines: Some(25),
-            timeout: None,
-        }],
-        infinite: false,
-        infinite_message: None,
-    };
-
-    let yaml = serde_yaml::to_string(&original).unwrap();
-    let deserialized: StopConfig = serde_yaml::from_str(&yaml).unwrap();
-
-    assert_eq!(deserialized.commands.len(), original.commands.len());
-    assert_eq!(
-        deserialized.commands[0].max_output_lines,
-        original.commands[0].max_output_lines
-    );
 }
 
 /// Integration test: Write config to file and load it

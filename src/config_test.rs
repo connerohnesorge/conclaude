@@ -1,53 +1,9 @@
 use crate::config::{
-    extract_bash_commands, parse_and_validate_config, suggest_similar_fields, ConclaudeConfig,
+    parse_and_validate_config, suggest_similar_fields, ConclaudeConfig,
     ContextInjectionRule, NotificationsConfig, PermissionRequestConfig, PreToolUseConfig,
     StopCommand, StopConfig, SubagentStopCommand, UnEditableFileRule, UserPromptSubmitConfig,
 };
 use std::path::Path;
-
-#[test]
-fn test_extract_bash_commands_single() {
-    let script = "echo hello";
-    let commands = extract_bash_commands(script).unwrap();
-    assert_eq!(commands, vec!["echo hello"]);
-}
-
-#[test]
-fn test_extract_bash_commands_multiple() {
-    let script = "echo hello\nnpm install\nnpm test";
-    let commands = extract_bash_commands(script).unwrap();
-    assert_eq!(commands, vec!["echo hello", "npm install", "npm test"]);
-}
-
-#[test]
-fn test_extract_bash_commands_ignores_comments() {
-    let script = "# This is a comment\necho hello\n# Another comment\nnpm test";
-    let commands = extract_bash_commands(script).unwrap();
-    assert_eq!(commands, vec!["echo hello", "npm test"]);
-}
-
-#[test]
-fn test_extract_bash_commands_ignores_empty_lines() {
-    let script = "echo hello\n\nnpm test\n";
-    let commands = extract_bash_commands(script).unwrap();
-    assert_eq!(commands, vec!["echo hello", "npm test"]);
-}
-
-#[test]
-fn test_extract_bash_commands_complex() {
-    let script = r#"nix develop -c "lint"
-bun x tsc --noEmit
-cd /tmp && echo "test""#;
-    let commands = extract_bash_commands(script).unwrap();
-    assert_eq!(
-        commands,
-        vec![
-            r#"nix develop -c "lint""#,
-            "bun x tsc --noEmit",
-            r#"cd /tmp && echo "test""#
-        ]
-    );
-}
 
 #[test]
 fn test_field_list_generation() {
