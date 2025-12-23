@@ -10,6 +10,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2025-12-22
+
+### Features
+
+- **preToolUse:** Add agent-aware file protection (#181) ([e924010](https://github.com/connerohnesorge/conclaude/commit/e924010bb7a21afb621d458b3662e763d7182989))
+- **logo:** Add logo image to README and include in assets (#191) ([4b242f6](https://github.com/connerohnesorge/conclaude/commit/4b242f6ebbbf113fd1960b187d60b11b2d0d653e))
+
+### Miscellaneous Tasks
+
+- **release:** Update CHANGELOG.md for v0.2.6 ([1a52320](https://github.com/connerohnesorge/conclaude/commit/1a52320802fb16a300b9b8b7379e6bbb4c5f309d))
+
+### Spectr
+
+- **proposal:** Add-agent-aware-file-protection (#180) ([714f516](https://github.com/connerohnesorge/conclaude/commit/714f51696f68c112821bbd9c8a91da31dda7572e))
+- **proposal:** Add-agent-session-file-config (#187) ([d4c2fc9](https://github.com/connerohnesorge/conclaude/commit/d4c2fc95d767c36d0a0c45a448207b70db9f0da2))
+- **proposal:** Add-agent-field-to-tool-usage-validation (#186) ([dd83d7d](https://github.com/connerohnesorge/conclaude/commit/dd83d7d4838f9b8d00669f5e403776f23226b18d))
+- **proposal:** Add-prevent-root-additions-message (#185) ([5892178](https://github.com/connerohnesorge/conclaude/commit/5892178e80990e9c9e2d242c7eaafd705b7d61fe))
+- **remove:** Add-sqlite-shared-state (#184) ([a6847eb](https://github.com/connerohnesorge/conclaude/commit/a6847eba01d6de633f6ef6c79a5260f1ed361848))
+- **archive:** Add-agent-aware-file-protection (#183) ([a801fcd](https://github.com/connerohnesorge/conclaude/commit/a801fcd14bd5d1bd193f94aee70e61930b9f051d))
+- **apply:** Add-agent-field-to-tool-usage-validation (#188) ([0783972](https://github.com/connerohnesorge/conclaude/commit/07839720c579b6111a7c16d10d0cd8c1c96882f7))
+- **proposal:** Remove-dead-code (#193) ([8f97eef](https://github.com/connerohnesorge/conclaude/commit/8f97eefa37b837db0477ecdc641e79d9899b81d6))
+- **apply:** Add-prevent-root-additions-message (#190) ([7a9d33b](https://github.com/connerohnesorge/conclaude/commit/7a9d33b56fa0c05c72280a388dc65867eda9258a))
+- **archive:** Add-prevent-root-additions-message (#192) ([b68f869](https://github.com/connerohnesorge/conclaude/commit/b68f8695069380c863fdd53b70b0e929781fb91b))
+- **archive:** Add-agent-field-to-tool-usage-validation (#189) ([8287307](https://github.com/connerohnesorge/conclaude/commit/828730745f17a277029320651bd5f3edece211e0))
+- **apply:** Remove-dead-code (#194) ([b2b058d](https://github.com/connerohnesorge/conclaude/commit/b2b058db2d004c869c0c5a9e82c9522b680f3b51))
+
 ## [0.2.6] - 2025-12-18
 
 ### Features

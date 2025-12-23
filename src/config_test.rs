@@ -61,8 +61,6 @@ fn test_field_list_generation() {
         PreToolUseConfig::field_names(),
         vec![
             "preventAdditions",
-            "preventGeneratedFileEdits",
-            "generatedFileMessage",
             "preventRootAdditions",
             "preventRootAdditionsMessage",
             "uneditableFiles",
@@ -240,7 +238,6 @@ preToolUse:
   preventRootAdditions: true
   uneditableFiles: []
   preventAdditions: []
-  preventGeneratedFileEdits: true
   toolUsageValidation: []
 
 stop:
@@ -283,7 +280,6 @@ preToolUse:
   preventRootAdditions: true
   uneditableFiles: []
   preventAdditions: []
-  preventGeneratedFileEdits: true
   toolUsageValidation: []
 
 notifications:
@@ -327,7 +323,6 @@ preToolUse:
   preventRootAdditions: true
   uneditableFiles: []
   preventAdditions: []
-  preventGeneratedFileEdits: true
   toolUsageValidation: []
 
 notifications:
@@ -362,7 +357,6 @@ preToolUse:
   preventRootAdditions: true
   uneditableFiles: []
   preventAdditions: []
-  preventGeneratedFileEdits: true
   toolUsageValidation: []
 
 notifications:
@@ -405,7 +399,6 @@ preToolUse:
   - "*.lock"
   - ".env"
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   toolUsageValidation: []
 
@@ -443,7 +436,6 @@ preToolUse:
   - pattern: ".env"
     message: "Environment files contain secrets."
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   toolUsageValidation: []
 
@@ -487,7 +479,6 @@ preToolUse:
     message: "Secrets must not be committed."
   - "package.json"
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   toolUsageValidation: []
 
@@ -532,7 +523,6 @@ preToolUse:
   uneditableFiles:
   - pattern: "*.lock"
     preventAdditions: []
-    preventGeneratedFileEdits: true
     preventRootAdditions: true
     toolUsageValidation: []
 
@@ -564,7 +554,6 @@ preToolUse:
   - ".env"
   - "package-lock.json"
   preventAdditions: []
-  preventGeneratedFileEdits: true
   toolUsageValidation: []
 
 stop:
@@ -720,7 +709,6 @@ stop:
   - run: "echo hello"
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -753,7 +741,6 @@ stop:
     timeout: 3601
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -786,7 +773,6 @@ stop:
     timeout: 0
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -816,7 +802,6 @@ stop:
   commands: []
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -850,7 +835,6 @@ stop:
     showStdout: true
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -892,7 +876,6 @@ stop:
   commands: []
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -935,7 +918,6 @@ stop:
   commands: []
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -972,7 +954,6 @@ stop:
   commands: []
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -1012,7 +993,6 @@ stop:
   commands: []
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -1061,7 +1041,6 @@ stop:
   commands: []
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -1110,7 +1089,6 @@ stop:
   commands: []
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -1147,7 +1125,6 @@ stop:
   commands: []
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -1188,7 +1165,6 @@ stop:
   commands: []
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -1219,7 +1195,6 @@ stop:
     showCommand: true
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -1252,7 +1227,6 @@ stop:
     showCommand: false
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -1284,7 +1258,6 @@ stop:
   - run: "echo test"
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -1325,7 +1298,6 @@ stop:
   commands: []
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -1362,7 +1334,6 @@ stop:
   commands: []
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -1398,7 +1369,6 @@ stop:
   commands: []
 preToolUse:
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
   toolUsageValidation: []
@@ -1439,7 +1409,6 @@ preToolUse:
       action: "block"
       commandPattern: "rm -rf *"
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
 stop:
@@ -1481,7 +1450,6 @@ preToolUse:
       commandPattern: "rm -rf *"
       agent: "coder"
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
 stop:
@@ -1528,7 +1496,6 @@ preToolUse:
       commandPattern: "cargo test"
       agent: "code*"
   preventAdditions: []
-  preventGeneratedFileEdits: true
   preventRootAdditions: true
   uneditableFiles: []
 stop:

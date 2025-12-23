@@ -396,7 +396,6 @@ preToolUse:
   uneditableFiles:
     - "package-lock.json"
   preventAdditions: []
-  preventGeneratedFileEdits: true
 notifications:
   enabled: true
   hooks: ["*"]
