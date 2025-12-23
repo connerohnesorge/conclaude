@@ -84,11 +84,11 @@ fn test_compact_trigger_serialization() {
 fn test_compact_trigger_deserialization() {
     let json = "\"manual\"";
     let trigger: CompactTrigger = serde_json::from_str(json).unwrap();
-    matches!(trigger, CompactTrigger::Manual);
+    assert!(matches!(trigger, CompactTrigger::Manual));
 
     let json = "\"auto\"";
     let trigger: CompactTrigger = serde_json::from_str(json).unwrap();
-    matches!(trigger, CompactTrigger::Auto);
+    assert!(matches!(trigger, CompactTrigger::Auto));
 }
 
 #[test]
@@ -182,7 +182,7 @@ fn test_pre_compact_payload_deserialization() {
 
     let payload: PreCompactPayload = serde_json::from_str(json).unwrap();
     assert_eq!(payload.base.session_id, "test_session");
-    matches!(payload.trigger, CompactTrigger::Auto);
+    assert!(matches!(payload.trigger, CompactTrigger::Auto));
 }
 
 #[test]
@@ -315,6 +315,81 @@ fn test_validate_subagent_stop_payload_whitespace_agent_transcript_path() {
 }
 
 #[test]
+fn test_validate_subagent_stop_payload_invalid_base() {
+    let payload = SubagentStopPayload {
+        base: BasePayload {
+            session_id: String::new(),
+            transcript_path: "/path/to/transcript".to_string(),
+            hook_event_name: "SubagentStop".to_string(),
+            cwd: "/current/dir".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        stop_hook_active: true,
+        agent_id: "coder".to_string(),
+        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+    };
+    let result = validate_subagent_stop_payload(&payload);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("session_id"));
+}
+
+#[test]
+fn test_validate_subagent_stop_payload_agent_id_with_leading_trailing_spaces() {
+    let payload = SubagentStopPayload {
+        base: BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/path/to/transcript".to_string(),
+            hook_event_name: "SubagentStop".to_string(),
+            cwd: "/current/dir".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        stop_hook_active: true,
+        agent_id: "  coder  ".to_string(),
+        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+    };
+    assert!(validate_subagent_stop_payload(&payload).is_ok());
+}
+
+#[test]
+fn test_validate_subagent_stop_payload_different_agent_types() {
+    let agent_types = vec!["coder", "tester", "stuck"];
+
+    for agent_type in agent_types {
+        let payload = SubagentStopPayload {
+            base: BasePayload {
+                session_id: "test_session".to_string(),
+                transcript_path: "/path/to/transcript".to_string(),
+                hook_event_name: "SubagentStop".to_string(),
+                cwd: "/current/dir".to_string(),
+                permission_mode: Some("default".to_string()),
+            },
+            stop_hook_active: true,
+            agent_id: agent_type.to_string(),
+            agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        };
+        assert!(validate_subagent_stop_payload(&payload).is_ok());
+    }
+}
+
+#[test]
+fn test_validate_subagent_stop_payload_multiple_missing_fields() {
+    let payload = SubagentStopPayload {
+        base: BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/path/to/transcript".to_string(),
+            hook_event_name: "SubagentStop".to_string(),
+            cwd: "/current/dir".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        stop_hook_active: true,
+        agent_id: String::new(),
+        agent_transcript_path: String::new(),
+    };
+    let result = validate_subagent_stop_payload(&payload);
+    assert!(result.is_err());
+}
+
+#[test]
 fn test_permission_request_payload_deserialization() {
     let json = r#"{
         "session_id": "test_session",
@@ -434,5 +509,360 @@ fn test_validate_permission_request_payload_whitespace_tool_name() {
     let result = validate_permission_request_payload(&payload);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), "tool_name cannot be empty");
+}
+
+// ============================================================================
+// SubagentStart Payload Validation Tests
+// ============================================================================
+
+#[test]
+fn test_validate_subagent_start_payload_valid() {
+    let payload = SubagentStartPayload {
+        base: BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/path/to/transcript".to_string(),
+            hook_event_name: "SubagentStart".to_string(),
+            cwd: "/current/dir".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        agent_id: "coder".to_string(),
+        subagent_type: "implementation".to_string(),
+        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+    };
+    assert!(validate_subagent_start_payload(&payload).is_ok());
+}
+
+#[test]
+fn test_validate_subagent_start_payload_empty_agent_id() {
+    let payload = SubagentStartPayload {
+        base: BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/path/to/transcript".to_string(),
+            hook_event_name: "SubagentStart".to_string(),
+            cwd: "/current/dir".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        agent_id: String::new(),
+        subagent_type: "implementation".to_string(),
+        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+    };
+    let result = validate_subagent_start_payload(&payload);
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), "agent_id cannot be empty");
+}
+
+#[test]
+fn test_validate_subagent_start_payload_whitespace_agent_id() {
+    let payload = SubagentStartPayload {
+        base: BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/path/to/transcript".to_string(),
+            hook_event_name: "SubagentStart".to_string(),
+            cwd: "/current/dir".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        agent_id: "   ".to_string(),
+        subagent_type: "implementation".to_string(),
+        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+    };
+    let result = validate_subagent_start_payload(&payload);
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), "agent_id cannot be empty");
+}
+
+#[test]
+fn test_validate_subagent_start_payload_empty_subagent_type() {
+    let payload = SubagentStartPayload {
+        base: BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/path/to/transcript".to_string(),
+            hook_event_name: "SubagentStart".to_string(),
+            cwd: "/current/dir".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        agent_id: "coder".to_string(),
+        subagent_type: String::new(),
+        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+    };
+    let result = validate_subagent_start_payload(&payload);
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), "subagent_type cannot be empty");
+}
+
+#[test]
+fn test_validate_subagent_start_payload_whitespace_subagent_type() {
+    let payload = SubagentStartPayload {
+        base: BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/path/to/transcript".to_string(),
+            hook_event_name: "SubagentStart".to_string(),
+            cwd: "/current/dir".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        agent_id: "coder".to_string(),
+        subagent_type: "   ".to_string(),
+        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+    };
+    let result = validate_subagent_start_payload(&payload);
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), "subagent_type cannot be empty");
+}
+
+#[test]
+fn test_validate_subagent_start_payload_empty_agent_transcript_path() {
+    let payload = SubagentStartPayload {
+        base: BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/path/to/transcript".to_string(),
+            hook_event_name: "SubagentStart".to_string(),
+            cwd: "/current/dir".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        agent_id: "coder".to_string(),
+        subagent_type: "implementation".to_string(),
+        agent_transcript_path: String::new(),
+    };
+    let result = validate_subagent_start_payload(&payload);
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), "agent_transcript_path cannot be empty");
+}
+
+#[test]
+fn test_validate_subagent_start_payload_whitespace_agent_transcript_path() {
+    let payload = SubagentStartPayload {
+        base: BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/path/to/transcript".to_string(),
+            hook_event_name: "SubagentStart".to_string(),
+            cwd: "/current/dir".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        agent_id: "coder".to_string(),
+        subagent_type: "implementation".to_string(),
+        agent_transcript_path: "   ".to_string(),
+    };
+    let result = validate_subagent_start_payload(&payload);
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), "agent_transcript_path cannot be empty");
+}
+
+#[test]
+fn test_validate_subagent_start_payload_invalid_base() {
+    let payload = SubagentStartPayload {
+        base: BasePayload {
+            session_id: String::new(),
+            transcript_path: "/path/to/transcript".to_string(),
+            hook_event_name: "SubagentStart".to_string(),
+            cwd: "/current/dir".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        agent_id: "coder".to_string(),
+        subagent_type: "implementation".to_string(),
+        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+    };
+    let result = validate_subagent_start_payload(&payload);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("session_id"));
+}
+
+#[test]
+fn test_validate_subagent_start_payload_agent_id_with_leading_trailing_spaces() {
+    let payload = SubagentStartPayload {
+        base: BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/path/to/transcript".to_string(),
+            hook_event_name: "SubagentStart".to_string(),
+            cwd: "/current/dir".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        agent_id: "  coder  ".to_string(),
+        subagent_type: "implementation".to_string(),
+        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+    };
+    assert!(validate_subagent_start_payload(&payload).is_ok());
+}
+
+#[test]
+fn test_validate_subagent_start_payload_different_agent_types() {
+    let agent_types = vec!["coder", "tester", "stuck"];
+
+    for agent_type in agent_types {
+        let payload = SubagentStartPayload {
+            base: BasePayload {
+                session_id: "test_session".to_string(),
+                transcript_path: "/path/to/transcript".to_string(),
+                hook_event_name: "SubagentStart".to_string(),
+                cwd: "/current/dir".to_string(),
+                permission_mode: Some("default".to_string()),
+            },
+            agent_id: agent_type.to_string(),
+            subagent_type: "implementation".to_string(),
+            agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        };
+        assert!(validate_subagent_start_payload(&payload).is_ok());
+    }
+}
+
+#[test]
+fn test_subagent_start_payload_deserialize_from_valid_json() {
+    let json = r#"{
+        "session_id": "test_session",
+        "transcript_path": "/path/to/transcript",
+        "hook_event_name": "SubagentStart",
+        "cwd": "/current/dir",
+        "permission_mode": "default",
+        "agent_id": "coder",
+        "subagent_type": "implementation",
+        "agent_transcript_path": "/path/to/agent/transcript"
+    }"#;
+
+    let payload: SubagentStartPayload = serde_json::from_str(json).unwrap();
+    assert_eq!(payload.agent_id, "coder");
+    assert_eq!(payload.subagent_type, "implementation");
+    assert_eq!(payload.agent_transcript_path, "/path/to/agent/transcript");
+    assert_eq!(payload.base.session_id, "test_session");
+}
+
+#[test]
+fn test_subagent_start_payload_deserialize_missing_agent_id() {
+    let json = r#"{
+        "session_id": "test_session",
+        "transcript_path": "/path/to/transcript",
+        "hook_event_name": "SubagentStart",
+        "cwd": "/current/dir",
+        "permission_mode": "default",
+        "subagent_type": "implementation",
+        "agent_transcript_path": "/path/to/agent/transcript"
+    }"#;
+
+    let result: Result<SubagentStartPayload, _> = serde_json::from_str(json);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_subagent_start_payload_deserialize_missing_subagent_type() {
+    let json = r#"{
+        "session_id": "test_session",
+        "transcript_path": "/path/to/transcript",
+        "hook_event_name": "SubagentStart",
+        "cwd": "/current/dir",
+        "permission_mode": "default",
+        "agent_id": "coder",
+        "agent_transcript_path": "/path/to/agent/transcript"
+    }"#;
+
+    let result: Result<SubagentStartPayload, _> = serde_json::from_str(json);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_subagent_start_payload_deserialize_missing_agent_transcript_path() {
+    let json = r#"{
+        "session_id": "test_session",
+        "transcript_path": "/path/to/transcript",
+        "hook_event_name": "SubagentStart",
+        "cwd": "/current/dir",
+        "permission_mode": "default",
+        "agent_id": "coder",
+        "subagent_type": "implementation"
+    }"#;
+
+    let result: Result<SubagentStartPayload, _> = serde_json::from_str(json);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_subagent_start_payload_json_round_trip_coder() {
+    let json_str = r#"{
+        "session_id": "test_session_coder",
+        "transcript_path": "/tmp/session_123.jsonl",
+        "hook_event_name": "SubagentStart",
+        "cwd": "/home/user/project",
+        "permission_mode": "default",
+        "agent_id": "coder",
+        "subagent_type": "implementation",
+        "agent_transcript_path": "/tmp/coder_123.jsonl"
+    }"#;
+
+    let payload: SubagentStartPayload =
+        serde_json::from_str(json_str).expect("Failed to deserialize JSON");
+
+    assert_eq!(payload.agent_id, "coder");
+    assert_eq!(payload.subagent_type, "implementation");
+    assert_eq!(payload.agent_transcript_path, "/tmp/coder_123.jsonl");
+}
+
+#[test]
+fn test_subagent_start_payload_json_round_trip_tester() {
+    let json_str = r#"{
+        "session_id": "test_session_tester",
+        "transcript_path": "/tmp/session_456.jsonl",
+        "hook_event_name": "SubagentStart",
+        "cwd": "/home/user/project",
+        "permission_mode": "default",
+        "agent_id": "tester",
+        "subagent_type": "testing",
+        "agent_transcript_path": "/tmp/tester_456.jsonl"
+    }"#;
+
+    let payload: SubagentStartPayload =
+        serde_json::from_str(json_str).expect("Failed to deserialize JSON");
+
+    assert_eq!(payload.agent_id, "tester");
+    assert_eq!(payload.subagent_type, "testing");
+    assert_eq!(payload.agent_transcript_path, "/tmp/tester_456.jsonl");
+}
+
+#[test]
+fn test_subagent_start_payload_json_round_trip_stuck() {
+    let json_str = r#"{
+        "session_id": "test_session_stuck",
+        "transcript_path": "/tmp/session_789.jsonl",
+        "hook_event_name": "SubagentStart",
+        "cwd": "/home/user/project",
+        "permission_mode": "restrict",
+        "agent_id": "stuck",
+        "subagent_type": "escalation",
+        "agent_transcript_path": "/tmp/stuck_789.jsonl"
+    }"#;
+
+    let payload: SubagentStartPayload =
+        serde_json::from_str(json_str).expect("Failed to deserialize JSON");
+
+    assert_eq!(payload.agent_id, "stuck");
+    assert_eq!(payload.subagent_type, "escalation");
+    assert_eq!(payload.agent_transcript_path, "/tmp/stuck_789.jsonl");
+}
+
+#[test]
+fn test_subagent_start_payload_serialization_round_trip() {
+    let payload = SubagentStartPayload {
+        base: BasePayload {
+            session_id: "test_session_789".to_string(),
+            transcript_path: "/tmp/session_transcript.jsonl".to_string(),
+            hook_event_name: "SubagentStart".to_string(),
+            cwd: "/home/user/project".to_string(),
+            permission_mode: Some("default".to_string()),
+        },
+        agent_id: "coder".to_string(),
+        subagent_type: "implementation".to_string(),
+        agent_transcript_path: "/tmp/coder_transcript.jsonl".to_string(),
+    };
+
+    // Serialize to JSON
+    let json_str = serde_json::to_string(&payload).expect("Failed to serialize");
+
+    // Deserialize back
+    let deserialized: SubagentStartPayload =
+        serde_json::from_str(&json_str).expect("Failed to deserialize");
+
+    // Verify round-trip preservation
+    assert_eq!(deserialized.base.session_id, payload.base.session_id);
+    assert_eq!(deserialized.agent_id, payload.agent_id);
+    assert_eq!(deserialized.subagent_type, payload.subagent_type);
+    assert_eq!(
+        deserialized.agent_transcript_path,
+        payload.agent_transcript_path
+    );
 }
 

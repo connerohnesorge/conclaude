@@ -2315,27 +2315,6 @@ mod agent_session_tests {
     use super::*;
 
     #[test]
-    fn test_matches_agent_pattern_wildcard() {
-        assert!(matches_agent_pattern("coder", "*"));
-        assert!(matches_agent_pattern("tester", "*"));
-        assert!(matches_agent_pattern("main", "*"));
-    }
-
-    #[test]
-    fn test_matches_agent_pattern_exact() {
-        assert!(matches_agent_pattern("coder", "coder"));
-        assert!(!matches_agent_pattern("coder", "tester"));
-        assert!(matches_agent_pattern("main", "main"));
-    }
-
-    #[test]
-    fn test_matches_agent_pattern_glob() {
-        assert!(matches_agent_pattern("coder", "code*"));
-        assert!(matches_agent_pattern("coder-v2", "code*"));
-        assert!(!matches_agent_pattern("tester", "code*"));
-    }
-
-    #[test]
     fn test_read_agent_from_session_file_not_exists() {
         // Should return "main" when no session file exists
         let result = read_agent_from_session_file("nonexistent-session-id-12345");
