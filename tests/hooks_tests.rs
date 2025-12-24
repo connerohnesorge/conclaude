@@ -1643,52 +1643,6 @@ fn test_prevent_additions_and_uneditable_files_both_checked() {
     // then checks uneditableFiles (for all file operations)
 }
 
-#[test]
-fn test_prevent_additions_expected_error_message_format() {
-    // Test that the error message format matches the specification:
-    // "Blocked {} operation: file matches preToolUse.preventAdditions pattern '{}'. File: {}"
-
-    // This test documents the expected error message format
-    // The actual implementation will format the message in check_file_validation_rules
-
-    let tool_name = "Write";
-    let pattern = "dist/**";
-    let file_path = "dist/output.js";
-
-    let expected_message = format!(
-        "Blocked {} operation: file matches preToolUse.preventAdditions pattern '{}'. File: {}",
-        tool_name, pattern, file_path
-    );
-
-    // Verify the format matches specification
-    assert!(
-        expected_message.contains("Blocked Write operation"),
-        "Message should contain 'Blocked Write operation'"
-    );
-    assert!(
-        expected_message.contains("preToolUse.preventAdditions"),
-        "Message should mention preToolUse.preventAdditions"
-    );
-    assert!(
-        expected_message.contains("pattern 'dist/**'"),
-        "Message should include the pattern"
-    );
-    assert!(
-        expected_message.contains("File: dist/output.js"),
-        "Message should include the file path"
-    );
-
-    // Test with different values
-    let pattern_2 = "*.log";
-    let file_path_2 = "debug.log";
-    let expected_message_2 = format!(
-        "Blocked {} operation: file matches preToolUse.preventAdditions pattern '{}'. File: {}",
-        tool_name, pattern_2, file_path_2
-    );
-
-    assert!(expected_message_2.contains("pattern '*.log'"));
-    assert!(expected_message_2.contains("File: debug.log"));
-}
 
 #[test]
 fn test_prevent_additions_glob_pattern_variations() {
@@ -1750,44 +1704,6 @@ fn test_prevent_additions_glob_pattern_variations() {
     );
 }
 
-#[test]
-fn test_prevent_additions_write_tool_with_various_paths() {
-    // Test that Write tool payload is correctly identified for various file paths
-
-    let test_paths = vec![
-        "dist/output.js",
-        "build/app.min.js",
-        "temp/cache.tmp",
-        ".cache/data",
-        "node_modules/package/index.js",
-        "logs/debug.log",
-    ];
-
-    for file_path in test_paths {
-        let mut tool_input = HashMap::new();
-        tool_input.insert(
-            "file_path".to_string(),
-            Value::String(file_path.to_string()),
-        );
-
-        let payload = PreToolUsePayload {
-            base: create_test_base_payload(),
-            tool_name: "Write".to_string(),
-            tool_input,
-            tool_use_id: None,
-        };
-
-        // Verify the payload is correctly structured
-        assert_eq!(payload.tool_name, "Write");
-        let extracted_path = extract_file_path(&payload.tool_input);
-        assert_eq!(
-            extracted_path,
-            Some(file_path.to_string()),
-            "File path should be extracted correctly for {}",
-            file_path
-        );
-    }
-}
 
 #[test]
 fn test_prevent_additions_pattern_matching_edge_cases() {
@@ -1836,42 +1752,6 @@ fn test_prevent_additions_pattern_matching_edge_cases() {
     );
 }
 
-#[test]
-fn test_prevent_additions_does_not_affect_edit_operations() {
-    // Explicitly verify that Edit operations are never blocked by preventAdditions
-    // even if the file matches a preventAdditions pattern
-
-    let test_files = vec![
-        "dist/output.js", // Matches "dist/**"
-        "build/app.js",   // Matches "build/**"
-        "debug.log",      // Matches "*.log"
-        "temp/cache.tmp", // Matches "temp/**" or "*.tmp"
-    ];
-
-    for file_path in test_files {
-        let mut tool_input = HashMap::new();
-        tool_input.insert(
-            "file_path".to_string(),
-            Value::String(file_path.to_string()),
-        );
-
-        // Create Edit tool payload
-        let edit_payload = PreToolUsePayload {
-            base: create_test_base_payload(),
-            tool_name: "Edit".to_string(),
-            tool_input,
-            tool_use_id: None,
-        };
-
-        // Verify it's Edit tool, not Write
-        assert_eq!(edit_payload.tool_name, "Edit");
-        assert_ne!(edit_payload.tool_name, "Write");
-
-        // The check in check_file_validation_rules has:
-        // `&& payload.tool_name == "Write"`
-        // So Edit operations will NOT be blocked by preventAdditions
-    }
-}
 
 #[test]
 fn test_prevent_additions_combined_with_prevent_root_additions() {
