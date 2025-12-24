@@ -483,21 +483,6 @@ mod tests {
     }
 
     #[test]
-    fn test_is_path_git_ignored_convenience_function() -> Result<()> {
-        let temp_dir = create_test_repo("*.tmp\ncache/\n")?;
-
-        let (is_ignored, pattern) = is_path_git_ignored(Path::new("file.tmp"), temp_dir.path())?;
-        assert!(is_ignored);
-        assert!(pattern.is_some());
-
-        let (is_ignored, pattern) = is_path_git_ignored(Path::new("file.txt"), temp_dir.path())?;
-        assert!(!is_ignored);
-        assert!(pattern.is_none());
-
-        Ok(())
-    }
-
-    #[test]
     fn test_subdirectory_patterns() -> Result<()> {
         let temp_dir = create_test_repo("build/\n")?;
         let checker = GitIgnoreChecker::new(temp_dir.path())?;

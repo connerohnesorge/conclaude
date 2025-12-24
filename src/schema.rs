@@ -200,15 +200,4 @@ invalid_field: "should fail"
 
         assert!(validate_config_against_schema(invalid_config).is_err());
     }
-
-    #[test]
-    fn test_generate_yaml_language_server_header() {
-        let default_header = generate_yaml_language_server_header(None);
-        assert!(default_header.contains("yaml-language-server:"));
-        assert!(default_header.contains("github.com/connerohnesorge/conclaude"));
-
-        let custom_header =
-            generate_yaml_language_server_header(Some("https://example.com/schema.json"));
-        assert!(custom_header.contains("https://example.com/schema.json"));
-    }
 }

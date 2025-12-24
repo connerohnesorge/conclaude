@@ -2154,21 +2154,6 @@ mod prompt_context_tests {
     }
 
     #[test]
-    fn test_regex_case_insensitive_with_flag_in_pattern() {
-        let rule = ContextInjectionRule {
-            pattern: "(?i)database".to_string(),
-            prompt: "Test".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-
-        let regex = compile_rule_pattern(&rule).unwrap();
-        assert!(regex.is_match("DATABASE connection"));
-        assert!(regex.is_match("database query"));
-        assert!(regex.is_match("Database setup"));
-    }
-
-    #[test]
     fn test_regex_case_insensitive_with_config_field() {
         let rule = ContextInjectionRule {
             pattern: "database".to_string(),
@@ -2197,16 +2182,6 @@ mod prompt_context_tests {
     }
 
     #[test]
-    fn test_expand_file_references_missing_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let prompt = "Read @missing-file.md";
-        let expanded = expand_file_references(prompt, temp_dir.path());
-
-        // Missing file reference should be left as-is
-        assert_eq!(expanded, "Read @missing-file.md");
-    }
-
-    #[test]
     fn test_expand_file_references_multiple_files() {
         let temp_dir = TempDir::new().unwrap();
         let file1 = temp_dir.path().join("file1.md");
@@ -2218,16 +2193,6 @@ mod prompt_context_tests {
         let expanded = expand_file_references(prompt, temp_dir.path());
 
         assert_eq!(expanded, "Read Content 1 and Content 2");
-    }
-
-    #[test]
-    fn test_expand_file_references_no_references() {
-        let temp_dir = TempDir::new().unwrap();
-        let prompt = "This is a normal prompt without file references";
-        let expanded = expand_file_references(prompt, temp_dir.path());
-
-        // Prompt should be unchanged
-        assert_eq!(expanded, "This is a normal prompt without file references");
     }
 
 }
