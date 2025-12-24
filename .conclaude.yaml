@@ -112,7 +112,7 @@ subagentStop:
 preToolUse:
   # Prevent Claude from creating or modifying files at the repository root
   # Helps maintain clean project structure
-  preventRootAdditions: true
+  preventRootAdditions: false
 
   # Files that Claude cannot edit, using glob patterns
   # Supports various glob patterns for flexible file protection

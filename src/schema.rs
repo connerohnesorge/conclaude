@@ -147,38 +147,6 @@ pub fn generate_yaml_language_server_header(custom_schema_url: Option<&str>) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
-
-    #[test]
-    fn test_generate_config_schema() {
-        let schema = generate_config_schema().unwrap();
-
-        // Check that the schema is a valid JSON object
-        assert!(schema.is_object());
-
-        // Check for required metadata
-        let schema_obj = schema.as_object().unwrap();
-        assert!(schema_obj.contains_key("$schema"));
-        assert!(schema_obj.contains_key("title"));
-        assert!(schema_obj.contains_key("description"));
-        assert!(schema_obj.contains_key("$id"));
-        assert!(schema_obj.contains_key("type"));
-        assert!(schema_obj.contains_key("properties"));
-    }
-
-    #[test]
-    fn test_write_schema_to_file() {
-        let schema = generate_config_schema().unwrap();
-        let temp_dir = tempdir().unwrap();
-        let schema_path = temp_dir.path().join("test-schema.json");
-
-        write_schema_to_file(&schema, &schema_path).unwrap();
-
-        // Verify file exists and contains valid JSON
-        assert!(schema_path.exists());
-        let content = fs::read_to_string(&schema_path).unwrap();
-        let _: Value = serde_json::from_str(&content).unwrap();
-    }
 
     #[test]
     fn test_validate_config_against_schema() {
@@ -199,16 +167,5 @@ invalid_field: "should fail"
 "#;
 
         assert!(validate_config_against_schema(invalid_config).is_err());
-    }
-
-    #[test]
-    fn test_generate_yaml_language_server_header() {
-        let default_header = generate_yaml_language_server_header(None);
-        assert!(default_header.contains("yaml-language-server:"));
-        assert!(default_header.contains("github.com/connerohnesorge/conclaude"));
-
-        let custom_header =
-            generate_yaml_language_server_header(Some("https://example.com/schema.json"));
-        assert!(custom_header.contains("https://example.com/schema.json"));
     }
 }

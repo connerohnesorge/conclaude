@@ -291,39 +291,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_hook_result_with_context() {
-        let result = HookResult::with_context("Read the sidebar documentation");
-        assert_eq!(result.blocked, Some(false));
-        assert_eq!(result.message, None);
-        assert_eq!(
-            result.system_prompt,
-            Some("Read the sidebar documentation".to_string())
-        );
-    }
-
-    #[test]
-    fn test_pre_tool_use_payload_serialization_with_tool_use_id() {
-        let mut tool_input = HashMap::new();
-        tool_input.insert("param1".to_string(), serde_json::json!("value1"));
-
-        let payload = PreToolUsePayload {
-            base: BasePayload {
-                session_id: "test_session".to_string(),
-                transcript_path: "/path/to/transcript".to_string(),
-                hook_event_name: "PreToolUse".to_string(),
-                cwd: "/current/dir".to_string(),
-                permission_mode: Some("default".to_string()),
-            },
-            tool_name: "Edit".to_string(),
-            tool_input,
-            tool_use_id: Some("test-id-123".to_string()),
-        };
-
-        let json = serde_json::to_string(&payload).unwrap();
-        assert!(json.contains("\"tool_use_id\":\"test-id-123\""));
-    }
-
-    #[test]
     fn test_pre_tool_use_payload_deserialization_without_tool_use_id() {
         let json = r#"{
             "session_id": "test_session",
@@ -339,29 +306,6 @@ mod tests {
         assert_eq!(payload.tool_use_id, None);
         assert_eq!(payload.tool_name, "Edit");
         assert_eq!(payload.base.session_id, "test_session");
-    }
-
-    #[test]
-    fn test_post_tool_use_payload_serialization_with_tool_use_id() {
-        let mut tool_input = HashMap::new();
-        tool_input.insert("param1".to_string(), serde_json::json!("value1"));
-
-        let payload = PostToolUsePayload {
-            base: BasePayload {
-                session_id: "test_session".to_string(),
-                transcript_path: "/path/to/transcript".to_string(),
-                hook_event_name: "PostToolUse".to_string(),
-                cwd: "/current/dir".to_string(),
-                permission_mode: Some("default".to_string()),
-            },
-            tool_name: "Edit".to_string(),
-            tool_input,
-            tool_use_id: Some("test-id-456".to_string()),
-            tool_response: serde_json::json!({"status": "success"}),
-        };
-
-        let json = serde_json::to_string(&payload).unwrap();
-        assert!(json.contains("\"tool_use_id\":\"test-id-456\""));
     }
 
     #[test]

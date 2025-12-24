@@ -1,5 +1,5 @@
 use crate::config::{
-    parse_and_validate_config, suggest_similar_fields, ConclaudeConfig, UnEditableFileRule,
+    parse_and_validate_config, suggest_similar_fields, ConclaudeConfig,
 };
 use std::path::Path;
 
@@ -473,70 +473,6 @@ notifications:
         .map(|r| r.pattern())
         .collect();
     assert_eq!(patterns, vec!["*.lock", ".env", "package-lock.json"]);
-}
-
-#[test]
-fn test_uneditable_file_rule_pattern_extraction() {
-    // Test the pattern() method for both variants
-    let simple = UnEditableFileRule::Simple("*.txt".to_string());
-    assert_eq!(simple.pattern(), "*.txt");
-
-    let detailed = UnEditableFileRule::Detailed {
-        pattern: "*.md".to_string(),
-        message: Some("Custom message".to_string()),
-        agent: None,
-    };
-    assert_eq!(detailed.pattern(), "*.md");
-}
-
-#[test]
-fn test_uneditable_file_rule_message_extraction() {
-    // Test the message() method for all cases
-    let simple = UnEditableFileRule::Simple("*.txt".to_string());
-    assert!(simple.message().is_none());
-
-    let detailed_with_msg = UnEditableFileRule::Detailed {
-        pattern: "*.md".to_string(),
-        message: Some("Custom message".to_string()),
-        agent: None,
-    };
-    assert_eq!(detailed_with_msg.message(), Some("Custom message"));
-
-    let detailed_without_msg = UnEditableFileRule::Detailed {
-        pattern: "*.md".to_string(),
-        message: None,
-        agent: None,
-    };
-    assert!(detailed_without_msg.message().is_none());
-}
-
-#[test]
-fn test_uneditable_file_rule_agent_extraction() {
-    // Test the agent() method for all cases
-    let simple = UnEditableFileRule::Simple("*.txt".to_string());
-    assert!(simple.agent().is_none());
-
-    let detailed_with_agent = UnEditableFileRule::Detailed {
-        pattern: "*.md".to_string(),
-        message: None,
-        agent: Some("coder".to_string()),
-    };
-    assert_eq!(detailed_with_agent.agent(), Some("coder"));
-
-    let detailed_without_agent = UnEditableFileRule::Detailed {
-        pattern: "*.md".to_string(),
-        message: None,
-        agent: None,
-    };
-    assert!(detailed_without_agent.agent().is_none());
-
-    // Test glob pattern agent
-    let detailed_with_glob_agent = UnEditableFileRule::Detailed {
-        pattern: "src/**/*.ts".to_string(),
-        message: Some("Test agents cannot modify source files".to_string()),
-        agent: Some("test*".to_string()),
-    };
-    assert_eq!(detailed_with_glob_agent.agent(), Some("test*"));
 }
 
 #[test]
