@@ -2088,36 +2088,69 @@ mod prompt_context_tests {
     // Tests for Task 4.2: Regex pattern matching
 
     #[test]
-    fn test_regex_simple_string_pattern() {
-        let rule = ContextInjectionRule {
+    fn test_regex_pattern_matching() {
+        // Test 1: Simple string pattern matching
+        let simple_rule = ContextInjectionRule {
             pattern: "sidebar".to_string(),
             prompt: "Test".to_string(),
             enabled: Some(true),
             case_insensitive: None,
         };
+        let simple_regex = compile_rule_pattern(&simple_rule).unwrap();
+        assert!(simple_regex.is_match("update the sidebar"), "Should match 'sidebar' in phrase");
+        assert!(simple_regex.is_match("sidebar component"), "Should match 'sidebar' at start");
+        assert!(!simple_regex.is_match("side bar"), "Should not match 'side bar' (two words)");
+        assert!(!simple_regex.is_match("update the navigation"), "Should not match unrelated text");
 
-        let regex = compile_rule_pattern(&rule).unwrap();
-        assert!(regex.is_match("update the sidebar"));
-        assert!(regex.is_match("sidebar component"));
-        assert!(!regex.is_match("side bar"));
-    }
-
-    #[test]
-    fn test_regex_alternation_pattern() {
-        let rule = ContextInjectionRule {
+        // Test 2: Alternation pattern matching
+        let alt_rule = ContextInjectionRule {
             pattern: "auth|login|authentication".to_string(),
             prompt: "Test".to_string(),
             enabled: Some(true),
             case_insensitive: None,
         };
+        let alt_regex = compile_rule_pattern(&alt_rule).unwrap();
+        assert!(alt_regex.is_match("fix auth bug"), "Should match 'auth' alternative");
+        assert!(alt_regex.is_match("update login page"), "Should match 'login' alternative");
+        assert!(alt_regex.is_match("add authentication"), "Should match 'authentication' alternative");
+        assert!(!alt_regex.is_match("update the navbar"), "Should not match unrelated text");
 
-        let regex = compile_rule_pattern(&rule).unwrap();
-        assert!(regex.is_match("fix auth bug"));
-        assert!(regex.is_match("update login page"));
-        assert!(regex.is_match("add authentication"));
-        // "authorize" does not match because it contains "auth" as substring
-        // If we want word boundaries, use pattern: "\\bauth\\b|\\blogin\\b|\\bauthentication\\b"
-        assert!(!regex.is_match("update the navbar"));
+        // Test 3: Multiple patterns - both match
+        let sidebar_regex = compile_rule_pattern(&simple_rule).unwrap();
+        let auth_rule = ContextInjectionRule {
+            pattern: "auth".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        let auth_regex = compile_rule_pattern(&auth_rule).unwrap();
+        assert!(sidebar_regex.is_match("update the auth sidebar"), "Sidebar pattern should match");
+        assert!(auth_regex.is_match("update the auth sidebar"), "Auth pattern should match");
+
+        // Test 4: Multiple patterns - only one matches
+        assert!(sidebar_regex.is_match("update the sidebar"), "Sidebar should match");
+        assert!(!auth_regex.is_match("update the sidebar"), "Auth should not match");
+
+        // Test 5: Multiple patterns - none match
+        assert!(!sidebar_regex.is_match("update the navigation"), "Sidebar should not match");
+        assert!(!auth_regex.is_match("update the navigation"), "Auth should not match");
+
+        // Test 6: Invalid regex patterns return None
+        let invalid_bracket = ContextInjectionRule {
+            pattern: "[invalid".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        assert!(compile_rule_pattern(&invalid_bracket).is_none(), "Invalid bracket should return None");
+
+        let invalid_paren = ContextInjectionRule {
+            pattern: "(unclosed".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        assert!(compile_rule_pattern(&invalid_paren).is_none(), "Unclosed paren should return None");
     }
 
     #[test]
@@ -2148,20 +2181,6 @@ mod prompt_context_tests {
         assert!(regex.is_match("DATABASE connection"));
         assert!(regex.is_match("database query"));
         assert!(regex.is_match("Database setup"));
-    }
-
-    #[test]
-    fn test_regex_pattern_does_not_match() {
-        let rule = ContextInjectionRule {
-            pattern: "sidebar".to_string(),
-            prompt: "Test".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-
-        let regex = compile_rule_pattern(&rule).unwrap();
-        assert!(!regex.is_match("update the navigation"));
-        assert!(!regex.is_match("fix header component"));
     }
 
     #[test]
@@ -2211,103 +2230,6 @@ mod prompt_context_tests {
         assert_eq!(expanded, "This is a normal prompt without file references");
     }
 
-    #[test]
-    fn test_multiple_patterns_both_match() {
-        let rule1 = ContextInjectionRule {
-            pattern: "sidebar".to_string(),
-            prompt: "Context 1".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-        let rule2 = ContextInjectionRule {
-            pattern: "auth".to_string(),
-            prompt: "Context 2".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-
-        let regex1 = compile_rule_pattern(&rule1).unwrap();
-        let regex2 = compile_rule_pattern(&rule2).unwrap();
-
-        let user_prompt = "update the auth sidebar";
-
-        assert!(regex1.is_match(user_prompt));
-        assert!(regex2.is_match(user_prompt));
-    }
-
-    #[test]
-    fn test_multiple_patterns_first_matches_second_does_not() {
-        let rule1 = ContextInjectionRule {
-            pattern: "sidebar".to_string(),
-            prompt: "Context 1".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-        let rule2 = ContextInjectionRule {
-            pattern: "auth".to_string(),
-            prompt: "Context 2".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-
-        let regex1 = compile_rule_pattern(&rule1).unwrap();
-        let regex2 = compile_rule_pattern(&rule2).unwrap();
-
-        let user_prompt = "update the sidebar";
-
-        assert!(regex1.is_match(user_prompt));
-        assert!(!regex2.is_match(user_prompt));
-    }
-
-    #[test]
-    fn test_multiple_patterns_none_match() {
-        let rule1 = ContextInjectionRule {
-            pattern: "sidebar".to_string(),
-            prompt: "Context 1".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-        let rule2 = ContextInjectionRule {
-            pattern: "auth".to_string(),
-            prompt: "Context 2".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-
-        let regex1 = compile_rule_pattern(&rule1).unwrap();
-        let regex2 = compile_rule_pattern(&rule2).unwrap();
-
-        let user_prompt = "update the navigation";
-
-        assert!(!regex1.is_match(user_prompt));
-        assert!(!regex2.is_match(user_prompt));
-    }
-
-    #[test]
-    fn test_invalid_regex_pattern_returns_none() {
-        let rule = ContextInjectionRule {
-            pattern: "[invalid".to_string(),
-            prompt: "Test".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-
-        let result = compile_rule_pattern(&rule);
-        assert!(result.is_none(), "Invalid regex should return None");
-    }
-
-    #[test]
-    fn test_invalid_regex_pattern_unclosed_paren() {
-        let rule = ContextInjectionRule {
-            pattern: "(unclosed".to_string(),
-            prompt: "Test".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-
-        let result = compile_rule_pattern(&rule);
-        assert!(result.is_none(), "Invalid regex should return None");
-    }
 }
 
 #[cfg(test)]

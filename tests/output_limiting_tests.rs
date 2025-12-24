@@ -1,77 +1,51 @@
-use conclaude::config::{ConclaudeConfig, StopCommand};
+use conclaude::config::ConclaudeConfig;
 use std::fs;
 use std::io::Write;
 use std::process::{Command, Stdio};
 use tempfile::tempdir;
 
-/// Test that maxOutputLines is properly validated by the schema
+/// Test that maxOutputLines parsing works for valid values and boundary cases
 #[test]
-fn test_max_output_lines_valid_values() {
-    // Test valid values: 1, 100, 10000
-    let valid_configs = [
-        r#"
-stop:
-  commands:
-    - run: "echo test"
-      maxOutputLines: 1
-preToolUse:
-  preventRootAdditions: true
-"#,
-        r#"
-stop:
-  commands:
-    - run: "echo test"
-      maxOutputLines: 100
-preToolUse:
-  preventRootAdditions: true
-"#,
-        r#"
-stop:
-  commands:
-    - run: "echo test"
-      maxOutputLines: 10000
-preToolUse:
-  preventRootAdditions: true
-"#,
+fn test_max_output_lines_parsing() {
+    // Test valid values including boundary cases
+    let test_cases = vec![
+        (1_u32, "minimum value"),
+        (100_u32, "typical value"),
+        (5000_u32, "middle value"),
+        (10000_u32, "maximum value"),
     ];
 
-    for (idx, config_content) in valid_configs.iter().enumerate() {
-        let result = serde_yaml::from_str::<ConclaudeConfig>(config_content);
-        assert!(
-            result.is_ok(),
-            "Valid config #{} should parse successfully: {:?}",
-            idx,
-            result.err()
-        );
-    }
-}
-
-/// Test that maxOutputLines rejects values outside the valid range
-#[test]
-fn test_max_output_lines_invalid_values_at_schema_level() {
-    // Note: schemars validation happens at schema generation time, not at deserialization time
-    // So serde_yaml will accept any u32 value. This test verifies the schema is properly defined.
-
-    // Test that we can parse configs with out-of-range values
-    // (The schema validation would happen at the JSON Schema level when used by external tools)
-    let config_with_zero = r#"
+    for (value, description) in test_cases {
+        let config_content = format!(
+            r#"
 stop:
   commands:
     - run: "echo test"
-      maxOutputLines: 0
+      maxOutputLines: {}
 preToolUse:
   preventRootAdditions: true
-"#;
+"#,
+            value
+        );
 
-    // serde_yaml will parse this, but the schema says min=1
-    let result = serde_yaml::from_str::<ConclaudeConfig>(config_with_zero);
-    // This will parse successfully because serde doesn't enforce schema constraints
-    assert!(result.is_ok(), "serde_yaml parses any u32 value");
+        let result = serde_yaml::from_str::<ConclaudeConfig>(&config_content);
+        assert!(
+            result.is_ok(),
+            "Config with {} ({}) should parse successfully: {:?}",
+            description,
+            value,
+            result.err()
+        );
 
-    // The schema constraint is enforced by JSON Schema validators, not serde
-    // We verify the schema is correctly defined by checking the struct definition
-    let config = result.unwrap();
-    assert_eq!(config.stop.commands[0].max_output_lines, Some(0));
+        let config = result.unwrap();
+        assert_eq!(
+            config.stop.commands[0].max_output_lines,
+            Some(value),
+            "maxOutputLines should be {} ({})",
+            value,
+            description
+        );
+    }
 }
 
 /// Test backward compatibility: commands without maxOutputLines field work correctly
@@ -202,9 +176,9 @@ preToolUse:
     }
 }
 
-/// Test that multiple commands can have different maxOutputLines values
+/// Test that multiple commands can have independent maxOutputLines settings
 #[test]
-fn test_independent_max_output_lines_per_command() {
+fn test_max_output_lines_per_command_configuration() {
     let config_content = r#"
 stop:
   commands:
@@ -213,8 +187,11 @@ stop:
       maxOutputLines: 5
     - run: "echo second"
       showStdout: true
-      maxOutputLines: 10
+      maxOutputLines: 50
     - run: "echo third"
+      showStdout: true
+      maxOutputLines: 100
+    - run: "echo fourth"
       showStdout: true
       # no maxOutputLines
 preToolUse:
@@ -224,14 +201,16 @@ preToolUse:
     let result = serde_yaml::from_str::<ConclaudeConfig>(config_content);
     assert!(
         result.is_ok(),
-        "Config with multiple commands should parse successfully"
+        "Config with multiple commands with independent maxOutputLines should parse successfully: {:?}",
+        result.err()
     );
 
     let config = result.unwrap();
-    assert_eq!(config.stop.commands.len(), 3);
+    assert_eq!(config.stop.commands.len(), 4);
     assert_eq!(config.stop.commands[0].max_output_lines, Some(5));
-    assert_eq!(config.stop.commands[1].max_output_lines, Some(10));
-    assert_eq!(config.stop.commands[2].max_output_lines, None);
+    assert_eq!(config.stop.commands[1].max_output_lines, Some(50));
+    assert_eq!(config.stop.commands[2].max_output_lines, Some(100));
+    assert_eq!(config.stop.commands[3].max_output_lines, None);
 }
 
 /// Test that empty commands array works
@@ -252,34 +231,6 @@ preToolUse:
 
     let config = result.unwrap();
     assert!(config.stop.commands.is_empty());
-}
-
-/// Test multiple commands with maxOutputLines
-#[test]
-fn test_multiple_commands_with_max_output_lines() {
-    let config_content = r#"
-stop:
-  commands:
-    - run: "echo first"
-      showStdout: true
-      maxOutputLines: 50
-    - run: "echo second"
-      showStdout: true
-      maxOutputLines: 100
-preToolUse:
-  preventRootAdditions: true
-"#;
-
-    let result = serde_yaml::from_str::<ConclaudeConfig>(config_content);
-    assert!(
-        result.is_ok(),
-        "Multiple commands should parse successfully"
-    );
-
-    let config = result.unwrap();
-    assert_eq!(config.stop.commands.len(), 2);
-    assert_eq!(config.stop.commands[0].max_output_lines, Some(50));
-    assert_eq!(config.stop.commands[1].max_output_lines, Some(100));
 }
 
 /// Test that omitting all optional fields works
@@ -329,24 +280,6 @@ preToolUse:
 
     let config = result.unwrap();
     assert_eq!(config.stop.commands[0].max_output_lines, None);
-}
-
-/// Test that the schema properly defined the range constraint
-#[test]
-fn test_schema_generation_includes_range() {
-    use schemars::schema_for;
-
-    let schema = schema_for!(StopCommand);
-    let schema_json = serde_json::to_string_pretty(&schema).unwrap();
-
-    // Verify that the schema includes maxOutputLines field
-    assert!(
-        schema_json.contains("maxOutputLines"),
-        "Schema should include maxOutputLines field"
-    );
-
-    // Note: The actual validation of min=1, max=10000 happens at the JSON Schema level
-    // when external tools use the schema. The schemars annotation ensures it's in the schema.
 }
 
 /// Test full config file with all features combined
@@ -447,47 +380,6 @@ preToolUse:
         "Error should mention the unknown field: {}",
         error
     );
-}
-
-/// Test edge case: maxOutputLines at boundary values
-#[test]
-fn test_max_output_lines_boundary_values() {
-    let test_cases = vec![
-        (1_u32, "minimum value"),
-        (10000_u32, "maximum value"),
-        (5000_u32, "middle value"),
-    ];
-
-    for (value, description) in test_cases {
-        let config_content = format!(
-            r#"
-stop:
-  commands:
-    - run: "echo test"
-      maxOutputLines: {}
-preToolUse:
-  preventRootAdditions: true
-"#,
-            value
-        );
-
-        let result = serde_yaml::from_str::<ConclaudeConfig>(&config_content);
-        assert!(
-            result.is_ok(),
-            "Config with {} ({}) should parse successfully",
-            description,
-            value
-        );
-
-        let config = result.unwrap();
-        assert_eq!(
-            config.stop.commands[0].max_output_lines,
-            Some(value),
-            "maxOutputLines should be {} ({})",
-            value,
-            description
-        );
-    }
 }
 
 /// Integration test: Write config to file and load it

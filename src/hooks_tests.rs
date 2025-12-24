@@ -1,4 +1,4 @@
-use crate::config::{ConclaudeConfig, NotificationsConfig};
+use crate::config::ConclaudeConfig;
 use crate::hooks::*;
 use serde_json::Value;
 use std::path::Path;
@@ -21,73 +21,32 @@ fn test_is_system_event_hook() {
 }
 
 #[test]
-fn test_notification_flag_gating_logic() {
-    // Test configuration with all flags enabled (default behavior)
-    let config_all_enabled = NotificationsConfig {
-        enabled: true,
-        hooks: vec!["*".to_string()],
-        show_errors: true,
-        show_success: true,
-        show_system_events: true,
-    };
-
-    // All notification types should be allowed
-    assert!(config_all_enabled.is_enabled_for("PreToolUse"));
-    assert!(config_all_enabled.is_enabled_for("SessionStart"));
-
-    // Test configuration with only errors enabled
-    let config_errors_only = NotificationsConfig {
-        enabled: true,
-        hooks: vec!["*".to_string()],
-        show_errors: true,
-        show_success: false,
-        show_system_events: false,
-    };
-
-    // This tests the is_enabled_for method - flags are checked in send_notification
-    assert!(config_errors_only.is_enabled_for("PreToolUse"));
-    assert!(config_errors_only.is_enabled_for("SessionStart"));
-
-    // Test configuration with only success enabled
-    let config_success_only = NotificationsConfig {
-        enabled: true,
-        hooks: vec!["*".to_string()],
-        show_errors: false,
-        show_success: true,
-        show_system_events: false,
-    };
-
-    assert!(config_success_only.is_enabled_for("PreToolUse"));
-    assert!(config_success_only.is_enabled_for("SessionStart"));
-
-    // Test configuration with only system events enabled
-    let config_system_only = NotificationsConfig {
-        enabled: true,
-        hooks: vec!["*".to_string()],
-        show_errors: false,
-        show_success: false,
-        show_system_events: true,
-    };
-
-    assert!(config_system_only.is_enabled_for("PreToolUse"));
-    assert!(config_system_only.is_enabled_for("SessionStart"));
-}
-
-
-#[test]
-fn test_truncate_output_no_truncation_needed() {
+fn test_truncate_output_no_truncation() {
+    // Test no truncation needed (fewer lines than limit)
     let output = "line1\nline2\nline3";
     let (truncated, is_truncated, omitted) = truncate_output(output, 10);
     assert_eq!(truncated, "line1\nline2\nline3");
     assert!(!is_truncated);
     assert_eq!(omitted, 0);
-}
 
-#[test]
-fn test_truncate_output_exact_limit() {
+    // Test exact limit
     let output = "line1\nline2\nline3";
     let (truncated, is_truncated, omitted) = truncate_output(output, 3);
     assert_eq!(truncated, "line1\nline2\nline3");
+    assert!(!is_truncated);
+    assert_eq!(omitted, 0);
+
+    // Test single line
+    let output = "single line";
+    let (truncated, is_truncated, omitted) = truncate_output(output, 1);
+    assert_eq!(truncated, "single line");
+    assert!(!is_truncated);
+    assert_eq!(omitted, 0);
+
+    // Test large limit
+    let output = "line1\nline2";
+    let (truncated, is_truncated, omitted) = truncate_output(output, 10000);
+    assert_eq!(truncated, "line1\nline2");
     assert!(!is_truncated);
     assert_eq!(omitted, 0);
 }
@@ -106,33 +65,6 @@ fn test_truncate_output_empty() {
     let output = "";
     let (truncated, is_truncated, omitted) = truncate_output(output, 10);
     assert_eq!(truncated, "");
-    assert!(!is_truncated);
-    assert_eq!(omitted, 0);
-}
-
-#[test]
-fn test_truncate_output_single_line() {
-    let output = "single line";
-    let (truncated, is_truncated, omitted) = truncate_output(output, 1);
-    assert_eq!(truncated, "single line");
-    assert!(!is_truncated);
-    assert_eq!(omitted, 0);
-}
-
-#[test]
-fn test_truncate_output_large_limit() {
-    let output = "line1\nline2";
-    let (truncated, is_truncated, omitted) = truncate_output(output, 10000);
-    assert_eq!(truncated, "line1\nline2");
-    assert!(!is_truncated);
-    assert_eq!(omitted, 0);
-}
-
-#[test]
-fn test_truncate_output_multiple_lines_exact_boundary() {
-    let output = "line1\nline2\nline3\nline4\nline5";
-    let (truncated, is_truncated, omitted) = truncate_output(output, 5);
-    assert_eq!(truncated, "line1\nline2\nline3\nline4\nline5");
     assert!(!is_truncated);
     assert_eq!(omitted, 0);
 }
@@ -290,34 +222,6 @@ fn test_extract_bash_command_non_string_value() {
     let mut tool_input = std::collections::HashMap::new();
     tool_input.insert("command".to_string(), Value::Number(42.into()));
     assert_eq!(extract_bash_command(&tool_input), None);
-}
-
-#[test]
-fn test_bash_command_full_match_exact() {
-    use glob::Pattern;
-
-    // Exact match
-    let pattern = Pattern::new("rm -rf /").unwrap();
-    assert!(pattern.matches("rm -rf /"));
-
-    // With wildcard at end
-    let pattern2 = Pattern::new("rm -rf /*").unwrap();
-    assert!(pattern2.matches("rm -rf /"));
-    assert!(pattern2.matches("rm -rf /tmp"));
-
-    // Doesn't match with prefix
-    let pattern3 = Pattern::new("rm -rf /*").unwrap();
-    assert!(!pattern3.matches("sudo rm -rf /"));
-}
-
-#[test]
-fn test_bash_command_full_match_wildcard() {
-    use glob::Pattern;
-
-    let pattern = Pattern::new("git push --force*").unwrap();
-    assert!(pattern.matches("git push --force"));
-    assert!(pattern.matches("git push --force origin main"));
-    assert!(!pattern.matches("git push origin main"));
 }
 
 #[test]

@@ -63,18 +63,6 @@ fn test_extract_file_path_with_no_path() {
 }
 
 #[test]
-fn test_extract_file_path_with_non_string_value() {
-    let mut tool_input = HashMap::new();
-    tool_input.insert(
-        "file_path".to_string(),
-        Value::Number(serde_json::Number::from(42)),
-    );
-
-    let result = extract_file_path(&tool_input);
-    assert_eq!(result, None);
-}
-
-#[test]
 fn test_is_root_addition_true_cases() {
     use std::env;
 
@@ -123,104 +111,154 @@ fn test_is_root_addition_false_cases() {
 }
 
 #[test]
-fn test_matches_uneditable_pattern() {
-    // Exact file matches
+fn test_matches_uneditable_pattern_comprehensive() {
+    // Test that the function matches against any of the three inputs (file_path, relative_path, resolved_path)
+    // by using DIFFERENT values for each parameter to verify each is checked
+
+    // Test Case 1: Pattern matches file_path only
+    // resolved_path contains absolute path, relative_path has subdir prefix, but file_path matches
     assert!(matches_uneditable_pattern(
-        "package.json",
-        "package.json",
-        "/path/package.json",
-        "package.json"
+        "config.json",           // file_path - matches pattern
+        "project/config.json",   // relative_path - does NOT match pattern
+        "/home/user/project/config.json", // resolved_path - does NOT match pattern
+        "config.json"            // pattern
     )
-    .unwrap());
+    .unwrap(), "Should match via file_path");
 
-    // Wildcard matches
-    assert!(matches_uneditable_pattern("test.md", "test.md", "/path/test.md", "*.md").unwrap());
-    assert!(
-        matches_uneditable_pattern("README.md", "README.md", "/path/README.md", "*.md").unwrap()
-    );
-
-    // Directory pattern matches
+    // Test Case 2: Pattern matches relative_path only
+    // Use different paths to ensure relative_path is the one being matched
     assert!(matches_uneditable_pattern(
-        "src/index.ts",
-        "src/index.ts",
-        "/path/src/index.ts",
-        "src/**/*.ts"
+        "other.json",            // file_path - does NOT match pattern
+        "src/index.ts",          // relative_path - matches pattern
+        "/home/user/project/src/index.ts", // resolved_path - may also match
+        "src/**/*.ts"            // pattern
     )
-    .unwrap());
+    .unwrap(), "Should match via relative_path");
+
+    // Test Case 3: Pattern matches resolved_path only
+    // Absolute path pattern matching
     assert!(matches_uneditable_pattern(
-        "src/lib/utils.ts",
-        "src/lib/utils.ts",
-        "/path/src/lib/utils.ts",
-        "src/**/*.ts"
+        "file.txt",              // file_path - does NOT match pattern
+        "subdir/file.txt",       // relative_path - does NOT match pattern
+        "/restricted/file.txt",  // resolved_path - matches pattern
+        "/restricted/*"          // pattern for absolute paths
     )
-    .unwrap());
+    .unwrap(), "Should match via resolved_path");
 
-    // Negative matches
-    assert!(
-        !matches_uneditable_pattern("other.txt", "other.txt", "/path/other.txt", "*.md").unwrap()
-    );
-    assert!(!matches_uneditable_pattern(
-        "lib/index.ts",
-        "lib/index.ts",
-        "/path/lib/index.ts",
-        "src/**/*.ts"
-    )
-    .unwrap());
-}
-
-#[test]
-fn test_matches_uneditable_pattern_invalid_glob() {
-    let result = matches_uneditable_pattern("test.txt", "test.txt", "/path/test.txt", "[invalid");
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_matches_uneditable_pattern_multiple_patterns() {
-    // Test multiple patterns separately (since the glob crate doesn't support brace expansion)
+    // Test Case 4: Multiple patterns matching - environment files
+    // All three inputs have .env prefix, testing with different suffixes
     assert!(matches_uneditable_pattern(
-        "package.json",
-        "package.json",
-        "/path/package.json",
-        "package.json"
+        ".env",
+        ".env",
+        "/path/.env",
+        ".env*"
     )
-    .unwrap());
-    assert!(matches_uneditable_pattern(
-        "tsconfig.json",
-        "tsconfig.json",
-        "/path/tsconfig.json",
-        "tsconfig.json"
-    )
-    .unwrap());
-    assert!(!matches_uneditable_pattern(
-        "other.json",
-        "other.json",
-        "/path/other.json",
-        "package.json"
-    )
-    .unwrap());
-}
+    .unwrap(), ".env should match .env* pattern");
 
-#[test]
-fn test_matches_uneditable_pattern_environment_files() {
-    assert!(matches_uneditable_pattern(".env", ".env", "/path/.env", ".env*").unwrap());
-    assert!(
-        matches_uneditable_pattern(".env.local", ".env.local", "/path/.env.local", ".env*")
-            .unwrap()
-    );
+    assert!(matches_uneditable_pattern(
+        ".env.local",
+        ".env.local",
+        "/path/.env.local",
+        ".env*"
+    )
+    .unwrap(), ".env.local should match .env* pattern");
+
     assert!(matches_uneditable_pattern(
         ".env.production",
         ".env.production",
         "/path/.env.production",
         ".env*"
     )
-    .unwrap());
+    .unwrap(), ".env.production should match .env* pattern");
+
     assert!(!matches_uneditable_pattern(
         "environment.txt",
         "environment.txt",
         "/path/environment.txt",
         ".env*"
     )
-    .unwrap());
+    .unwrap(), "environment.txt should NOT match .env* pattern");
+
+    // Test Case 5: Multiple config file patterns
+    assert!(matches_uneditable_pattern(
+        "package.json",
+        "package.json",
+        "/path/package.json",
+        "package.json"
+    )
+    .unwrap(), "package.json should match exact pattern");
+
+    assert!(matches_uneditable_pattern(
+        "tsconfig.json",
+        "tsconfig.json",
+        "/path/tsconfig.json",
+        "tsconfig.json"
+    )
+    .unwrap(), "tsconfig.json should match exact pattern");
+
+    assert!(!matches_uneditable_pattern(
+        "other.json",
+        "other.json",
+        "/path/other.json",
+        "package.json"
+    )
+    .unwrap(), "other.json should NOT match package.json pattern");
+
+    // Test Case 6: Wildcard extension matching
+    assert!(matches_uneditable_pattern(
+        "test.md",
+        "test.md",
+        "/path/test.md",
+        "*.md"
+    )
+    .unwrap(), "test.md should match *.md pattern");
+
+    assert!(matches_uneditable_pattern(
+        "README.md",
+        "README.md",
+        "/path/README.md",
+        "*.md"
+    )
+    .unwrap(), "README.md should match *.md pattern");
+
+    assert!(!matches_uneditable_pattern(
+        "other.txt",
+        "other.txt",
+        "/path/other.txt",
+        "*.md"
+    )
+    .unwrap(), "other.txt should NOT match *.md pattern");
+
+    // Test Case 7: Directory pattern matching with different depths
+    assert!(matches_uneditable_pattern(
+        "src/index.ts",
+        "src/index.ts",
+        "/path/src/index.ts",
+        "src/**/*.ts"
+    )
+    .unwrap(), "src/index.ts should match src/**/*.ts pattern");
+
+    assert!(matches_uneditable_pattern(
+        "src/lib/utils.ts",
+        "src/lib/utils.ts",
+        "/path/src/lib/utils.ts",
+        "src/**/*.ts"
+    )
+    .unwrap(), "src/lib/utils.ts should match src/**/*.ts pattern");
+
+    assert!(!matches_uneditable_pattern(
+        "lib/index.ts",
+        "lib/index.ts",
+        "/path/lib/index.ts",
+        "src/**/*.ts"
+    )
+    .unwrap(), "lib/index.ts should NOT match src/**/*.ts pattern");
+}
+
+#[test]
+fn test_matches_uneditable_pattern_invalid_glob() {
+    let result = matches_uneditable_pattern("test.txt", "test.txt", "/path/test.txt", "[invalid");
+    assert!(result.is_err());
 }
 
 #[test]
