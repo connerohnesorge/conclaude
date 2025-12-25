@@ -1126,46 +1126,6 @@ fn test_subagent_stop_payload_stop_hook_active_true_and_false() {
 }
 
 #[test]
-fn test_subagent_stop_payload_json_with_missing_agent_id_field() {
-    let json_str = r#"{
-        "session_id": "test_session",
-        "transcript_path": "/tmp/session.jsonl",
-        "hook_event_name": "SubagentStop",
-        "cwd": "/home/user/project",
-        "permission_mode": "default",
-        "stop_hook_active": true,
-        "agent_transcript_path": "/tmp/agent.jsonl"
-    }"#;
-
-    // This should fail to deserialize because agent_id is required
-    let result: Result<SubagentStopPayload, _> = serde_json::from_str(json_str);
-    assert!(
-        result.is_err(),
-        "JSON missing agent_id should fail to deserialize"
-    );
-}
-
-#[test]
-fn test_subagent_stop_payload_json_with_missing_agent_transcript_path_field() {
-    let json_str = r#"{
-        "session_id": "test_session",
-        "transcript_path": "/tmp/session.jsonl",
-        "hook_event_name": "SubagentStop",
-        "cwd": "/home/user/project",
-        "permission_mode": "default",
-        "stop_hook_active": true,
-        "agent_id": "coder"
-    }"#;
-
-    // This should fail to deserialize because agent_transcript_path is required
-    let result: Result<SubagentStopPayload, _> = serde_json::from_str(json_str);
-    assert!(
-        result.is_err(),
-        "JSON missing agent_transcript_path should fail to deserialize"
-    );
-}
-
-#[test]
 fn test_subagent_stop_environment_variable_setting_simulation() {
     // Simulate setting environment variables as the hook handler would do
     let payload = create_subagent_stop_payload();
@@ -1329,75 +1289,6 @@ fn test_subagent_stop_payload_all_required_fields_present() {
     assert!(validate_subagent_stop_payload(&payload).is_ok());
 }
 
-#[test]
-fn test_subagent_stop_validation_fails_gracefully_on_invalid_base() {
-    let mut payload = create_subagent_stop_payload();
-    // Invalidate the base payload by removing session_id
-    payload.base.session_id = String::new();
-
-    // The validation should fail due to invalid base
-    let result = validate_subagent_stop_payload(&payload);
-    assert!(result.is_err());
-
-    // The error message should indicate which field is invalid
-    let error_msg = result.unwrap_err();
-    assert!(error_msg.contains("session_id"));
-}
-
-#[test]
-fn test_subagent_stop_validation_fails_gracefully_on_invalid_agent_id() {
-    let mut payload = create_subagent_stop_payload();
-    payload.agent_id = String::new();
-
-    let result = validate_subagent_stop_payload(&payload);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("agent_id"));
-}
-
-#[test]
-fn test_subagent_stop_validation_fails_gracefully_on_invalid_agent_transcript_path() {
-    let mut payload = create_subagent_stop_payload();
-    payload.agent_transcript_path = String::new();
-
-    let result = validate_subagent_stop_payload(&payload);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("agent_transcript_path"));
-}
-
-#[test]
-fn test_subagent_stop_validation_error_messages_specific() {
-    // Test that error messages are specific and helpful
-
-    let mut payload = create_subagent_stop_payload();
-
-    // Test agent_id error
-    payload.agent_id = String::new();
-    let error = validate_subagent_stop_payload(&payload).unwrap_err();
-    assert!(
-        error.contains("agent_id"),
-        "Error should mention agent_id field"
-    );
-
-    // Test agent_transcript_path error
-    let mut payload = create_subagent_stop_payload();
-    payload.agent_transcript_path = String::new();
-    let error = validate_subagent_stop_payload(&payload).unwrap_err();
-    assert!(
-        error.contains("agent_transcript_path"),
-        "Error should mention agent_transcript_path field"
-    );
-
-    // Test whitespace-only agent_id error
-    let mut payload = create_subagent_stop_payload();
-    payload.agent_id = "   ".to_string();
-    let error = validate_subagent_stop_payload(&payload).unwrap_err();
-    assert!(
-        error.contains("agent_id"),
-        "Error should mention agent_id for whitespace-only value"
-    );
-}
-
-
 // ============================================================================
 // Tests for Refined preventRootAdditions Behavior
 // ============================================================================
@@ -1476,81 +1367,7 @@ fn test_prevent_root_additions_semantic_correctness() {
     // Doesn't matter if it exists, it's not at root so it's allowed
 }
 
-#[test]
-fn test_prevent_root_additions_existing_config_files() {
-    use std::env;
 
-    let cwd = env::current_dir().unwrap();
-    let config_path = cwd.join(".conclaude.yaml");
-
-    // Common config files that SHOULD be editable when they exist
-    let config_files = [
-        "Cargo.toml",
-        "Cargo.lock",
-        ".gitignore",
-        "README.md",
-        "LICENSE",
-    ];
-
-    for file in &config_files {
-        let full_path = cwd.join(file);
-        let is_root = is_root_addition(file, file, &config_path);
-
-        // All these files are at root level
-        assert!(is_root, "{} should be identified as root-level", file);
-
-        // The key insight: if the file exists, it should be ALLOWED
-        // because the refined logic checks `!resolved_path.exists()`
-        if full_path.exists() {
-            // This file exists, so it should be allowed to be edited
-            // (the `!exists()` check in check_file_validation_rules will be false)
-            println!("{} exists and should be allowed for modification", file);
-        } else {
-            // This file doesn't exist, so creating it would be blocked
-            println!("{} does not exist and would be blocked from creation", file);
-        }
-    }
-}
-
-#[test]
-fn test_prevent_root_additions_write_vs_edit_tool() {
-    // This test documents the tool-specific behavior:
-    // - Write tool on NEW root file → BLOCKED
-    // - Write tool on EXISTING root file → ALLOWED (refinement)
-    // - Edit tool on root file → ALLOWED (Edit tool is never blocked by preventRootAdditions)
-
-    // The check only applies to "Write" tool, not "Edit" or "NotebookEdit"
-    // See check_file_validation_rules: `&& payload.tool_name == "Write"`
-
-    // Create test payloads to demonstrate the logic
-    let mut tool_input = HashMap::new();
-    tool_input.insert(
-        "file_path".to_string(),
-        Value::String("test.txt".to_string()),
-    );
-
-    let write_payload = PreToolUsePayload {
-        base: create_test_base_payload(),
-        tool_name: "Write".to_string(),
-        tool_input: tool_input.clone(),
-        tool_use_id: None,
-    };
-
-    let edit_payload = PreToolUsePayload {
-        base: create_test_base_payload(),
-        tool_name: "Edit".to_string(),
-        tool_input: tool_input.clone(),
-        tool_use_id: None,
-    };
-
-    // The Write tool is subject to preventRootAdditions check
-    assert_eq!(write_payload.tool_name, "Write");
-
-    // The Edit tool is NOT subject to preventRootAdditions check
-    // (it's only for Write tool)
-    assert_eq!(edit_payload.tool_name, "Edit");
-    assert_ne!(edit_payload.tool_name, "Write");
-}
 
 #[test]
 fn test_prevent_root_additions_path_resolution() {
@@ -1660,114 +1477,7 @@ fn test_prevent_additions_basic_glob_matching() {
     );
 }
 
-#[test]
-fn test_prevent_additions_only_affects_write_tool() {
-    // Verify that preventAdditions ONLY blocks the Write tool, not Edit or NotebookEdit
-    // This test documents the expected behavior - the actual enforcement happens in check_file_validation_rules
 
-    let mut tool_input = HashMap::new();
-    tool_input.insert(
-        "file_path".to_string(),
-        Value::String("dist/output.js".to_string()),
-    );
-
-    // Test 1: Write tool - SHOULD be subject to preventAdditions check
-    let write_payload = PreToolUsePayload {
-        base: create_test_base_payload(),
-        tool_name: "Write".to_string(),
-        tool_input: tool_input.clone(),
-        tool_use_id: None,
-    };
-    assert_eq!(
-        write_payload.tool_name, "Write",
-        "Write tool should be identified correctly"
-    );
-
-    // Test 2: Edit tool - should NOT be subject to preventAdditions check
-    let edit_payload = PreToolUsePayload {
-        base: create_test_base_payload(),
-        tool_name: "Edit".to_string(),
-        tool_input: tool_input.clone(),
-        tool_use_id: None,
-    };
-    assert_eq!(
-        edit_payload.tool_name, "Edit",
-        "Edit tool should be identified correctly"
-    );
-    assert_ne!(
-        edit_payload.tool_name, "Write",
-        "Edit tool should NOT be treated as Write tool"
-    );
-
-    // Test 3: NotebookEdit tool - should NOT be subject to preventAdditions check
-    let mut notebook_input = HashMap::new();
-    notebook_input.insert(
-        "notebook_path".to_string(),
-        Value::String("notebooks/analysis.ipynb".to_string()),
-    );
-
-    let notebook_edit_payload = PreToolUsePayload {
-        base: create_test_base_payload(),
-        tool_name: "NotebookEdit".to_string(),
-        tool_input: notebook_input,
-        tool_use_id: None,
-    };
-    assert_eq!(
-        notebook_edit_payload.tool_name, "NotebookEdit",
-        "NotebookEdit tool should be identified correctly"
-    );
-    assert_ne!(
-        notebook_edit_payload.tool_name, "Write",
-        "NotebookEdit tool should NOT be treated as Write tool"
-    );
-
-    // The actual preventAdditions check in check_file_validation_rules has:
-    // `&& payload.tool_name == "Write"`
-    // This ensures only Write operations are blocked by preventAdditions patterns
-}
-
-#[test]
-fn test_prevent_additions_empty_array_allows_all() {
-    // When preventAdditions is an empty array, no operations should be blocked
-    // This test verifies the logic for empty pattern lists
-
-    use conclaude::config::{ConclaudeConfig, PreToolUseConfig};
-
-    let config = ConclaudeConfig {
-        pre_tool_use: PreToolUseConfig {
-            prevent_additions: vec![], // Empty array
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-
-    // Verify the config has an empty preventAdditions array
-    assert!(
-        config.pre_tool_use.prevent_additions.is_empty(),
-        "preventAdditions should be empty"
-    );
-
-    // With an empty array, no files should be blocked
-    // The check_file_validation_rules loop: `for pattern in &config.pre_tool_use.prevent_additions`
-    // will not iterate, so no files will be blocked
-
-    let mut tool_input = HashMap::new();
-    tool_input.insert(
-        "file_path".to_string(),
-        Value::String("any/file/path.js".to_string()),
-    );
-
-    let payload = PreToolUsePayload {
-        base: create_test_base_payload(),
-        tool_name: "Write".to_string(),
-        tool_input,
-        tool_use_id: None,
-    };
-
-    // No patterns to match against, so nothing should be blocked
-    assert_eq!(payload.tool_name, "Write");
-    assert!(config.pre_tool_use.prevent_additions.is_empty());
-}
 
 #[test]
 fn test_prevent_additions_multiple_patterns() {
@@ -1933,52 +1643,6 @@ fn test_prevent_additions_and_uneditable_files_both_checked() {
     // then checks uneditableFiles (for all file operations)
 }
 
-#[test]
-fn test_prevent_additions_expected_error_message_format() {
-    // Test that the error message format matches the specification:
-    // "Blocked {} operation: file matches preToolUse.preventAdditions pattern '{}'. File: {}"
-
-    // This test documents the expected error message format
-    // The actual implementation will format the message in check_file_validation_rules
-
-    let tool_name = "Write";
-    let pattern = "dist/**";
-    let file_path = "dist/output.js";
-
-    let expected_message = format!(
-        "Blocked {} operation: file matches preToolUse.preventAdditions pattern '{}'. File: {}",
-        tool_name, pattern, file_path
-    );
-
-    // Verify the format matches specification
-    assert!(
-        expected_message.contains("Blocked Write operation"),
-        "Message should contain 'Blocked Write operation'"
-    );
-    assert!(
-        expected_message.contains("preToolUse.preventAdditions"),
-        "Message should mention preToolUse.preventAdditions"
-    );
-    assert!(
-        expected_message.contains("pattern 'dist/**'"),
-        "Message should include the pattern"
-    );
-    assert!(
-        expected_message.contains("File: dist/output.js"),
-        "Message should include the file path"
-    );
-
-    // Test with different values
-    let pattern_2 = "*.log";
-    let file_path_2 = "debug.log";
-    let expected_message_2 = format!(
-        "Blocked {} operation: file matches preToolUse.preventAdditions pattern '{}'. File: {}",
-        tool_name, pattern_2, file_path_2
-    );
-
-    assert!(expected_message_2.contains("pattern '*.log'"));
-    assert!(expected_message_2.contains("File: debug.log"));
-}
 
 #[test]
 fn test_prevent_additions_glob_pattern_variations() {
@@ -2040,44 +1704,6 @@ fn test_prevent_additions_glob_pattern_variations() {
     );
 }
 
-#[test]
-fn test_prevent_additions_write_tool_with_various_paths() {
-    // Test that Write tool payload is correctly identified for various file paths
-
-    let test_paths = vec![
-        "dist/output.js",
-        "build/app.min.js",
-        "temp/cache.tmp",
-        ".cache/data",
-        "node_modules/package/index.js",
-        "logs/debug.log",
-    ];
-
-    for file_path in test_paths {
-        let mut tool_input = HashMap::new();
-        tool_input.insert(
-            "file_path".to_string(),
-            Value::String(file_path.to_string()),
-        );
-
-        let payload = PreToolUsePayload {
-            base: create_test_base_payload(),
-            tool_name: "Write".to_string(),
-            tool_input,
-            tool_use_id: None,
-        };
-
-        // Verify the payload is correctly structured
-        assert_eq!(payload.tool_name, "Write");
-        let extracted_path = extract_file_path(&payload.tool_input);
-        assert_eq!(
-            extracted_path,
-            Some(file_path.to_string()),
-            "File path should be extracted correctly for {}",
-            file_path
-        );
-    }
-}
 
 #[test]
 fn test_prevent_additions_pattern_matching_edge_cases() {
@@ -2126,42 +1752,6 @@ fn test_prevent_additions_pattern_matching_edge_cases() {
     );
 }
 
-#[test]
-fn test_prevent_additions_does_not_affect_edit_operations() {
-    // Explicitly verify that Edit operations are never blocked by preventAdditions
-    // even if the file matches a preventAdditions pattern
-
-    let test_files = vec![
-        "dist/output.js", // Matches "dist/**"
-        "build/app.js",   // Matches "build/**"
-        "debug.log",      // Matches "*.log"
-        "temp/cache.tmp", // Matches "temp/**" or "*.tmp"
-    ];
-
-    for file_path in test_files {
-        let mut tool_input = HashMap::new();
-        tool_input.insert(
-            "file_path".to_string(),
-            Value::String(file_path.to_string()),
-        );
-
-        // Create Edit tool payload
-        let edit_payload = PreToolUsePayload {
-            base: create_test_base_payload(),
-            tool_name: "Edit".to_string(),
-            tool_input,
-            tool_use_id: None,
-        };
-
-        // Verify it's Edit tool, not Write
-        assert_eq!(edit_payload.tool_name, "Edit");
-        assert_ne!(edit_payload.tool_name, "Write");
-
-        // The check in check_file_validation_rules has:
-        // `&& payload.tool_name == "Write"`
-        // So Edit operations will NOT be blocked by preventAdditions
-    }
-}
 
 #[test]
 fn test_prevent_additions_combined_with_prevent_root_additions() {

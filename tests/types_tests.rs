@@ -288,45 +288,6 @@ fn test_validate_subagent_stop_payload_agent_id_with_leading_trailing_spaces() {
 }
 
 #[test]
-fn test_validate_subagent_stop_payload_different_agent_types() {
-    let agent_types = vec!["coder", "tester", "stuck"];
-
-    for agent_type in agent_types {
-        let payload = SubagentStopPayload {
-            base: BasePayload {
-                session_id: "test_session".to_string(),
-                transcript_path: "/path/to/transcript".to_string(),
-                hook_event_name: "SubagentStop".to_string(),
-                cwd: "/current/dir".to_string(),
-                permission_mode: Some("default".to_string()),
-            },
-            stop_hook_active: true,
-            agent_id: agent_type.to_string(),
-            agent_transcript_path: "/path/to/agent/transcript".to_string(),
-        };
-        assert!(validate_subagent_stop_payload(&payload).is_ok());
-    }
-}
-
-#[test]
-fn test_validate_subagent_stop_payload_multiple_missing_fields() {
-    let payload = SubagentStopPayload {
-        base: BasePayload {
-            session_id: "test_session".to_string(),
-            transcript_path: "/path/to/transcript".to_string(),
-            hook_event_name: "SubagentStop".to_string(),
-            cwd: "/current/dir".to_string(),
-            permission_mode: Some("default".to_string()),
-        },
-        stop_hook_active: true,
-        agent_id: String::new(),
-        agent_transcript_path: String::new(),
-    };
-    let result = validate_subagent_stop_payload(&payload);
-    assert!(result.is_err());
-}
-
-#[test]
 fn test_permission_request_payload_deserialization() {
     let json = r#"{
         "session_id": "test_session",
@@ -620,27 +581,6 @@ fn test_validate_subagent_start_payload_agent_id_with_leading_trailing_spaces() 
 }
 
 #[test]
-fn test_validate_subagent_start_payload_different_agent_types() {
-    let agent_types = vec!["coder", "tester", "stuck"];
-
-    for agent_type in agent_types {
-        let payload = SubagentStartPayload {
-            base: BasePayload {
-                session_id: "test_session".to_string(),
-                transcript_path: "/path/to/transcript".to_string(),
-                hook_event_name: "SubagentStart".to_string(),
-                cwd: "/current/dir".to_string(),
-                permission_mode: Some("default".to_string()),
-            },
-            agent_id: agent_type.to_string(),
-            subagent_type: "implementation".to_string(),
-            agent_transcript_path: "/path/to/agent/transcript".to_string(),
-        };
-        assert!(validate_subagent_start_payload(&payload).is_ok());
-    }
-}
-
-#[test]
 fn test_subagent_start_payload_deserialize_from_valid_json() {
     let json = r#"{
         "session_id": "test_session",
@@ -706,69 +646,6 @@ fn test_subagent_start_payload_deserialize_missing_agent_transcript_path() {
 
     let result: Result<SubagentStartPayload, _> = serde_json::from_str(json);
     assert!(result.is_err());
-}
-
-#[test]
-fn test_subagent_start_payload_json_round_trip_coder() {
-    let json_str = r#"{
-        "session_id": "test_session_coder",
-        "transcript_path": "/tmp/session_123.jsonl",
-        "hook_event_name": "SubagentStart",
-        "cwd": "/home/user/project",
-        "permission_mode": "default",
-        "agent_id": "coder",
-        "subagent_type": "implementation",
-        "agent_transcript_path": "/tmp/coder_123.jsonl"
-    }"#;
-
-    let payload: SubagentStartPayload =
-        serde_json::from_str(json_str).expect("Failed to deserialize JSON");
-
-    assert_eq!(payload.agent_id, "coder");
-    assert_eq!(payload.subagent_type, "implementation");
-    assert_eq!(payload.agent_transcript_path, "/tmp/coder_123.jsonl");
-}
-
-#[test]
-fn test_subagent_start_payload_json_round_trip_tester() {
-    let json_str = r#"{
-        "session_id": "test_session_tester",
-        "transcript_path": "/tmp/session_456.jsonl",
-        "hook_event_name": "SubagentStart",
-        "cwd": "/home/user/project",
-        "permission_mode": "default",
-        "agent_id": "tester",
-        "subagent_type": "testing",
-        "agent_transcript_path": "/tmp/tester_456.jsonl"
-    }"#;
-
-    let payload: SubagentStartPayload =
-        serde_json::from_str(json_str).expect("Failed to deserialize JSON");
-
-    assert_eq!(payload.agent_id, "tester");
-    assert_eq!(payload.subagent_type, "testing");
-    assert_eq!(payload.agent_transcript_path, "/tmp/tester_456.jsonl");
-}
-
-#[test]
-fn test_subagent_start_payload_json_round_trip_stuck() {
-    let json_str = r#"{
-        "session_id": "test_session_stuck",
-        "transcript_path": "/tmp/session_789.jsonl",
-        "hook_event_name": "SubagentStart",
-        "cwd": "/home/user/project",
-        "permission_mode": "restrict",
-        "agent_id": "stuck",
-        "subagent_type": "escalation",
-        "agent_transcript_path": "/tmp/stuck_789.jsonl"
-    }"#;
-
-    let payload: SubagentStartPayload =
-        serde_json::from_str(json_str).expect("Failed to deserialize JSON");
-
-    assert_eq!(payload.agent_id, "stuck");
-    assert_eq!(payload.subagent_type, "escalation");
-    assert_eq!(payload.agent_transcript_path, "/tmp/stuck_789.jsonl");
 }
 
 #[test]

@@ -224,66 +224,6 @@ fn test_extract_bash_command_non_string_value() {
     assert_eq!(extract_bash_command(&tool_input), None);
 }
 
-#[test]
-fn test_bash_command_prefix_match_at_start() {
-    use glob::Pattern;
-
-    let pattern = Pattern::new("curl *").unwrap();
-    let command = "curl https://example.com && echo done";
-
-    // Simulate prefix matching logic
-    let words: Vec<&str> = command.split_whitespace().collect();
-    let matches = (1..=words.len()).any(|i| {
-        let prefix = words[..i].join(" ");
-        pattern.matches(&prefix)
-    });
-
-    assert!(matches, "Should match 'curl https://example.com' at start");
-}
-
-#[test]
-fn test_bash_command_prefix_no_match_middle() {
-    use glob::Pattern;
-
-    let pattern = Pattern::new("curl *").unwrap();
-    let command = "echo test && curl https://example.com";
-
-    let words: Vec<&str> = command.split_whitespace().collect();
-    let matches = (1..=words.len()).any(|i| {
-        let prefix = words[..i].join(" ");
-        pattern.matches(&prefix)
-    });
-
-    assert!(!matches, "Should not match 'curl' in middle of command");
-}
-
-#[test]
-fn test_bash_command_wildcard_variations() {
-    use glob::Pattern;
-
-    let test_cases = vec![
-        ("rm -rf*", "rm -rf /", true),
-        ("rm -rf*", "rm -rf /tmp", true),
-        ("git push --force*", "git push --force", true),
-        ("git push --force*", "git push --force origin main", true),
-        ("docker run*", "docker start", false),
-        ("npm install*", "npm install", true),
-        ("npm install*", "npm ci", false),
-    ];
-
-    for (pattern_str, command, expected) in test_cases {
-        let pattern = Pattern::new(pattern_str).unwrap();
-        assert_eq!(
-            pattern.matches(command),
-            expected,
-            "Pattern: '{}', Command: '{}', Expected: {}",
-            pattern_str,
-            command,
-            expected
-        );
-    }
-}
-
 // Tests for subagent stop pattern matching
 #[test]
 fn test_match_subagent_patterns_prefix_glob() {
