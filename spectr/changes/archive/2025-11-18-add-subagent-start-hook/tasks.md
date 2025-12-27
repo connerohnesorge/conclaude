@@ -98,7 +98,7 @@ This document tracks implementation tasks for the SubagentStart hook support fea
 
 **Total: 52 tasks**
 
-**Status:** ✅ Complete (52/52 complete)
+**Status:** Complete (52/52 complete)
 
 ## Task Dependencies
 

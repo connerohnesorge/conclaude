@@ -13,7 +13,7 @@ fn main() -> Result<()> {
 
     // Success message matching the UX of the removed subcommand
     println!(
-        "✅ Schema generated successfully: {}",
+        "[OK] Schema generated successfully: {}",
         output_path.display()
     );
     println!("   The schema file is ready to be published as a release asset.");

@@ -72,11 +72,11 @@ Without guardrails, Claude Code sessions can:
 
 Imagine starting every Claude Code session knowing that:
 
-✅ **Your linting rules will be respected** - No more broken formatting or style violations  
-✅ **Your tests must pass** - Sessions only complete when your test suite is green  
-✅ **Your files stay organized** - No mysterious root-level files cluttering your project  
-✅ **Your workflows are enforced** - Build processes, validation, and quality checks run automatically  
-✅ **Everything is configurably logged** - Complete visibility into what Claude did during each session  
+- **Your linting rules will be respected** - No more broken formatting or style violations
+- **Your tests must pass** - Sessions only complete when your test suite is green
+- **Your files stay organized** - No mysterious root-level files cluttering your project
+- **Your workflows are enforced** - Build processes, validation, and quality checks run automatically
+- **Everything is configurably logged** - Complete visibility into what Claude did during each session  
 
 This isn't just wishful thinking—it's what conclaude delivers every single time.
 
@@ -84,11 +84,11 @@ This isn't just wishful thinking—it's what conclaude delivers every single tim
 
 While other tools try to bolt-on AI safety as an afterthought, conclaude was built from the ground up specifically for Claude Code workflows. Here's what sets it apart:
 
-🎯 **Purpose-Built for Claude Code**: Native integration with Claude's lifecycle hooks—no hacks, no workarounds
-⚡ **Zero Configuration Friction**: Simple YAML config that just works, with automatic directory tree search
-🛡️ **Fail-Fast Protection**: Catches problems immediately, not after damage is done  
-🔄 **Extensible Hook System**: Handle PreToolUse, PostToolUse, Stop, and more lifecycle events  
-📊 **Session-Aware Logging**: Every action is tracked with session context for complete auditability  
+- **Purpose-Built for Claude Code**: Native integration with Claude's lifecycle hooks—no hacks, no workarounds
+- **Zero Configuration Friction**: Simple YAML config that just works, with automatic directory tree search
+- **Fail-Fast Protection**: Catches problems immediately, not after damage is done
+- **Extensible Hook System**: Handle PreToolUse, PostToolUse, Stop, and more lifecycle events
+- **Session-Aware Logging**: Every action is tracked with session context for complete auditability  
 
 ## Core Capabilities
 
@@ -108,7 +108,7 @@ While other tools try to bolt-on AI safety as an afterthought, conclaude was bui
 Developer: "Claude, add user authentication to my app"
 Claude: *writes beautiful auth code*
 Developer: *tries to deploy*
-CI/CD: ❌ 47 test failures, linting errors everywhere
+CI/CD: FAILED - 47 test failures, linting errors everywhere
 Developer: *spends 2 hours fixing what should have been caught*
 ```
 
@@ -116,7 +116,7 @@ Developer: *spends 2 hours fixing what should have been caught*
 ```
 Developer: "Claude, add user authentication to my app"
 Claude: *writes beautiful auth code*
-conclaude: ✅ All tests pass, linting clean
+conclaude: SUCCESS - All tests pass, linting clean
 Developer: *deploys confidently*
 ```
 
@@ -147,7 +147,7 @@ stop:
   commands:
     - run: bun x tsc --noEmit
     - run: bun test --silent
-  infiniteMessage: "🛡️ Monitoring active - your code stays clean!"
+  infiniteMessage: "Monitoring active - your code stays clean!"
 ```
 
 Now every small change gets validated immediately. No surprises at the end of a long session.
@@ -281,11 +281,11 @@ preToolUse:
 ```
 
 **What this accomplishes:**
-- 🛡️ Claude can't break your Rust compilation
-- ✅ All tests must pass before session completion  
-- 🎨 Your formatting and linting rules are automatically enforced
-- 📁 No surprise files cluttering your project root
-- 🔒 Critical configuration files stay untouched
+- Claude can't break your Rust compilation
+- All tests must pass before session completion
+- Your formatting and linting rules are automatically enforced
+- No surprise files cluttering your project root
+- Critical configuration files stay untouched
 
 ### Advanced Scenarios
 
@@ -299,7 +299,7 @@ stop:
     - run: cargo test --quiet
       message: "Silent test execution"
   infinite: true           # Validate after every change
-  infiniteMessage: "🔍 Watching your code quality..."
+  infiniteMessage: "Watching your code quality..."
 ```
 
 #### Enterprise-Grade Protection
@@ -394,7 +394,7 @@ conclaude taps into Claude Code's lifecycle through strategic intervention point
 
 ### The Three Critical Moments
 
-#### 🚦 PreToolUse Hook: The Gatekeeper
+#### PreToolUse Hook: The Gatekeeper
 *Fired the moment before Claude tries to use any tool*
 
 **What it protects against:**
@@ -404,7 +404,7 @@ conclaude taps into Claude Code's lifecycle through strategic intervention point
 
 **Real example:** Claude wants to create `debug.log` in your project root, but your `preventRootAdditions` rule blocks it. Claude adapts and creates `logs/debug.log` instead.
 
-#### 📊 PostToolUse Hook: The Observer  
+#### PostToolUse Hook: The Observer
 *Fired immediately after Claude completes any tool operation*
 
 **What it enables:**
@@ -415,7 +415,7 @@ conclaude taps into Claude Code's lifecycle through strategic intervention point
 
 **Real example:** After Claude edits a file, PostToolUse logs exactly what changed, when, and in which session—giving you complete traceability.
 
-#### ⚡ Stop Hook: The Validator (Most Important)
+#### Stop Hook: The Validator (Most Important)
 *Fired when Claude thinks the session is complete*
 
 **This is where the magic happens.** The Stop hook is your last line of defense and your quality assurance engine:
@@ -677,9 +677,9 @@ stop:
     - run: cargo test
 
 # Execution: If any command fails, the entire hook fails and blocks the session
-✓ Command 1/2: cargo check
-✗ Command 2/2: cargo test (exit code 1)
-❌ Hook blocked: Command failed with exit code 1: cargo test
+OK Command 1/2: cargo check
+FAILED Command 2/2: cargo test (exit code 1)
+BLOCKED: Command failed with exit code 1: cargo test
 ```
 
 ### PreToolUse Root Protection
@@ -688,17 +688,17 @@ When `preventRootAdditions: true`, file creation is blocked at repo root while e
 
 ```bash
 # Blocked operations (creating NEW files at root)
-Write → /repo/newfile.txt          ❌ Blocked (file doesn't exist)
-Write → /repo/debug.log            ❌ Blocked (file doesn't exist)
+Write → /repo/newfile.txt          BLOCKED (file doesn't exist)
+Write → /repo/debug.log            BLOCKED (file doesn't exist)
 
 # Allowed operations (editing EXISTING files at root)
-Write → /repo/Cargo.toml           ✓ Allowed (file exists - modification)
-Edit → /repo/package.json          ✓ Allowed (Edit tool always works)
-Write → /repo/.gitignore           ✓ Allowed (file exists - modification)
+Write → /repo/Cargo.toml           ALLOWED (file exists - modification)
+Edit → /repo/package.json          ALLOWED (Edit tool always works)
+Write → /repo/.gitignore           ALLOWED (file exists - modification)
 
 # Always allowed operations
-Write → /repo/src/component.rs     ✓ Allowed (subdirectory - not at root)
-Read → /repo/Cargo.toml            ✓ Allowed (read-only operation)
+Write → /repo/src/component.rs     ALLOWED (subdirectory - not at root)
+Read → /repo/Cargo.toml            ALLOWED (read-only operation)
 ```
 
 **Key insight**: The rule is "prevent root *additions*" (new files), not "prevent root *modifications*" (existing files). This allows you to edit configuration files at the root while still preventing accidental file clutter.
@@ -1126,10 +1126,10 @@ preToolUse:
 ```yaml
 commandPattern: "rm -rf /*"
 matchMode: "full"
-# ✅ Matches: rm -rf /
-# ✅ Matches: rm -rf /tmp
-# ❌ Does NOT match: sudo rm -rf /     (prefix doesn't match)
-# ❌ Does NOT match: rm -rf / && echo  (suffix doesn't match)
+# Matches: rm -rf /
+# Matches: rm -rf /tmp
+# Does NOT match: sudo rm -rf /     (prefix doesn't match)
+# Does NOT match: rm -rf / && echo  (suffix doesn't match)
 ```
 
 **Prefix Mode** (`matchMode: "prefix"`)
@@ -1140,9 +1140,9 @@ matchMode: "full"
 ```yaml
 commandPattern: "curl *"
 matchMode: "prefix"
-# ✅ Matches: curl https://example.com
-# ✅ Matches: curl -X POST https://api.com && echo done
-# ❌ Does NOT match: echo start && curl https://example.com
+# Matches: curl https://example.com
+# Matches: curl -X POST https://api.com && echo done
+# Does NOT match: echo start && curl https://example.com
 ```
 
 #### Actions

@@ -40,13 +40,13 @@ Take a SINGLE, SPECIFIC todo item and implement it COMPLETELY and CORRECTLY.
 
 ## Critical Rules
 
-**✅ DO:**
+**DO:**
 - Write complete, functional code
 - Test your code with Bash commands when possible
 - Be thorough and precise
 - Ask the stuck agent for help when needed
 
-**❌ NEVER:**
+**NEVER:**
 - Use workarounds when something fails
 - Skip error handling
 - Leave incomplete implementations

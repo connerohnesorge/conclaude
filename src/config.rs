@@ -877,9 +877,9 @@ fn format_parse_error(error: &serde_yaml::Error, config_path: &Path) -> String {
         if let (Some(field), Some(sec)) = (unknown_field, section) {
             let suggestions = suggest_similar_fields(&field, &sec);
             if !suggestions.is_empty() {
-                parts.push("💡 Did you mean one of these?".to_string());
+                parts.push("Did you mean one of these?".to_string());
                 for suggestion in &suggestions {
-                    parts.push(format!("   • {suggestion}"));
+                    parts.push(format!("   - {suggestion}"));
                 }
                 parts.push(String::new());
             }
@@ -916,7 +916,7 @@ fn format_parse_error(error: &serde_yaml::Error, config_path: &Path) -> String {
         parts.push("  • Using a string where a number is expected (remove quotes)".to_string());
         parts.push("  • Using a single value where an array is expected (wrap in [])".to_string());
         parts.push(String::new());
-        parts.push("✅ Examples of correct formatting:".to_string());
+        parts.push("Examples of correct formatting:".to_string());
         parts.push("   Boolean:  infinite: true             # no quotes".to_string());
         parts.push("   Number:   maxOutputLines: 100        # no quotes".to_string());
         parts.push("   String:   run: \"cargo test\"          # with quotes".to_string());
@@ -934,11 +934,11 @@ fn format_parse_error(error: &serde_yaml::Error, config_path: &Path) -> String {
 
         if has_line_number {
             parts.push(String::new());
-            parts.push("💡 Check the line number above and the lines around it.".to_string());
+            parts.push("Check the line number above and the lines around it.".to_string());
         }
 
         parts.push(String::new());
-        parts.push("✅ YAML formatting tips:".to_string());
+        parts.push("YAML formatting tips:".to_string());
         parts.push("   • Use 2 spaces for each indentation level".to_string());
         parts.push("   • Always put a space after the colon: 'key: value'".to_string());
         parts.push("   • Use quotes for strings with special characters".to_string());
@@ -981,7 +981,7 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
                 let error_msg = format!(
                     "Range validation failed for stop.commands[{idx}].maxOutputLines\n\n\
                      Error: Value {max_lines} is out of valid range\n\n\
-                     ✅ Valid range: 1 to 10000\n\n\
+                     Valid range: 1 to 10000\n\n\
                      Common causes:\n\
                        • Value is too large (maximum is 10000)\n\
                        • Value is too small (minimum is 1)\n\
@@ -1003,7 +1003,7 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
                 let error_msg = format!(
                     "Range validation failed for stop.commands[{idx}].timeout\n\n\
                      Error: Value {timeout} is out of valid range\n\n\
-                     ✅ Valid range: 1 to 3600 seconds (1 second to 1 hour)\n\n\
+                     Valid range: 1 to 3600 seconds (1 second to 1 hour)\n\n\
                      Common causes:\n\
                        • Value is too large (maximum is 3600 seconds / 1 hour)\n\
                        • Value is too small (minimum is 1 second)\n\
@@ -1027,7 +1027,7 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
             let error_msg = format!(
                 "Validation failed for permissionRequest.default\n\n\
                  Error: Invalid value '{}'\n\n\
-                 ✅ Valid values: \"allow\" or \"deny\"\n\n\
+                 Valid values: \"allow\" or \"deny\"\n\n\
                  Common causes:\n\
                    • Typo in value (check spelling)\n\
                    • Using a value other than allow or deny\n\n\
@@ -1085,7 +1085,7 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
         if pattern.trim().is_empty() {
             let error_msg = "Validation failed for subagentStop.commands\n\n\
                  Error: Pattern key cannot be empty\n\n\
-                 ✅ Valid patterns: \"*\" (all), \"coder\" (exact), \"test*\" (prefix), \"*coder\" (suffix)\n\n\
+                 Valid patterns: \"*\" (all), \"coder\" (exact), \"test*\" (prefix), \"*coder\" (suffix)\n\n\
                  Example valid configurations:\n\
                    subagentStop:\n\
                      commands:\n\
@@ -1106,7 +1106,7 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
                     let error_msg = format!(
                         "Range validation failed for subagentStop.commands[\"{pattern}\"][{idx}].maxOutputLines\n\n\
                          Error: Value {max_lines} is out of valid range\n\n\
-                         ✅ Valid range: 1 to 10000\n\n\
+                         Valid range: 1 to 10000\n\n\
                          Common causes:\n\
                            • Value is too large (maximum is 10000)\n\
                            • Value is too small (minimum is 1)\n\
@@ -1128,7 +1128,7 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
                     let error_msg = format!(
                         "Range validation failed for subagentStop.commands[\"{pattern}\"][{idx}].timeout\n\n\
                          Error: Value {timeout} is out of valid range\n\n\
-                         ✅ Valid range: 1 to 3600 seconds (1 second to 1 hour)\n\n\
+                         Valid range: 1 to 3600 seconds (1 second to 1 hour)\n\n\
                          Common causes:\n\
                            • Value is too large (maximum is 3600 seconds / 1 hour)\n\
                            • Value is too small (minimum is 1 second)\n\

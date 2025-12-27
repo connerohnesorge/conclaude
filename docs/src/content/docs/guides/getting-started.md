@@ -105,8 +105,8 @@ conclaude validate
 You should see:
 
 ```
-🔍 Validating conclaude configuration...
-✅ Configuration is valid!
+Validating conclaude configuration...
+Configuration is valid!
    Config file: /path/to/project/.conclaude.yaml
 ```
 

@@ -16,9 +16,9 @@ The `preventRootAdditions` rule currently blocks ALL modifications to files at t
 **Expected behavior:**
 - User sets `rules.preventRootAdditions: true`
 - Claude attempts to **create** new root-level file `README.md` via `Write` tool
-- Operation is **blocked** ✅
+- Operation is **blocked** [YES]
 - Claude attempts to **edit** existing `package.json` via `Edit` tool
-- Operation is **allowed** ✅ (file already exists, just being modified)
+- Operation is **allowed** [YES] (file already exists, just being modified)
 
 ## What
 
@@ -68,12 +68,12 @@ if config.rules.prevent_root_additions
 
 ## Success Criteria
 
-✅ New files created at root are blocked
-✅ Existing root files can be edited
-✅ Existing root files can be overwritten (Write tool)
-✅ Error messages remain clear
-✅ All existing tests pass
-✅ Backwards compatible - no config changes needed
+- New files created at root are blocked
+- Existing root files can be edited
+- Existing root files can be overwritten (Write tool)
+- Error messages remain clear
+- All existing tests pass
+- Backwards compatible - no config changes needed
 
 ## Non-Goals
 

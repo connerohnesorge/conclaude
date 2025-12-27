@@ -153,12 +153,12 @@ Remove the deprecated `stop.run` configuration field and all supporting code, co
 
 ## Success Criteria
 
-- ✅ All Rust code compiles without warnings
-- ✅ All tests pass (100% pass rate)
-- ✅ Schema validation succeeds with `openspec validate --strict`
-- ✅ No references to legacy `stop.run` remain in code or active documentation
-- ✅ Default configuration demonstrates modern `stop.commands[]` format
-- ✅ README provides clear migration guidance
+- All Rust code compiles without warnings
+- All tests pass (100% pass rate)
+- Schema validation succeeds with `openspec validate --strict`
+- No references to legacy `stop.run` remain in code or active documentation
+- Default configuration demonstrates modern `stop.commands[]` format
+- README provides clear migration guidance
 
 ## Estimated Effort
 

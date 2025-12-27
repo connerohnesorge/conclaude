@@ -16,10 +16,10 @@ rules:
 
 | Operation | Path | Tool | Result | Issue |
 |-----------|------|------|--------|-------|
-| Create | `.env` | Write | ❌ BLOCKED | Correct behavior |
-| Create | `package.json` | Write | ❌ BLOCKED | Correct behavior |
-| **Edit** | **existing `.env`** | **Write** | **❌ BLOCKED** | **WRONG - file exists, just editing** |
-| **Edit** | **existing `tsconfig.json`** | **Edit** | **❌ BLOCKED** | **WRONG - Edit tool on existing file** |
+| Create | `.env` | Write | BLOCKED | Correct behavior |
+| Create | `package.json` | Write | BLOCKED | Correct behavior |
+| **Edit** | **existing `.env`** | **Write** | **BLOCKED** | **WRONG - file exists, just editing** |
+| **Edit** | **existing `tsconfig.json`** | **Edit** | **BLOCKED** | **WRONG - Edit tool on existing file** |
 
 The `is_root_addition()` function (lines 372-402) doesn't check if the file already exists—it only checks if the parent directory is the root. This makes root-level files completely read-only.
 
@@ -32,7 +32,7 @@ pub fn is_root_addition(_file_path: &str, relative_path: &str, config_path: &Pat
     // ... path resolution logic ...
     // Block if the file is being created in the same directory as the config
     config_dir_canonical == file_dir_canonical
-    // ❌ Missing: check if file already exists
+    // Missing: check if file already exists
 }
 ```
 
@@ -152,12 +152,12 @@ pub fn is_new_root_addition(
 
 | Scenario | File Exists | Root Level | Result | Error |
 |----------|-------------|-----------|--------|-------|
-| New file | ❌ No | ❌ No | ✅ ALLOWED | None |
-| New file | ❌ No | ✅ Yes | ❌ BLOCKED | Root addition blocked |
-| Update file | ✅ Yes | ❌ No | ✅ ALLOWED | None |
-| **Update file** | **✅ Yes** | **✅ Yes** | **✅ ALLOWED** | **None** |
-| Overwrite | ✅ Yes | ❌ No | ✅ ALLOWED | None |
-| **Overwrite** | **✅ Yes** | **✅ Yes** | **✅ ALLOWED** | **None** |
+| New file | No | No | ALLOWED | None |
+| New file | No | Yes | BLOCKED | Root addition blocked |
+| Update file | Yes | No | ALLOWED | None |
+| **Update file** | **Yes** | **Yes** | **ALLOWED** | **None** |
+| Overwrite | Yes | No | ALLOWED | None |
+| **Overwrite** | **Yes** | **Yes** | **ALLOWED** | **None** |
 
 #### Edit/NotebookEdit Tool Behavior
 
@@ -165,8 +165,8 @@ pub fn is_new_root_addition(
 
 | Scenario | File Exists | Root Level | Result |
 |----------|-------------|-----------|--------|
-| Edit file | ✅ Yes | ✅ Yes | ✅ ALLOWED |
-| Edit file | ✅ Yes | ❌ No | ✅ ALLOWED |
+| Edit file | Yes | Yes | ALLOWED |
+| Edit file | Yes | No | ALLOWED |
 
 ### Examples
 
@@ -180,17 +180,17 @@ rules:
 # Attempt 1: Create new root file
 tool_input: { file_path: "README.md" }
 tool_name: "Write"
-# Result: ❌ BLOCKED - new file at root
+# Result: BLOCKED - new file at root
 
 # Attempt 2: Edit existing root file
 tool_input: { file_path: "package.json" }
 tool_name: "Edit"
-# Result: ✅ ALLOWED - Edit tool not checked by preventRootAdditions
+# Result: ALLOWED - Edit tool not checked by preventRootAdditions
 
 # Attempt 3: Update root file via Write (overwrite)
 tool_input: { file_path: "package.json" }
 tool_name: "Write"
-# Result: ✅ ALLOWED - file exists (modification, not addition)
+# Result: ALLOWED - file exists (modification, not addition)
 ```
 
 #### Example 2: Prevent creation, allow configuration updates
@@ -205,17 +205,17 @@ rules:
 # Create new root file
 file_path: ".env"
 tool: Write
-# Result: ❌ BLOCKED - preventRootAdditions
+# Result: BLOCKED - preventRootAdditions
 
 # Update root .env
 file_path: ".env"
 tool: Write (file exists)
-# Result: ✅ ALLOWED - file exists
+# Result: ALLOWED - file exists
 
 # Update .env via Edit
 file_path: ".env"
 tool: Edit
-# Result: ✅ ALLOWED - Edit not blocked by preventRootAdditions
+# Result: ALLOWED - Edit not blocked by preventRootAdditions
 ```
 
 ### Error Messages
@@ -258,9 +258,9 @@ The error message is still accurate—it specifically says "prevents creating fi
 ### Regression Tests
 
 Ensure existing tests still pass:
-- Root file creation blocked ✓
-- Non-root files unaffected ✓
-- Error messages correct ✓
+- Root file creation blocked
+- Non-root files unaffected
+- Error messages correct
 
 ## Implementation Plan
 
@@ -286,7 +286,7 @@ Ensure existing tests still pass:
 # File: "new_dir/new_file.txt"
 # Parent dir doesn't exist, file doesn't exist
 # Parent is not root-level
-# Result: ✅ ALLOWED (not at root)
+# Result: ALLOWED (not at root)
 ```
 
 ### Case 2: Symlinks to root files

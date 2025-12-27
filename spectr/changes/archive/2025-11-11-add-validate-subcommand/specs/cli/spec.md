@@ -73,17 +73,17 @@ The system SHALL provide clear, structured output that indicates validation stat
 
 #### Scenario: Validation output structure for success
 - **WHEN** validation succeeds
-- **THEN** the system SHALL display the message "🔍 Validating conclaude configuration..."
-- **AND** the system SHALL display "✅ Configuration is valid: {path}"
-- **AND** the output SHALL be human-readable and use emoji indicators
+- **THEN** the system SHALL display the message "Search: Validating conclaude configuration..."
+- **AND** the system SHALL display "[OK] Configuration is valid: {path}"
+- **AND** the output SHALL be human-readable and use status indicators
 
 #### Scenario: Validation output structure for failure
 - **WHEN** validation fails
-- **THEN** the system SHALL display the message "🔍 Validating conclaude configuration..."
-- **AND** the system SHALL display "❌ Configuration validation failed"
+- **THEN** the system SHALL display the message "Search: Validating conclaude configuration..."
+- **AND** the system SHALL display "[NO] Configuration validation failed"
 - **AND** the system SHALL display detailed error information
 - **AND** the system SHALL provide actionable remediation steps
-- **AND** the output SHALL be human-readable and use emoji indicators
+- **AND** the output SHALL be human-readable and use status indicators
 
 ### Requirement: Exit Code Semantics
 The system SHALL return appropriate exit codes to support scripting and CI/CD integration.

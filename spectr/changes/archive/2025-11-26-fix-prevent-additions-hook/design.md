@@ -16,14 +16,14 @@ preToolUse:
 ```
 
 **What happens today:**
-1. Configuration loads successfully ✅
-2. User expects file creation to be blocked in `dist/`, `build/`, and for `*.log` files ❌
-3. Claude executes `Write` tool to create `dist/output.js` ✅ (should be blocked!)
-4. Hook runs `check_file_validation_rules()` in `src/hooks.rs` ✅
-5. Function checks `preventRootAdditions` ✅
-6. Function checks `uneditableFiles` ✅
-7. **Function never checks `preventAdditions`** ❌
-8. File creation succeeds (WRONG) ❌
+1. Configuration loads successfully [OK]
+2. User expects file creation to be blocked in `dist/`, `build/`, and for `*.log` files [NO]
+3. Claude executes `Write` tool to create `dist/output.js` [OK] (should be blocked!)
+4. Hook runs `check_file_validation_rules()` in `src/hooks.rs` [OK]
+5. Function checks `preventRootAdditions` [OK]
+6. Function checks `uneditableFiles` [OK]
+7. **Function never checks `preventAdditions`** [NO]
+8. File creation succeeds (WRONG) [NO]
 
 **The bug:** Lines 298-338 in `src/hooks.rs:check_file_validation_rules()` implement checks for `preventRootAdditions` and `uneditableFiles`, but there is zero code that checks `config.pre_tool_use.prevent_additions`.
 
@@ -31,9 +31,9 @@ preToolUse:
 
 The `preventAdditions` field was added to the config schema (`src/config.rs`, line 86) but the corresponding enforcement logic was never implemented in the hook handler. This is a **"dead configuration"** bug pattern where:
 
-1. Schema defines field ✅
-2. Config parsing accepts field ✅
-3. Runtime logic ignores field ❌
+1. Schema defines field [YES]
+2. Config parsing accepts field [YES]
+3. Runtime logic ignores field [NO]
 
 ### Impact
 
@@ -132,9 +132,9 @@ Ok(None) // Line 341
 
 | Tool   | preventAdditions Check? | Why                                           |
 |--------|-------------------------|-----------------------------------------------|
-| Write  | ✅ YES                  | Creating new files - main use case           |
-| Edit   | ❌ NO                   | Editing existing files - use uneditableFiles |
-| NotebookEdit | ❌ NO             | Editing existing notebooks                    |
+| Write  | YES                     | Creating new files - main use case           |
+| Edit   | NO                      | Editing existing files - use uneditableFiles |
+| NotebookEdit | NO                | Editing existing notebooks                    |
 
 #### Pattern Matching Examples
 
@@ -149,13 +149,13 @@ preToolUse:
 
 | Operation | Path | Tool | Result | Reason |
 |-----------|------|------|--------|--------|
-| Create | `dist/output.js` | Write | ❌ BLOCKED | Matches `dist/**` |
-| Create | `dist/nested/deep/file.js` | Write | ❌ BLOCKED | Matches `dist/**` (recursive) |
-| Create | `build/app.js` | Write | ❌ BLOCKED | Matches `build/**` |
-| Create | `debug.log` | Write | ❌ BLOCKED | Matches `*.log` |
-| Create | `src/main.rs` | Write | ✅ ALLOWED | No pattern match |
-| Edit | `dist/existing.js` | Edit | ✅ ALLOWED | Not Write tool |
-| Edit | `dist/existing.js` | Write | ✅ ALLOWED | File already exists (overwrite) |
+| Create | `dist/output.js` | Write | BLOCKED | Matches `dist/**` |
+| Create | `dist/nested/deep/file.js` | Write | BLOCKED | Matches `dist/**` (recursive) |
+| Create | `build/app.js` | Write | BLOCKED | Matches `build/**` |
+| Create | `debug.log` | Write | BLOCKED | Matches `*.log` |
+| Create | `src/main.rs` | Write | ALLOWED | No pattern match |
+| Edit | `dist/existing.js` | Edit | ALLOWED | Not Write tool |
+| Edit | `dist/existing.js` | Write | ALLOWED | File already exists (overwrite) |
 
 ### Error Message Design
 
@@ -344,24 +344,24 @@ Each rule is evaluated independently. If ANY rule blocks, the operation is denie
 ### Testing Strategy Summary
 
 **Phase 1: TDD Tests**
-1. Write all tests first ✅
-2. Run tests - all fail ✅
-3. Document test failures ✅
+1. Write all tests first [YES]
+2. Run tests - all fail [YES]
+3. Document test failures [YES]
 
 **Phase 2: Implementation**
-1. Add preventAdditions check ✅
-2. Run tests - all pass ✅
+1. Add preventAdditions check [YES]
+2. Run tests - all pass [YES]
 
 **Phase 3: Validation**
-1. Manual testing with real config ✅
-2. Integration tests ✅
-3. Regression tests (existing tests still pass) ✅
+1. Manual testing with real config [YES]
+2. Integration tests [YES]
+3. Regression tests (existing tests still pass) [YES]
 
 **Success Criteria:**
-- ✅ All new tests pass
-- ✅ All existing tests pass
-- ✅ Manual validation confirms blocking behavior
-- ✅ Error messages are clear and helpful
+- All new tests pass
+- All existing tests pass
+- Manual validation confirms blocking behavior
+- Error messages are clear and helpful
 
 ## Alternative Approaches Considered
 
