@@ -195,12 +195,12 @@ async fn handle_init(
     let claude_path = claude_path.map_or_else(|| cwd.join(".claude"), PathBuf::from);
     let settings_path = claude_path.join("settings.json");
 
-    println!("🚀 Initializing conclaude configuration...");
+    println!("Initializing conclaude configuration...");
 
     // Check if config file exists
     if config_path.exists() && !force {
         eprintln!(
-            "⚠️  Configuration file already exists: {}",
+            "WARNING: Configuration file already exists: {}",
             config_path.display()
         );
         eprintln!("Use --force to overwrite existing configuration.");
@@ -214,7 +214,7 @@ async fn handle_init(
         .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
 
     println!(
-        "✅ Created configuration file with YAML language server support: {}",
+        "[OK] Created configuration file with YAML language server support: {}",
         config_path.display()
     );
     let default_schema_url = schema::get_schema_url();
@@ -238,10 +238,10 @@ async fn handle_init(
             serde_json::from_str(&settings_content).with_context(|| {
                 format!("Failed to parse settings file: {}", settings_path.display())
             })?;
-        println!("📝 Found existing Claude settings, updating hooks...");
+        println!("Found existing Claude settings, updating hooks...");
         settings
     } else {
-        println!("📝 Creating Claude Code settings...");
+        println!("Creating Claude Code settings...");
         ClaudeSettings {
             include_co_authored_by: None,
             permissions: Some(ClaudePermissions {
@@ -293,14 +293,14 @@ async fn handle_init(
         .with_context(|| format!("Failed to write settings file: {}", settings_path.display()))?;
 
     println!(
-        "✅ Updated Claude Code settings: {}",
+        "[OK] Updated Claude Code settings: {}",
         settings_path.display()
     );
 
-    println!("🎉 Conclaude initialization complete!");
+    println!("Conclaude initialization complete!");
     println!("Configured hooks:");
     for hook_type in &hook_types {
-        println!("   • {hook_type}");
+        println!("   - {hook_type}");
     }
     println!("You can now use Claude Code with conclaude hook handling.");
 
@@ -318,7 +318,7 @@ async fn handle_visualize(rule: Option<String>, show_matches: bool) -> Result<()
     use glob::Pattern;
     use walkdir::WalkDir;
 
-    println!("🔍 Visualizing configuration rules...");
+    println!("Visualizing configuration rules...");
 
     let (config, _config_path) = config::load_conclaude_config(None)
         .await
@@ -327,7 +327,7 @@ async fn handle_visualize(rule: Option<String>, show_matches: bool) -> Result<()
     if let Some(rule_name) = rule {
         match rule_name.as_str() {
             "uneditableFiles" => {
-                println!("📁 Uneditable Files:");
+                println!("Uneditable Files:");
                 if config.pre_tool_use.uneditable_files.is_empty() {
                     println!("   No uneditable files configured");
                 } else {
@@ -365,7 +365,7 @@ async fn handle_visualize(rule: Option<String>, show_matches: bool) -> Result<()
             }
             "preventRootAdditions" => {
                 println!(
-                    "🚫 Prevent Root Additions: {}",
+                    "Prevent Root Additions: {}",
                     config.pre_tool_use.prevent_root_additions
                 );
                 if config.pre_tool_use.prevent_root_additions && show_matches {
@@ -376,7 +376,7 @@ async fn handle_visualize(rule: Option<String>, show_matches: bool) -> Result<()
                 }
             }
             "toolUsageValidation" => {
-                println!("🔧 Tool Usage Validation Rules:");
+                println!("Tool Usage Validation Rules:");
                 if config.pre_tool_use.tool_usage_validation.is_empty() {
                     println!("   No tool usage validation rules configured");
                 } else {
@@ -392,7 +392,7 @@ async fn handle_visualize(rule: Option<String>, show_matches: bool) -> Result<()
                 }
             }
             _ => {
-                eprintln!("❌ Unknown rule: {rule_name}");
+                eprintln!("[ERROR] Unknown rule: {rule_name}");
                 println!("Available rules:");
                 println!("   - uneditableFiles");
                 println!("   - preventRootAdditions");
@@ -401,20 +401,20 @@ async fn handle_visualize(rule: Option<String>, show_matches: bool) -> Result<()
         }
     } else {
         // Show all rules overview
-        println!("📋 Configuration Overview:");
+        println!("Configuration Overview:");
         println!(
-            "🚫 Prevent Root Additions: {}",
+            "Prevent Root Additions: {}",
             config.pre_tool_use.prevent_root_additions
         );
         println!(
-            "📁 Uneditable Files: {} patterns",
+            "Uneditable Files: {} patterns",
             config.pre_tool_use.uneditable_files.len()
         );
         println!(
-            "🔧 Tool Usage Validation: {} rules",
+            "Tool Usage Validation: {} rules",
             config.pre_tool_use.tool_usage_validation.len()
         );
-        println!("♾️  Infinite Mode: {}", config.stop.infinite);
+        println!("Infinite Mode: {}", config.stop.infinite);
 
         println!("Use --rule <rule-name> to see details for a specific rule");
         println!("Use --show-matches to see which files match the patterns");
@@ -430,7 +430,7 @@ async fn handle_visualize(rule: Option<String>, show_matches: bool) -> Result<()
 /// Returns an error if configuration loading or validation fails.
 #[allow(clippy::unused_async)]
 async fn handle_validate(config_path: Option<String>) -> Result<()> {
-    println!("🔍 Validating conclaude configuration...");
+    println!("Validating conclaude configuration...");
 
     // Load and validate configuration
     let result = if let Some(custom_path) = config_path {
@@ -468,7 +468,7 @@ async fn handle_validate(config_path: Option<String>) -> Result<()> {
 
     match result {
         Ok((config, found_path)) => {
-            println!("✅ Configuration is valid!");
+            println!("[OK] Configuration is valid!");
             println!("   Config file: {}", found_path.display());
             println!();
             println!("Configuration summary:");
@@ -489,7 +489,7 @@ async fn handle_validate(config_path: Option<String>) -> Result<()> {
             Ok(())
         }
         Err(e) => {
-            eprintln!("❌ Configuration validation failed:\n");
+            eprintln!("[ERROR] Configuration validation failed:\n");
             eprintln!("{e}");
             std::process::exit(1);
         }

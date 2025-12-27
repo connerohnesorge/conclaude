@@ -230,9 +230,9 @@ CORRECT (use #### headers):
 
 WRONG (don't use bullets or bold):
 ```markdown
-- Scenario: User login  ❌
-Scenario: User login     ❌
-### Scenario: User login      ❌
+- Scenario: User login  [NO]
+Scenario: User login     [NO]
+### Scenario: User login      [NO]
 ```
 
 Every requirement MUST have at least one scenario.

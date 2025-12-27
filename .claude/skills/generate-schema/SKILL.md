@@ -90,8 +90,8 @@ git commit -m "Update schema for [your feature]"
 When successful, you'll see:
 
 ```
-✅ Schema generated successfully: conclaude-schema.json
-   The schema file is ready to be published as a release asset.
+[OK] Schema generated successfully: conclaude-schema.json
+     The schema file is ready to be published as a release asset.
 ```
 
 ## Common Issues

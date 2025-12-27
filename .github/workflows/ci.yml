@@ -71,7 +71,7 @@ jobs:
           # Check for both modified and untracked files
           git add -N docs/src/content/docs/reference/config/
           if ! git diff --exit-code docs/src/content/docs/reference/config/; then
-            echo "❌ Generated documentation is out of date!"
+            echo "[FAILED] Generated documentation is out of date!"
             echo ""
             echo "The configuration documentation needs to be regenerated."
             echo "Please run the following command locally and commit the changes:"
@@ -82,7 +82,7 @@ jobs:
             git diff docs/src/content/docs/reference/config/
             exit 1
           else
-            echo "✅ Generated documentation is up to date!"
+            echo "[OK] Generated documentation is up to date!"
           fi
 
   spectr-validate:

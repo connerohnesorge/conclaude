@@ -82,7 +82,7 @@ fn main() -> anyhow::Result<()> {
     let schema = conclaude::schema::generate_config_schema()?;
     let output_path = PathBuf::from("conclaude-schema.json");
     conclaude::schema::write_schema_to_file(&schema, &output_path)?;
-    println!("✅ Schema generated: {}", output_path.display());
+    println!("[OK] Schema generated: {}", output_path.display());
     Ok(())
 }
 ```
