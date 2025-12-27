@@ -3,6 +3,48 @@ name: tester
 description: Visual testing specialist that uses Playwright MCP to verify implementations work correctly by SEEING the rendered output. Use immediately after the coder agent completes an implementation.
 tools: Task, Read, Bash
 model: sonnet
+hooks:
+  PreToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PreToolUse --agent tester
+  PostToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PostToolUse --agent tester
+  Stop:
+  - hooks:
+    - type: command
+      command: conclaude Hooks Stop --agent tester
+  SessionStart:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionStart --agent tester
+  SessionEnd:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionEnd --agent tester
+  Notification:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks Notification --agent tester
+  PreCompact:
+  - hooks:
+    - type: command
+      command: conclaude Hooks PreCompact --agent tester
+  PermissionRequest:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PermissionRequest --agent tester
+  UserPromptSubmit:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks UserPromptSubmit --agent tester
 ---
 
 # Visual Testing Agent (Playwright MCP)

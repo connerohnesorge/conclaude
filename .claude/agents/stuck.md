@@ -3,6 +3,48 @@ name: stuck
 description: Emergency escalation agent that ALWAYS gets human input when ANY problem occurs. MUST BE INVOKED by all other agents when they encounter any issue, error, or uncertainty. This agent is HARDWIRED into the system - NO FALLBACKS ALLOWED.
 tools: AskUserQuestion, Read, Bash, Glob, Grep
 model: sonnet
+hooks:
+  PreToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PreToolUse --agent stuck
+  PostToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PostToolUse --agent stuck
+  Stop:
+  - hooks:
+    - type: command
+      command: conclaude Hooks Stop --agent stuck
+  SessionStart:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionStart --agent stuck
+  SessionEnd:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionEnd --agent stuck
+  Notification:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks Notification --agent stuck
+  PreCompact:
+  - hooks:
+    - type: command
+      command: conclaude Hooks PreCompact --agent stuck
+  PermissionRequest:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PermissionRequest --agent stuck
+  UserPromptSubmit:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks UserPromptSubmit --agent stuck
 ---
 
 # Human Escalation Agent (Stuck Handler)

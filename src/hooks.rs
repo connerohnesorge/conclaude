@@ -15,50 +15,15 @@ use notify_rust::{Notification, Urgency};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::{self, BufRead, BufReader, Read};
-use std::path::{Path, PathBuf};
+use std::io::{self, Read};
+use std::path::Path;
 use std::process::Stdio;
 use std::sync::OnceLock;
 use tokio::process::Command as TokioCommand;
 use tokio::time::{timeout, Duration};
 
-/// Get the path to the agent session file for a given session.
-fn get_agent_session_file_path(session_id: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("conclaude-agent-{}.json", session_id))
-}
-
-/// Write agent info to session file during SubagentStart.
-///
-/// # Errors
-///
-/// Returns an error if the session file cannot be written.
-pub fn write_agent_session_file(session_id: &str, subagent_type: &str) -> std::io::Result<()> {
-    let path = get_agent_session_file_path(session_id);
-    let content = serde_json::json!({
-        "subagent_type": subagent_type
-    });
-    fs::write(&path, content.to_string())
-}
-
-/// Read agent info from session file during PreToolUse.
-/// Returns "main" if no session file exists (we're in the orchestrator session).
-#[must_use]
-pub fn read_agent_from_session_file(session_id: &str) -> String {
-    let path = get_agent_session_file_path(session_id);
-    match fs::read_to_string(&path) {
-        Ok(content) => {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                json.get("subagent_type")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| "main".to_string())
-            } else {
-                "main".to_string()
-            }
-        }
-        Err(_) => "main".to_string(), // No file = main session
-    }
-}
+/// Environment variable name for passing agent context to hook handlers
+const AGENT_ENV_VAR: &str = "CONCLAUDE_AGENT";
 
 /// Represents a stop command with its configuration
 pub(crate) struct StopCommandConfig {
@@ -306,6 +271,14 @@ pub async fn handle_pre_tool_use() -> Result<HookResult> {
         return Err(anyhow::anyhow!("Missing required field: tool_name"));
     }
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing PreToolUse hook: session_id={}, tool_name={}",
         payload.base.session_id, payload.tool_name
@@ -371,6 +344,14 @@ pub async fn handle_permission_request() -> Result<HookResult> {
     let payload: PermissionRequestPayload = read_payload_from_stdin()?;
 
     validate_permission_request_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
 
     println!(
         "Processing PermissionRequest hook: session_id={}, tool_name={}",
@@ -509,8 +490,8 @@ async fn check_file_validation_rules(payload: &PreToolUsePayload) -> Result<Opti
         return Ok(Some(HookResult::blocked(error_message)));
     }
 
-    // Detect current agent context from session file
-    let current_agent = read_agent_from_session_file(&payload.base.session_id);
+    // Detect current agent context from environment variable (set by CLI --agent flag)
+    let current_agent = std::env::var(AGENT_ENV_VAR).unwrap_or_else(|_| "main".to_string());
 
     // Check uneditableFiles rule
     for rule in &config.pre_tool_use.uneditable_files {
@@ -692,6 +673,14 @@ pub async fn handle_post_tool_use() -> Result<HookResult> {
         return Err(anyhow::anyhow!("Missing required field: tool_name"));
     }
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing PostToolUse hook: session_id={}, tool_name={}",
         payload.base.session_id, payload.tool_name
@@ -719,6 +708,14 @@ pub async fn handle_notification() -> Result<HookResult> {
 
     if payload.message.is_empty() {
         return Err(anyhow::anyhow!("Missing required field: message"));
+    }
+
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
     println!(
@@ -799,6 +796,14 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
         return Err(anyhow::anyhow!("Missing required field: prompt"));
     }
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing UserPromptSubmit hook: session_id={}",
         payload.base.session_id
@@ -874,6 +879,14 @@ pub async fn handle_session_start() -> Result<HookResult> {
         return Err(anyhow::anyhow!("Missing required field: source"));
     }
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing SessionStart hook: session_id={}, source={}",
         payload.base.session_id, payload.source
@@ -901,6 +914,14 @@ pub async fn handle_session_end() -> Result<HookResult> {
 
     if payload.reason.is_empty() {
         return Err(anyhow::anyhow!("Missing required field: reason"));
+    }
+
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
     println!(
@@ -1138,6 +1159,14 @@ pub async fn handle_stop() -> Result<HookResult> {
 
     validate_base_payload(&payload.base).map_err(|e| anyhow::anyhow!(e))?;
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing Stop hook: session_id={}",
         payload.base.session_id
@@ -1225,6 +1254,14 @@ pub async fn handle_subagent_start() -> Result<HookResult> {
     // Validate the payload including agent_id, subagent_type, and agent_transcript_path fields
     validate_subagent_start_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing SubagentStart hook: session_id={}, agent_id={}",
         payload.base.session_id, payload.agent_id
@@ -1238,11 +1275,6 @@ pub async fn handle_subagent_start() -> Result<HookResult> {
         "CONCLAUDE_AGENT_TRANSCRIPT_PATH",
         &payload.agent_transcript_path,
     );
-
-    // Write agent session file for cross-process agent detection
-    if let Err(e) = write_agent_session_file(&payload.base.session_id, &payload.subagent_type) {
-        eprintln!("Warning: Failed to write agent session file: {}", e);
-    }
 
     // Send notification for subagent start with agent ID included
     send_notification(
@@ -1616,141 +1648,6 @@ async fn execute_subagent_stop_commands(
     Ok(())
 }
 
-/// Extract the agent name (subagent_type) from the main transcript file
-/// by finding the Task tool call that spawned this agent.
-///
-/// Returns None if the agent name cannot be found.
-///
-/// # Arguments
-///
-/// * `transcript_path` - Path to the main transcript file (JSONL format)
-/// * `agent_id` - The agent ID to search for
-///
-/// # Errors
-///
-/// Returns an error if the file cannot be opened or read.
-pub fn extract_agent_name_from_transcript(
-    transcript_path: &str,
-    agent_id: &str,
-) -> Result<Option<String>> {
-    // Open the transcript file
-    let file = match fs::File::open(transcript_path) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!(
-                "Failed to open transcript file '{}' for agent name extraction: {}",
-                transcript_path, e
-            );
-            return Ok(None);
-        }
-    };
-
-    let reader = BufReader::new(file);
-
-    // First pass: find the tool_result with matching agentId and get the tool_use_id
-    let mut tool_use_id: Option<String> = None;
-
-    for line_result in reader.lines() {
-        let line = match line_result {
-            Ok(l) => l,
-            Err(e) => {
-                eprintln!("Error reading line from transcript: {}", e);
-                continue;
-            }
-        };
-
-        // Parse the JSON line
-        let parsed: Value = match serde_json::from_str(&line) {
-            Ok(v) => v,
-            Err(_) => continue, // Skip malformed lines
-        };
-
-        // Check if this is a tool_result with matching agentId
-        if let Some(tool_use_result) = parsed.get("toolUseResult") {
-            if let Some(result_agent_id) = tool_use_result.get("agentId").and_then(|v| v.as_str()) {
-                if result_agent_id == agent_id {
-                    // Found the matching tool result, extract tool_use_id
-                    if let Some(message) = parsed.get("message") {
-                        if let Some(content) = message.get("content").and_then(|v| v.as_array()) {
-                            for item in content {
-                                if let Some(use_id) =
-                                    item.get("tool_use_id").and_then(|v| v.as_str())
-                                {
-                                    tool_use_id = Some(use_id.to_string());
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-    }
-
-    let tool_use_id = match tool_use_id {
-        Some(id) => id,
-        None => {
-            eprintln!(
-                "Could not find tool_result with agentId '{}' in transcript",
-                agent_id
-            );
-            return Ok(None);
-        }
-    };
-
-    // Second pass: find the Task tool_use with matching id and extract subagent_type
-    let file = fs::File::open(transcript_path)?;
-    let reader = BufReader::new(file);
-
-    for line_result in reader.lines() {
-        let line = match line_result {
-            Ok(l) => l,
-            Err(e) => {
-                eprintln!("Error reading line from transcript: {}", e);
-                continue;
-            }
-        };
-
-        // Parse the JSON line
-        let parsed: Value = match serde_json::from_str(&line) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-
-        // Check if this has a message.content array
-        if let Some(message) = parsed.get("message") {
-            if let Some(content) = message.get("content").and_then(|v| v.as_array()) {
-                for item in content {
-                    // Check if this is a tool_use with type "tool_use"
-                    if item.get("type").and_then(|v| v.as_str()) == Some("tool_use") {
-                        // Check if the id matches
-                        if item.get("id").and_then(|v| v.as_str()) == Some(&tool_use_id) {
-                            // Check if the name is "Task"
-                            if item.get("name").and_then(|v| v.as_str()) == Some("Task") {
-                                // Extract subagent_type from input
-                                if let Some(input) = item.get("input") {
-                                    if let Some(subagent_type) =
-                                        input.get("subagent_type").and_then(|v| v.as_str())
-                                    {
-                                        return Ok(Some(subagent_type.to_string()));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    eprintln!(
-        "Could not find Task tool_use with id '{}' in transcript",
-        tool_use_id
-    );
-    Ok(None)
-}
-
 /// Handles `SubagentStop` hook events when Claude subagents complete their tasks.
 ///
 /// This function processes subagent stop events by:
@@ -1774,9 +1671,8 @@ pub async fn handle_subagent_stop() -> Result<HookResult> {
         payload.base.session_id, payload.agent_id
     );
 
-    // Extract agent name from main transcript
-    let agent_name =
-        extract_agent_name_from_transcript(&payload.base.transcript_path, &payload.agent_id)?;
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
     // Set environment variables for the subagent's information
     std::env::set_var("CONCLAUDE_AGENT_ID", &payload.agent_id);
@@ -1785,18 +1681,18 @@ pub async fn handle_subagent_stop() -> Result<HookResult> {
         &payload.agent_transcript_path,
     );
 
-    // Set CONCLAUDE_AGENT_NAME to the extracted name, or fall back to agent_id
+    // Set CONCLAUDE_AGENT_NAME to the agent name from env var, or fall back to agent_id
     let agent_name_value = agent_name.as_deref().unwrap_or(&payload.agent_id);
     std::env::set_var("CONCLAUDE_AGENT_NAME", agent_name_value);
 
     if let Some(name) = &agent_name {
         println!(
-            "Extracted agent name '{}' for agent_id '{}'",
+            "Using agent name '{}' for agent_id '{}'",
             name, payload.agent_id
         );
     } else {
         println!(
-            "Could not extract agent name for agent_id '{}', using agent_id as fallback",
+            "No agent name provided, using agent_id '{}' as fallback",
             payload.agent_id
         );
     }
@@ -1856,6 +1752,14 @@ pub async fn handle_pre_compact() -> Result<HookResult> {
 
     validate_base_payload(&payload.base).map_err(|e| anyhow::anyhow!(e))?;
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing PreCompact hook: session_id={}, trigger={:?}",
         payload.base.session_id, payload.trigger
@@ -1878,8 +1782,8 @@ pub async fn handle_pre_compact() -> Result<HookResult> {
 async fn check_tool_usage_rules(payload: &PreToolUsePayload) -> Result<Option<HookResult>> {
     let (config, _config_path) = get_config().await?;
 
-    // Detect current agent context from session file
-    let current_agent = read_agent_from_session_file(&payload.base.session_id);
+    // Detect current agent context from environment variable (set by CLI --agent flag)
+    let current_agent = std::env::var(AGENT_ENV_VAR).unwrap_or_else(|_| "main".to_string());
 
     for rule in &config.pre_tool_use.tool_usage_validation {
         if rule.tool == payload.tool_name || rule.tool == "*" {
@@ -2230,36 +2134,4 @@ mod prompt_context_tests {
         assert_eq!(expanded, "This is a normal prompt without file references");
     }
 
-}
-
-#[cfg(test)]
-mod agent_session_tests {
-    use super::*;
-
-    #[test]
-    fn test_read_agent_from_session_file_not_exists() {
-        // Should return "main" when no session file exists
-        let result = read_agent_from_session_file("nonexistent-session-id-12345");
-        assert_eq!(result, "main");
-    }
-
-    #[test]
-    fn test_write_and_read_agent_session_file() {
-        let session_id = format!("test-session-{}", std::process::id());
-
-        // Write session file
-        write_agent_session_file(&session_id, "coder").expect("Failed to write session file");
-
-        // Read it back
-        let result = read_agent_from_session_file(&session_id);
-        assert_eq!(result, "coder");
-
-        // Cleanup the file
-        let path = get_agent_session_file_path(&session_id);
-        let _ = fs::remove_file(&path);
-
-        // Verify reading after cleanup returns "main"
-        let result_after = read_agent_from_session_file(&session_id);
-        assert_eq!(result_after, "main");
-    }
 }

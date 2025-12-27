@@ -256,12 +256,33 @@ With the configuration above:
 
 **Purpose:** Track subagent initialization.
 
+**Note:** Agent-specific hooks are now defined in agent frontmatter (`.claude/agents/*.md`) rather than in `settings.json`. Run `conclaude init` to automatically inject hooks into agent files.
+
 **Payload Fields:**
 - `agent_id` — Identifier for the subagent (e.g., "coder", "tester")
 - `subagent_type` — Category of subagent (e.g., "implementation", "testing")
 - `agent_transcript_path` — Path to subagent's transcript file
 
 **Configuration:**
+
+Agent frontmatter hooks are automatically injected by `conclaude init`:
+
+```yaml
+---
+name: my-agent
+hooks:
+  PreToolUse:
+    - hooks:
+        - type: command
+          command: "conclaude Hooks PreToolUse --agent my-agent"
+  Stop:
+    - hooks:
+        - type: command
+          command: "conclaude Hooks Stop --agent my-agent"
+---
+```
+
+For notifications in settings.json:
 
 ```yaml
 notifications:
@@ -283,11 +304,15 @@ notifications:
 
 **Purpose:** Handle subagent completion.
 
+**Note:** Agent-specific hooks are now defined in agent frontmatter (`.claude/agents/*.md`). The `--agent` flag allows hook handlers to identify which agent is executing, eliminating the need for transcript parsing.
+
 **Payload Fields:**
 - `agent_id` — Identifier for the completed subagent
 - `agent_transcript_path` — Path to subagent's transcript file
 
 **Configuration:**
+
+See SubagentStart above for agent frontmatter hook injection. For notifications:
 
 ```yaml
 notifications:
@@ -485,12 +510,17 @@ Commands executed by hooks have access to context variables:
 | `CONCLAUDE_HOOK_EVENT` | Name of executing hook |
 | `CONCLAUDE_CONFIG_DIR` | Directory containing config |
 
-For subagent hooks:
+For agent-aware hooks (when using `--agent` flag):
 
 | Variable | Description |
 |----------|-------------|
-| `CONCLAUDE_AGENT_ID` | Raw agent identifier (e.g., "adb0a8b") |
-| `CONCLAUDE_AGENT_NAME` | Semantic agent name (e.g., "coder", "tester", "stuck"). Falls back to agent ID if extraction fails. (SubagentStop only) |
+| `CONCLAUDE_AGENT_NAME` | Agent name passed via `--agent` flag (e.g., "coder", "tester", "stuck") |
+
+For subagent hooks (payload-based):
+
+| Variable | Description |
+|----------|-------------|
+| `CONCLAUDE_AGENT_ID` | Agent identifier from payload (e.g., "adb0a8b") |
 | `CONCLAUDE_SUBAGENT_TYPE` | Subagent type (e.g., "implementation") (SubagentStart only) |
 | `CONCLAUDE_AGENT_TRANSCRIPT_PATH` | Path to subagent transcript |
 

@@ -129,11 +129,38 @@ conclaude visualize --rule uneditableFiles --show-matches
 
 These commands are called by Claude Code during session lifecycle events. They read JSON payloads from stdin and output results.
 
+All hook commands now support an optional `--agent <name>` flag for agent-aware execution. When provided, the agent name is available to hook handlers via the `CONCLAUDE_AGENT_NAME` environment variable.
+
+### `Hooks`
+
+New unified hook command structure that supports all hook types with optional agent awareness.
+
+```bash
+# Standard hook execution
+echo '{"session_id":"...","tool_name":"Write",...}' | conclaude Hooks PreToolUse
+
+# Agent-aware hook execution
+conclaude Hooks PreToolUse --agent coder
+conclaude Hooks Stop --agent tester
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--agent <name>` | Agent name for agent-aware hook execution |
+
+**Note:** Agent frontmatter hooks (`.claude/agents/*.md`) automatically use the `--agent` flag. Run `conclaude init` to inject hooks into agent files.
+
+---
+
 ### `PreToolUse`
 
 Fired before Claude uses any tool (Write, Bash, Read, etc.).
 
 ```bash
+echo '{"session_id":"...","tool_name":"Write",...}' | conclaude Hooks PreToolUse
+# or legacy:
 echo '{"session_id":"...","tool_name":"Write",...}' | conclaude PreToolUse
 ```
 
@@ -149,6 +176,8 @@ echo '{"session_id":"...","tool_name":"Write",...}' | conclaude PreToolUse
 Fired after a tool operation completes.
 
 ```bash
+echo '{"session_id":"...","tool_name":"Write",...}' | conclaude Hooks PostToolUse
+# or legacy:
 echo '{"session_id":"...","tool_name":"Write",...}' | conclaude PostToolUse
 ```
 
@@ -164,6 +193,8 @@ echo '{"session_id":"...","tool_name":"Write",...}' | conclaude PostToolUse
 Fired when Claude finishes a task and the session is about to end.
 
 ```bash
+echo '{"session_id":"...","stop_hook_active":true,...}' | conclaude Hooks Stop
+# or legacy:
 echo '{"session_id":"...","stop_hook_active":true,...}' | conclaude Stop
 ```
 
@@ -305,14 +336,21 @@ Available to commands executed by hooks:
 | `CONCLAUDE_HOOK_EVENT` | Name of executing hook |
 | `CONCLAUDE_CONFIG_DIR` | Directory containing config file |
 
-### Subagent Hooks
+### Agent-Aware Hooks
 
-Additional variables for SubagentStart and SubagentStop:
+When using the `--agent` flag (automatically set in agent frontmatter hooks):
 
 | Variable | Description |
 |----------|-------------|
-| `CONCLAUDE_AGENT_ID` | Raw agent identifier (e.g., "adb0a8b") |
-| `CONCLAUDE_AGENT_NAME` | Semantic agent name (e.g., "coder", "tester", "stuck") extracted from main transcript. Falls back to `CONCLAUDE_AGENT_ID` if extraction fails. (SubagentStop only) |
+| `CONCLAUDE_AGENT_NAME` | Agent name passed via `--agent` flag (e.g., "coder", "tester", "stuck") |
+
+### Subagent Hooks
+
+Additional variables for SubagentStart and SubagentStop (payload-based):
+
+| Variable | Description |
+|----------|-------------|
+| `CONCLAUDE_AGENT_ID` | Agent identifier from payload (e.g., "adb0a8b") |
 | `CONCLAUDE_SUBAGENT_TYPE` | Subagent type (e.g., "implementation") (SubagentStart only) |
 | `CONCLAUDE_AGENT_TRANSCRIPT_PATH` | Path to subagent transcript |
 | `CONCLAUDE_PERMISSION_MODE` | Permission mode (SubagentStart only) |

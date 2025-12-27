@@ -13,9 +13,19 @@ use hooks::{
     handle_subagent_start, handle_subagent_stop, handle_user_prompt_submit,
 };
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Environment variable name for passing agent context to hook handlers
+pub const AGENT_ENV_VAR: &str = "CONCLAUDE_AGENT";
+
+/// Sets the agent name in an environment variable for hook handlers to access
+fn set_agent_env(agent: Option<&str>) {
+    if let Some(name) = agent {
+        std::env::set_var(AGENT_ENV_VAR, name);
+    }
+}
 
 /// Claude Code hook handler CLI tool that processes hook events and manages lifecycle hooks
 #[derive(Parser)]
@@ -78,37 +88,81 @@ enum Commands {
 enum HooksCommands {
     /// Process `PreToolUse` hook - fired before tool execution
     #[clap(name = "PreToolUse")]
-    PreToolUse,
+    PreToolUse {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
     /// Process `PostToolUse` hook - fired after tool execution
     #[clap(name = "PostToolUse")]
-    PostToolUse,
+    PostToolUse {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
     /// Process `PermissionRequest` hook - fired when tool requests permission
     #[clap(name = "PermissionRequest")]
-    PermissionRequest,
+    PermissionRequest {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
     /// Process Notification hook - fired for system notifications
     #[clap(name = "Notification")]
-    Notification,
+    Notification {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
     /// Process `UserPromptSubmit` hook - fired when user submits input
     #[clap(name = "UserPromptSubmit")]
-    UserPromptSubmit,
+    UserPromptSubmit {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
     /// Process `SessionStart` hook - fired when session begins
     #[clap(name = "SessionStart")]
-    SessionStart,
+    SessionStart {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
     /// Process `SessionEnd` hook - fired when session terminates
     #[clap(name = "SessionEnd")]
-    SessionEnd,
+    SessionEnd {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
     /// Process Stop hook - fired when session terminates
     #[clap(name = "Stop")]
-    Stop,
+    Stop {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
     /// Process `SubagentStart` hook - fired when subagent begins
     #[clap(name = "SubagentStart")]
-    SubagentStart,
+    SubagentStart {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
     /// Process `SubagentStop` hook - fired when subagent completes
     #[clap(name = "SubagentStop")]
-    SubagentStop,
+    SubagentStop {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
     /// Process `PreCompact` hook - fired before transcript compaction
     #[clap(name = "PreCompact")]
-    PreCompact,
+    PreCompact {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -123,17 +177,50 @@ async fn main() -> Result<()> {
             schema_url,
         } => handle_init(config_path, claude_path, force, schema_url).await,
         Commands::Hooks { command } => match command {
-            HooksCommands::PreToolUse => handle_hook_result(handle_pre_tool_use).await,
-            HooksCommands::PostToolUse => handle_hook_result(handle_post_tool_use).await,
-            HooksCommands::PermissionRequest => handle_hook_result(handle_permission_request).await,
-            HooksCommands::Notification => handle_hook_result(handle_notification).await,
-            HooksCommands::UserPromptSubmit => handle_hook_result(handle_user_prompt_submit).await,
-            HooksCommands::SessionStart => handle_hook_result(handle_session_start).await,
-            HooksCommands::SessionEnd => handle_hook_result(handle_session_end).await,
-            HooksCommands::Stop => handle_hook_result(handle_stop).await,
-            HooksCommands::SubagentStart => handle_hook_result(handle_subagent_start).await,
-            HooksCommands::SubagentStop => handle_hook_result(handle_subagent_stop).await,
-            HooksCommands::PreCompact => handle_hook_result(handle_pre_compact).await,
+            HooksCommands::PreToolUse { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_pre_tool_use).await
+            }
+            HooksCommands::PostToolUse { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_post_tool_use).await
+            }
+            HooksCommands::PermissionRequest { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_permission_request).await
+            }
+            HooksCommands::Notification { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_notification).await
+            }
+            HooksCommands::UserPromptSubmit { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_user_prompt_submit).await
+            }
+            HooksCommands::SessionStart { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_session_start).await
+            }
+            HooksCommands::SessionEnd { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_session_end).await
+            }
+            HooksCommands::Stop { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_stop).await
+            }
+            HooksCommands::SubagentStart { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_subagent_start).await
+            }
+            HooksCommands::SubagentStop { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_subagent_stop).await
+            }
+            HooksCommands::PreCompact { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_pre_compact).await
+            }
         },
         Commands::Visualize { rule, show_matches } => handle_visualize(rule, show_matches).await,
         Commands::Validate { config_path } => handle_validate(config_path).await,
@@ -253,6 +340,8 @@ async fn handle_init(
     };
 
     // Define all hook types and their commands
+    // Note: SubagentStart and SubagentStop are NOT included here because
+    // agent-specific hooks now live in agent frontmatter files (.claude/agents/*.md)
     let hook_types = [
         "UserPromptSubmit",
         "PreToolUse",
@@ -260,8 +349,6 @@ async fn handle_init(
         "PermissionRequest",
         "Notification",
         "Stop",
-        "SubagentStart",
-        "SubagentStop",
         "PreCompact",
         "SessionStart",
         "SessionEnd",
@@ -303,6 +390,247 @@ async fn handle_init(
         println!("   - {hook_type}");
     }
     println!("You can now use Claude Code with conclaude hook handling.");
+
+    // Inject hooks into agent files
+    println!("\nSearching for agent files...");
+    let agents_path = claude_path.join("agents");
+    if agents_path.exists() {
+        inject_agent_hooks(&agents_path)?;
+    } else {
+        println!("No agents directory found, skipping agent hook injection.");
+    }
+
+    Ok(())
+}
+
+/// Discover agent markdown files in the .claude/agents directory
+///
+/// # Errors
+///
+/// Returns an error if glob pattern is invalid or directory access fails.
+fn discover_agent_files(agents_dir: &Path) -> Result<Vec<PathBuf>> {
+    let pattern = agents_dir.join("**/*.md");
+    let pattern_str = pattern
+        .to_str()
+        .context("Failed to convert path to string")?;
+
+    let mut agent_files = Vec::new();
+    for entry in glob::glob(pattern_str).context("Failed to create glob pattern")? {
+        match entry {
+            Ok(path) => agent_files.push(path),
+            Err(e) => eprintln!("Warning: Failed to read path: {e}"),
+        }
+    }
+
+    Ok(agent_files)
+}
+
+/// Parse agent frontmatter from markdown content
+///
+/// Returns (frontmatter_yaml, markdown_body)
+///
+/// # Errors
+///
+/// Returns an error if YAML parsing fails.
+fn parse_agent_frontmatter(content: &str) -> Result<Option<(serde_yaml::Value, String)>> {
+    // Check if content starts with ---
+    if !content.starts_with("---") {
+        return Ok(None);
+    }
+
+    // Find the closing --- (must be at start of line)
+    let after_first = &content[3..];
+
+    // Look for \n---\n or \n--- at end of string
+    let end_pos = if let Some(pos) = after_first.find("\n---\n") {
+        Some(pos)
+    } else if after_first.ends_with("\n---") {
+        Some(after_first.len() - 4)
+    } else {
+        None
+    };
+
+    if let Some(end_pos) = end_pos {
+        let yaml_str = after_first[..end_pos].trim();
+        let body = if after_first[end_pos..].starts_with("\n---\n") {
+            &after_first[end_pos + 5..] // Skip past \n---\n
+        } else {
+            "" // No body after frontmatter
+        };
+
+        // Try to parse the YAML - if it fails, return None to skip the file
+        match serde_yaml::from_str(yaml_str) {
+            Ok(yaml_value) => Ok(Some((yaml_value, body.to_string()))),
+            Err(e) => {
+                // Return error with context
+                Err(anyhow::anyhow!("Failed to parse agent frontmatter YAML: {}", e))
+            }
+        }
+    } else {
+        Ok(None)
+    }
+}
+
+/// Generate hooks configuration for an agent
+fn generate_agent_hooks(agent_name: &str) -> serde_yaml::Value {
+    use serde_yaml::{Mapping, Value};
+
+    let hook_types = [
+        ("PreToolUse", true),      // needs matcher
+        ("PostToolUse", true),     // needs matcher
+        ("Stop", false),
+        ("SessionStart", false),
+        ("SessionEnd", false),
+        ("Notification", true),    // needs matcher
+        ("PreCompact", false),
+        ("PermissionRequest", true), // needs matcher
+        ("UserPromptSubmit", true),  // needs matcher
+    ];
+
+    let mut hooks_map = Mapping::new();
+
+    for (hook_type, needs_matcher) in &hook_types {
+        let mut hook_entry = Mapping::new();
+
+        if *needs_matcher {
+            hook_entry.insert(
+                Value::String("matcher".to_string()),
+                Value::String(String::new()),
+            );
+        }
+
+        let mut hook_config = Mapping::new();
+        hook_config.insert(
+            Value::String("type".to_string()),
+            Value::String("command".to_string()),
+        );
+        hook_config.insert(
+            Value::String("command".to_string()),
+            Value::String(format!("conclaude Hooks {hook_type} --agent {agent_name}")),
+        );
+
+        let hooks_array = vec![Value::Mapping(hook_config)];
+        hook_entry.insert(
+            Value::String("hooks".to_string()),
+            Value::Sequence(hooks_array),
+        );
+
+        hooks_map.insert(
+            Value::String(hook_type.to_string()),
+            Value::Sequence(vec![Value::Mapping(hook_entry)]),
+        );
+    }
+
+    Value::Mapping(hooks_map)
+}
+
+/// Inject hooks into a single agent file
+///
+/// # Errors
+///
+/// Returns an error if file operations or YAML serialization fails.
+fn inject_agent_hooks_into_file(agent_path: &Path) -> Result<()> {
+    // Read the file
+    let content = fs::read_to_string(agent_path)
+        .with_context(|| format!("Failed to read agent file: {}", agent_path.display()))?;
+
+    // Parse frontmatter
+    let (mut frontmatter, body) = match parse_agent_frontmatter(&content)? {
+        Some((fm, b)) => (fm, b),
+        None => {
+            eprintln!(
+                "Warning: Agent file has no frontmatter, skipping: {}",
+                agent_path.display()
+            );
+            return Ok(());
+        }
+    };
+
+    // Get agent name from frontmatter or filename
+    let agent_name = if let Some(name) = frontmatter.get("name").and_then(|v| v.as_str()) {
+        name.to_string()
+    } else {
+        // Derive from filename
+        let name = agent_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .context("Failed to extract agent name from filename")?
+            .to_string();
+        eprintln!(
+            "Warning: Agent file has no 'name' field, using filename: {}",
+            name
+        );
+        name
+    };
+
+    // Check if hooks already exist
+    if frontmatter.get("hooks").is_some() {
+        println!("   Agent '{}' already has hooks, skipping.", agent_name);
+        return Ok(());
+    }
+
+    // Generate and inject hooks
+    let hooks = generate_agent_hooks(&agent_name);
+    if let serde_yaml::Value::Mapping(ref mut map) = frontmatter {
+        map.insert(
+            serde_yaml::Value::String("hooks".to_string()),
+            hooks,
+        );
+    }
+
+    // Serialize frontmatter back to YAML
+    let yaml_str = serde_yaml::to_string(&frontmatter)
+        .context("Failed to serialize agent frontmatter")?;
+
+    // Reconstruct the file
+    let new_content = format!("---\n{}---\n{}", yaml_str, body);
+
+    // Write back to file
+    fs::write(agent_path, new_content)
+        .with_context(|| format!("Failed to write agent file: {}", agent_path.display()))?;
+
+    println!("   [OK] Injected hooks into agent: {}", agent_name);
+
+    Ok(())
+}
+
+/// Inject hooks into all agent files in the agents directory
+///
+/// # Errors
+///
+/// Returns an error if agent discovery or injection fails.
+fn inject_agent_hooks(agents_dir: &Path) -> Result<()> {
+    let agent_files = discover_agent_files(agents_dir)?;
+
+    if agent_files.is_empty() {
+        println!("No agent files found in {}", agents_dir.display());
+        return Ok(());
+    }
+
+    println!("Found {} agent file(s):", agent_files.len());
+    for file in &agent_files {
+        println!("   - {}", file.display());
+    }
+
+    println!("\nInjecting hooks into agent files...");
+    let mut success_count = 0;
+    let mut error_count = 0;
+
+    for agent_file in &agent_files {
+        match inject_agent_hooks_into_file(agent_file) {
+            Ok(()) => success_count += 1,
+            Err(e) => {
+                eprintln!("   [ERROR] Failed to inject hooks into {}: {}", agent_file.display(), e);
+                error_count += 1;
+            }
+        }
+    }
+
+    println!("\nAgent hook injection complete!");
+    println!("   Success: {}", success_count);
+    if error_count > 0 {
+        println!("   Errors: {} (see warnings above)", error_count);
+    }
 
     Ok(())
 }

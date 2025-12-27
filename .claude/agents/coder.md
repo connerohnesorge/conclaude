@@ -3,6 +3,48 @@ name: coder
 description: Implementation specialist that writes code to fulfill specific todo items. Use when a coding task needs to be implemented.
 tools: Read, Write, Edit, Glob, Grep, Bash, Task
 model: sonnet
+hooks:
+  PreToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PreToolUse --agent coder
+  PostToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PostToolUse --agent coder
+  Stop:
+  - hooks:
+    - type: command
+      command: conclaude Hooks Stop --agent coder
+  SessionStart:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionStart --agent coder
+  SessionEnd:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionEnd --agent coder
+  Notification:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks Notification --agent coder
+  PreCompact:
+  - hooks:
+    - type: command
+      command: conclaude Hooks PreCompact --agent coder
+  PermissionRequest:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PermissionRequest --agent coder
+  UserPromptSubmit:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks UserPromptSubmit --agent coder
 ---
 
 # Implementation Coder Agent
