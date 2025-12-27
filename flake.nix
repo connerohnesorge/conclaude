@@ -121,6 +121,7 @@
             yarn
             cargo-dist
             git-cliff
+            typescript-language-server
           ]
           ++ builtins.attrValues scriptPackages;
         shellHook = ''

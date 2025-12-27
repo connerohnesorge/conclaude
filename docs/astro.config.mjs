@@ -14,6 +14,9 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'conclaude',
+			customCss: [
+				'./src/styles/custom.css',
+			],
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/connerohnesorge/conclaude' }],
 			sidebar: [
 				{
