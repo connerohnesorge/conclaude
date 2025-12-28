@@ -330,6 +330,10 @@ fn generate_hooks_helper(agent_name: &str) -> serde_yaml::Value {
             Value::String("command".to_string()),
             Value::String(format!("conclaude Hooks {hook_type} --agent {agent_name}")),
         );
+        hook_config.insert(
+            Value::String("timeout".to_string()),
+            Value::Number(serde_yaml::Number::from(600)),
+        );
 
         let hooks_array = vec![Value::Mapping(hook_config)];
         hook_entry.insert(

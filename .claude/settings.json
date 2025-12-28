@@ -4,66 +4,6 @@
     "deny": []
   },
   "hooks": {
-    "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks SessionEnd",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks PreCompact",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks PostToolUse",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks SessionStart",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks Notification",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
     "SubagentStop": [
       {
         "matcher": "",
@@ -71,42 +11,6 @@
           {
             "type": "command",
             "command": "conclaude Hooks SubagentStop",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks UserPromptSubmit",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks PermissionRequest",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks PreToolUse",
             "timeout": 600
           }
         ]
@@ -124,6 +28,78 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks PostToolUse",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks PreCompact",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks UserPromptSubmit",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks SessionStart",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks SessionEnd",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks Notification",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": "",
@@ -131,6 +107,30 @@
           {
             "type": "command",
             "command": "conclaude Hooks Stop",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks PreToolUse",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks PermissionRequest",
             "timeout": 600
           }
         ]

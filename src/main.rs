@@ -395,7 +395,7 @@ async fn handle_init(
     println!("\nSearching for agent files...");
     let agents_path = claude_path.join("agents");
     if agents_path.exists() {
-        inject_agent_hooks(&agents_path)?;
+        inject_agent_hooks(&agents_path, force)?;
     } else {
         println!("No agents directory found, skipping agent hook injection.");
     }
@@ -508,6 +508,10 @@ fn generate_agent_hooks(agent_name: &str) -> serde_yaml::Value {
             Value::String("command".to_string()),
             Value::String(format!("conclaude Hooks {hook_type} --agent {agent_name}")),
         );
+        hook_config.insert(
+            Value::String("timeout".to_string()),
+            Value::Number(serde_yaml::Number::from(600)),
+        );
 
         let hooks_array = vec![Value::Mapping(hook_config)];
         hook_entry.insert(
@@ -529,7 +533,7 @@ fn generate_agent_hooks(agent_name: &str) -> serde_yaml::Value {
 /// # Errors
 ///
 /// Returns an error if file operations or YAML serialization fails.
-fn inject_agent_hooks_into_file(agent_path: &Path) -> Result<()> {
+fn inject_agent_hooks_into_file(agent_path: &Path, force: bool) -> Result<()> {
     // Read the file
     let content = fs::read_to_string(agent_path)
         .with_context(|| format!("Failed to read agent file: {}", agent_path.display()))?;
@@ -564,7 +568,7 @@ fn inject_agent_hooks_into_file(agent_path: &Path) -> Result<()> {
     };
 
     // Check if hooks already exist
-    if frontmatter.get("hooks").is_some() {
+    if frontmatter.get("hooks").is_some() && !force {
         println!("   Agent '{}' already has hooks, skipping.", agent_name);
         return Ok(());
     }
@@ -599,7 +603,7 @@ fn inject_agent_hooks_into_file(agent_path: &Path) -> Result<()> {
 /// # Errors
 ///
 /// Returns an error if agent discovery or injection fails.
-fn inject_agent_hooks(agents_dir: &Path) -> Result<()> {
+fn inject_agent_hooks(agents_dir: &Path, force: bool) -> Result<()> {
     let agent_files = discover_agent_files(agents_dir)?;
 
     if agent_files.is_empty() {
@@ -617,7 +621,7 @@ fn inject_agent_hooks(agents_dir: &Path) -> Result<()> {
     let mut error_count = 0;
 
     for agent_file in &agent_files {
-        match inject_agent_hooks_into_file(agent_file) {
+        match inject_agent_hooks_into_file(agent_file, force) {
             Ok(()) => success_count += 1,
             Err(e) => {
                 eprintln!("   [ERROR] Failed to inject hooks into {}: {}", agent_file.display(), e);
