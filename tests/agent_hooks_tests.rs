@@ -189,7 +189,7 @@ fn test_generate_agent_hooks_structure() {
 
     for hook_type in &expected_hooks {
         assert!(
-            hooks_map.contains_key(&serde_yaml::Value::String(hook_type.to_string())),
+            hooks_map.contains_key(serde_yaml::Value::String(hook_type.to_string())),
             "Should contain {} hook",
             hook_type
         );
@@ -203,19 +203,19 @@ fn test_generate_agent_hooks_command_format() {
 
     // Check PreToolUse hook command
     let pre_tool_use = hooks_map
-        .get(&serde_yaml::Value::String("PreToolUse".to_string()))
+        .get(serde_yaml::Value::String("PreToolUse".to_string()))
         .unwrap();
 
     let hook_entry = pre_tool_use.as_sequence().unwrap()[0].as_mapping().unwrap();
     let hooks_array = hook_entry
-        .get(&serde_yaml::Value::String("hooks".to_string()))
+        .get(serde_yaml::Value::String("hooks".to_string()))
         .unwrap()
         .as_sequence()
         .unwrap();
 
     let hook_config = hooks_array[0].as_mapping().unwrap();
     let command = hook_config
-        .get(&serde_yaml::Value::String("command".to_string()))
+        .get(serde_yaml::Value::String("command".to_string()))
         .unwrap()
         .as_str()
         .unwrap();
@@ -236,7 +236,7 @@ fn test_generate_agent_hooks_matcher_presence() {
 
     for hook_type in &needs_matcher {
         let hook_entry_seq = hooks_map
-            .get(&serde_yaml::Value::String(hook_type.to_string()))
+            .get(serde_yaml::Value::String(hook_type.to_string()))
             .unwrap()
             .as_sequence()
             .unwrap();
@@ -244,7 +244,7 @@ fn test_generate_agent_hooks_matcher_presence() {
         let hook_entry = hook_entry_seq[0].as_mapping().unwrap();
 
         assert!(
-            hook_entry.contains_key(&serde_yaml::Value::String("matcher".to_string())),
+            hook_entry.contains_key(serde_yaml::Value::String("matcher".to_string())),
             "{} should have matcher field",
             hook_type
         );
@@ -255,7 +255,7 @@ fn test_generate_agent_hooks_matcher_presence() {
 
     for hook_type in &no_matcher {
         let hook_entry_seq = hooks_map
-            .get(&serde_yaml::Value::String(hook_type.to_string()))
+            .get(serde_yaml::Value::String(hook_type.to_string()))
             .unwrap()
             .as_sequence()
             .unwrap();
@@ -273,19 +273,19 @@ fn test_generate_agent_hooks_type_field() {
     let hooks_map = hooks.as_mapping().unwrap();
 
     let pre_tool_use = hooks_map
-        .get(&serde_yaml::Value::String("PreToolUse".to_string()))
+        .get(serde_yaml::Value::String("PreToolUse".to_string()))
         .unwrap();
 
     let hook_entry = pre_tool_use.as_sequence().unwrap()[0].as_mapping().unwrap();
     let hooks_array = hook_entry
-        .get(&serde_yaml::Value::String("hooks".to_string()))
+        .get(serde_yaml::Value::String("hooks".to_string()))
         .unwrap()
         .as_sequence()
         .unwrap();
 
     let hook_config = hooks_array[0].as_mapping().unwrap();
     let hook_type = hook_config
-        .get(&serde_yaml::Value::String("type".to_string()))
+        .get(serde_yaml::Value::String("type".to_string()))
         .unwrap()
         .as_str()
         .unwrap();
@@ -657,7 +657,7 @@ fn test_cli_all_hook_types_accept_agent_flag() {
                 "--help",
             ])
             .output()
-            .expect(&format!("Failed to run {} --help", hook_type));
+            .unwrap_or_else(|_| panic!("Failed to run {} --help", hook_type));
 
         let stdout = String::from_utf8_lossy(&output.stdout);
 
