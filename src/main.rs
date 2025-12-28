@@ -228,7 +228,7 @@ async fn main() -> Result<()> {
 }
 
 /// TypeScript interfaces for Claude Code settings structure
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 struct ClaudeHookConfig {
     #[serde(rename = "type")]
     config_type: String,
@@ -239,11 +239,61 @@ struct ClaudeHookConfig {
     timeout: Option<u64>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 struct ClaudeHookMatcher {
     #[serde(default)]
     matcher: String,
     hooks: Vec<ClaudeHookConfig>,
+}
+
+/// Check if a hook config is conclaude-managed by looking for "conclaude Hooks" in the command
+fn is_conclaude_hook(hook_config: &ClaudeHookConfig) -> bool {
+    hook_config.command.contains("conclaude Hooks")
+}
+
+/// Check if a YAML hook entry is conclaude-managed
+fn is_conclaude_hook_yaml(hook_entry: &serde_yaml::Value) -> bool {
+    hook_entry
+        .get("command")
+        .and_then(|v| v.as_str())
+        .map(|cmd| cmd.contains("conclaude Hooks"))
+        .unwrap_or(false)
+}
+
+/// Merge existing hooks with new conclaude hook, preserving user-defined hooks
+///
+/// This function:
+/// 1. Keeps all user-defined hooks (those without "conclaude Hooks" in command)
+/// 2. Removes any existing conclaude hooks
+/// 3. Appends the new conclaude hook at the end (so user hooks run first)
+fn merge_settings_hooks(
+    existing: Option<&Vec<ClaudeHookMatcher>>,
+    conclaude_hook: ClaudeHookMatcher,
+) -> Vec<ClaudeHookMatcher> {
+    let mut result = Vec::new();
+
+    if let Some(existing_matchers) = existing {
+        for matcher in existing_matchers {
+            // Filter out old conclaude hooks, keep user hooks
+            let user_hooks: Vec<ClaudeHookConfig> = matcher
+                .hooks
+                .iter()
+                .filter(|hook| !is_conclaude_hook(hook))
+                .cloned()
+                .collect();
+
+            if !user_hooks.is_empty() {
+                result.push(ClaudeHookMatcher {
+                    matcher: matcher.matcher.clone(),
+                    hooks: user_hooks,
+                });
+            }
+        }
+    }
+
+    // Append conclaude hook at the end (user hooks run first)
+    result.push(conclaude_hook);
+    result
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -354,23 +404,24 @@ async fn handle_init(
         "SessionEnd",
     ];
 
-    // Add hook configurations
+    // Add hook configurations using merge logic to preserve user-defined hooks
     let hooks = settings
         .hooks
         .get_or_insert_with(std::collections::HashMap::new);
     for hook_type in &hook_types {
-        hooks.insert(
-            (*hook_type).to_string(),
-            vec![ClaudeHookMatcher {
-                matcher: String::new(),
-                hooks: vec![ClaudeHookConfig {
-                    config_type: "command".to_string(),
-                    command: format!("conclaude Hooks {hook_type}"),
-                    prompt: None,
-                    timeout: Some(600),
-                }],
+        let conclaude_hook = ClaudeHookMatcher {
+            matcher: String::new(),
+            hooks: vec![ClaudeHookConfig {
+                config_type: "command".to_string(),
+                command: format!("conclaude Hooks {hook_type}"),
+                prompt: None,
+                timeout: Some(600),
             }],
-        );
+        };
+
+        // Merge with existing hooks, preserving user-defined hooks
+        let merged = merge_settings_hooks(hooks.get(*hook_type), conclaude_hook);
+        hooks.insert((*hook_type).to_string(), merged);
     }
 
     // Write updated settings
@@ -528,6 +579,82 @@ fn generate_agent_hooks(agent_name: &str) -> serde_yaml::Value {
     Value::Mapping(hooks_map)
 }
 
+/// Merge existing agent hooks with new conclaude hooks, preserving user-defined hooks
+///
+/// For each hook type:
+/// 1. Get existing matchers, filter out conclaude hooks
+/// 2. Keep user hooks intact
+/// 3. Append new conclaude matcher at the end
+fn merge_agent_hooks_yaml(
+    existing_hooks: Option<&serde_yaml::Value>,
+    conclaude_hooks: serde_yaml::Value,
+) -> serde_yaml::Value {
+    use serde_yaml::{Mapping, Value};
+
+    // If no existing hooks, return conclaude hooks
+    let Some(existing) = existing_hooks.and_then(|v| v.as_mapping()) else {
+        return conclaude_hooks;
+    };
+
+    let Some(conclaude) = conclaude_hooks.as_mapping() else {
+        return conclaude_hooks;
+    };
+
+    let mut merged = Mapping::new();
+
+    // Process each hook type from conclaude hooks
+    for (hook_type, conclaude_matchers) in conclaude {
+        let mut result_matchers: Vec<Value> = Vec::new();
+
+        // Check if existing hooks have this hook type
+        if let Some(existing_matchers) = existing.get(hook_type).and_then(|v| v.as_sequence()) {
+            for matcher in existing_matchers {
+                // Get the hooks array from the matcher
+                if let Some(hooks_array) = matcher.get("hooks").and_then(|v| v.as_sequence()) {
+                    // Filter out conclaude hooks, keep user hooks
+                    let user_hooks: Vec<Value> = hooks_array
+                        .iter()
+                        .filter(|hook| !is_conclaude_hook_yaml(hook))
+                        .cloned()
+                        .collect();
+
+                    if !user_hooks.is_empty() {
+                        // Reconstruct the matcher with only user hooks
+                        let mut new_matcher = Mapping::new();
+                        if let Some(m) = matcher.get("matcher") {
+                            new_matcher.insert(Value::String("matcher".to_string()), m.clone());
+                        }
+                        new_matcher.insert(
+                            Value::String("hooks".to_string()),
+                            Value::Sequence(user_hooks),
+                        );
+                        result_matchers.push(Value::Mapping(new_matcher));
+                    }
+                }
+            }
+        }
+
+        // Append conclaude matchers at the end
+        if let Some(matchers) = conclaude_matchers.as_sequence() {
+            for matcher in matchers {
+                result_matchers.push(matcher.clone());
+            }
+        }
+
+        merged.insert(hook_type.clone(), Value::Sequence(result_matchers));
+    }
+
+    // Also preserve any existing hook types that are NOT in conclaude_hooks
+    // (these would be purely user-defined hook types)
+    for (hook_type, matchers) in existing {
+        if !conclaude.contains_key(hook_type) {
+            merged.insert(hook_type.clone(), matchers.clone());
+        }
+    }
+
+    Value::Mapping(merged)
+}
+
 /// Inject hooks into a single agent file
 ///
 /// # Errors
@@ -568,17 +695,22 @@ fn inject_agent_hooks_into_file(agent_path: &Path, force: bool) -> Result<()> {
     };
 
     // Check if hooks already exist
-    if frontmatter.get("hooks").is_some() && !force {
+    let existing_hooks = frontmatter.get("hooks");
+    if existing_hooks.is_some() && !force {
         println!("   Agent '{}' already has hooks, skipping.", agent_name);
         return Ok(());
     }
 
-    // Generate and inject hooks
-    let hooks = generate_agent_hooks(&agent_name);
+    // Generate conclaude hooks
+    let conclaude_hooks = generate_agent_hooks(&agent_name);
+
+    // Merge with existing hooks, preserving user-defined hooks
+    let merged_hooks = merge_agent_hooks_yaml(existing_hooks, conclaude_hooks);
+
     if let serde_yaml::Value::Mapping(ref mut map) = frontmatter {
         map.insert(
             serde_yaml::Value::String("hooks".to_string()),
-            hooks,
+            merged_hooks,
         );
     }
 

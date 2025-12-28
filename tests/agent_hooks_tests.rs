@@ -51,10 +51,16 @@ other_field: value
 # Agent Content"#;
 
     let result = parse_frontmatter_helper(content);
-    assert!(result.is_some(), "Should parse frontmatter without name field");
+    assert!(
+        result.is_some(),
+        "Should parse frontmatter without name field"
+    );
 
     let (frontmatter, _) = result.unwrap();
-    assert!(frontmatter.get("name").is_none(), "Name field should be missing");
+    assert!(
+        frontmatter.get("name").is_none(),
+        "Name field should be missing"
+    );
     assert_eq!(
         frontmatter.get("description").and_then(|v| v.as_str()),
         Some("Implementation specialist")
@@ -75,10 +81,16 @@ hooks:
 # Agent Content"#;
 
     let result = parse_frontmatter_helper(content);
-    assert!(result.is_some(), "Should parse frontmatter with existing hooks");
+    assert!(
+        result.is_some(),
+        "Should parse frontmatter with existing hooks"
+    );
 
     let (frontmatter, _) = result.unwrap();
-    assert!(frontmatter.get("hooks").is_some(), "Should preserve existing hooks");
+    assert!(
+        frontmatter.get("hooks").is_some(),
+        "Should preserve existing hooks"
+    );
 }
 
 #[test]
@@ -125,7 +137,10 @@ description: test
 # Agent Content"#;
 
     let result = parse_frontmatter_helper(content);
-    assert!(result.is_none(), "Should return None without closing delimiter");
+    assert!(
+        result.is_none(),
+        "Should return None without closing delimiter"
+    );
 }
 
 // Helper function to parse frontmatter (mimics the actual implementation)
@@ -232,7 +247,13 @@ fn test_generate_agent_hooks_matcher_presence() {
     let hooks_map = hooks.as_mapping().unwrap();
 
     // Hooks that need matcher
-    let needs_matcher = ["PreToolUse", "PostToolUse", "Notification", "PermissionRequest", "UserPromptSubmit"];
+    let needs_matcher = [
+        "PreToolUse",
+        "PostToolUse",
+        "Notification",
+        "PermissionRequest",
+        "UserPromptSubmit",
+    ];
 
     for hook_type in &needs_matcher {
         let hook_entry_seq = hooks_map
@@ -393,7 +414,10 @@ This is the coder agent."#;
     let updated_content = fs::read_to_string(&agent_file).expect("Failed to read agent file");
 
     // Verify hooks were injected
-    assert!(updated_content.contains("hooks:"), "Should contain hooks field");
+    assert!(
+        updated_content.contains("hooks:"),
+        "Should contain hooks field"
+    );
     assert!(
         updated_content.contains("PreToolUse"),
         "Should contain PreToolUse hook"
@@ -592,14 +616,7 @@ fn test_cli_agent_flag_parsing() {
 
     // Test with --agent flag
     let output = Command::new("cargo")
-        .args([
-            "run",
-            "--",
-            "Hooks",
-            "PreToolUse",
-            "--agent",
-            "coder",
-        ])
+        .args(["run", "--", "Hooks", "PreToolUse", "--agent", "coder"])
         .stdin(File::open(&payload_file).unwrap())
         .output()
         .expect("Failed to run CLI command with --agent flag");
@@ -653,13 +670,7 @@ fn test_cli_all_hook_types_accept_agent_flag() {
     for hook_type in &hook_types {
         // Just verify the command parses (using --help to avoid needing payload)
         let output = Command::new("cargo")
-            .args([
-                "run",
-                "--",
-                "Hooks",
-                hook_type,
-                "--help",
-            ])
+            .args(["run", "--", "Hooks", hook_type, "--help"])
             .output()
             .unwrap_or_else(|_| panic!("Failed to run {} --help", hook_type));
 
@@ -824,5 +835,375 @@ fn test_empty_agents_directory() {
     assert!(
         output.status.success(),
         "Init should succeed with empty agents directory"
+    );
+}
+
+#[test]
+fn test_is_conclaude_hook_detection() {
+    // Test the detection logic for conclaude hooks
+    let conclaude_command = "conclaude Hooks PreToolUse --agent coder";
+    assert!(
+        conclaude_command.contains("conclaude Hooks"),
+        "Should identify conclaude hooks"
+    );
+
+    let user_command = "my-linter.sh --check";
+    assert!(
+        !user_command.contains("conclaude Hooks"),
+        "Should not identify user hooks as conclaude hooks"
+    );
+}
+
+#[test]
+fn test_merge_preserves_user_hooks_in_settings_json() {
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let claude_dir = temp_dir.path().join(".claude");
+    fs::create_dir_all(&claude_dir).expect("Failed to create .claude directory");
+
+    // Create settings.json with user hooks
+    let settings_content = r#"{
+        "permissions": {"allow": [], "deny": []},
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "Bash",
+                    "hooks": [
+                        {"type": "command", "command": "my-linter.sh --check"}
+                    ]
+                }
+            ]
+        }
+    }"#;
+
+    fs::write(claude_dir.join("settings.json"), settings_content)
+        .expect("Failed to write settings.json");
+
+    // Run init
+    let output = Command::new("cargo")
+        .args([
+            "run",
+            "--",
+            "init",
+            "--config-path",
+            &temp_dir.path().join(".conclaude.yaml").to_string_lossy(),
+            "--claude-path",
+            &claude_dir.to_string_lossy(),
+        ])
+        .output()
+        .expect("Failed to run CLI init command");
+
+    assert!(output.status.success(), "Init should succeed");
+
+    // Read updated settings.json
+    let updated_content = fs::read_to_string(claude_dir.join("settings.json"))
+        .expect("Failed to read settings.json");
+
+    // Verify user hook is preserved
+    assert!(
+        updated_content.contains("my-linter.sh --check"),
+        "User hook should be preserved"
+    );
+
+    // Verify conclaude hook was added
+    assert!(
+        updated_content.contains("conclaude Hooks PreToolUse"),
+        "Conclaude hook should be added"
+    );
+}
+
+#[test]
+fn test_merge_updates_old_conclaude_hooks() {
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let claude_dir = temp_dir.path().join(".claude");
+    fs::create_dir_all(&claude_dir).expect("Failed to create .claude directory");
+
+    // Create settings.json with old conclaude hooks (no timeout)
+    let settings_content = r#"{
+        "permissions": {"allow": [], "deny": []},
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "",
+                    "hooks": [
+                        {"type": "command", "command": "conclaude Hooks PreToolUse"}
+                    ]
+                }
+            ]
+        }
+    }"#;
+
+    fs::write(claude_dir.join("settings.json"), settings_content)
+        .expect("Failed to write settings.json");
+
+    // Run init
+    let output = Command::new("cargo")
+        .args([
+            "run",
+            "--",
+            "init",
+            "--config-path",
+            &temp_dir.path().join(".conclaude.yaml").to_string_lossy(),
+            "--claude-path",
+            &claude_dir.to_string_lossy(),
+        ])
+        .output()
+        .expect("Failed to run CLI init command");
+
+    assert!(output.status.success(), "Init should succeed");
+
+    // Read updated settings.json
+    let updated_content = fs::read_to_string(claude_dir.join("settings.json"))
+        .expect("Failed to read settings.json");
+
+    // Verify timeout was added (new format)
+    assert!(
+        updated_content.contains("600"),
+        "Updated conclaude hook should have timeout"
+    );
+
+    // Verify only one conclaude hook (old one removed, new one added)
+    let conclaude_hook_count = updated_content.matches("conclaude Hooks PreToolUse").count();
+    assert_eq!(
+        conclaude_hook_count, 1,
+        "Should have exactly one conclaude PreToolUse hook"
+    );
+}
+
+#[test]
+fn test_merge_preserves_user_hooks_in_agent_frontmatter() {
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let agents_dir = temp_dir.path().join("agents");
+    fs::create_dir_all(&agents_dir).expect("Failed to create agents directory");
+
+    let agent_file = agents_dir.join("custom.md");
+
+    // Create agent file with user hook
+    let content = r#"---
+name: custom
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: my-validator.sh
+---
+# Custom Agent"#;
+
+    fs::write(&agent_file, content).expect("Failed to write agent file");
+
+    // Run init with force to trigger merge
+    let output = Command::new("cargo")
+        .args([
+            "run",
+            "--",
+            "init",
+            "--force",
+            "--config-path",
+            &temp_dir.path().join(".conclaude.yaml").to_string_lossy(),
+            "--claude-path",
+            &temp_dir.path().to_string_lossy(),
+        ])
+        .output()
+        .expect("Failed to run CLI init command");
+
+    assert!(output.status.success(), "Init should succeed");
+
+    // Read updated agent file
+    let updated_content = fs::read_to_string(&agent_file).expect("Failed to read agent file");
+
+    // Verify user hook is preserved
+    assert!(
+        updated_content.contains("my-validator.sh"),
+        "User hook should be preserved in agent frontmatter"
+    );
+
+    // Verify conclaude hook was added
+    assert!(
+        updated_content.contains("conclaude Hooks PreToolUse --agent custom"),
+        "Conclaude hook should be added"
+    );
+}
+
+#[test]
+fn test_merge_removes_old_conclaude_hooks_from_agent() {
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let agents_dir = temp_dir.path().join("agents");
+    fs::create_dir_all(&agents_dir).expect("Failed to create agents directory");
+
+    let agent_file = agents_dir.join("old.md");
+
+    // Create agent file with old conclaude hook (no timeout)
+    let content = r#"---
+name: old
+hooks:
+  PreToolUse:
+    - matcher: ''
+      hooks:
+        - type: command
+          command: conclaude Hooks PreToolUse --agent old
+---
+# Old Agent"#;
+
+    fs::write(&agent_file, content).expect("Failed to write agent file");
+
+    // Run init with force
+    let output = Command::new("cargo")
+        .args([
+            "run",
+            "--",
+            "init",
+            "--force",
+            "--config-path",
+            &temp_dir.path().join(".conclaude.yaml").to_string_lossy(),
+            "--claude-path",
+            &temp_dir.path().to_string_lossy(),
+        ])
+        .output()
+        .expect("Failed to run CLI init command");
+
+    assert!(output.status.success(), "Init should succeed");
+
+    // Read updated agent file
+    let updated_content = fs::read_to_string(&agent_file).expect("Failed to read agent file");
+
+    // Verify timeout was added (new format)
+    assert!(
+        updated_content.contains("timeout: 600"),
+        "Updated conclaude hook should have timeout"
+    );
+
+    // Verify only one conclaude hook per type
+    let pre_tool_use_count = updated_content.matches("conclaude Hooks PreToolUse").count();
+    assert_eq!(
+        pre_tool_use_count, 1,
+        "Should have exactly one conclaude PreToolUse hook"
+    );
+}
+
+#[test]
+fn test_user_hooks_come_before_conclaude_hooks() {
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let claude_dir = temp_dir.path().join(".claude");
+    fs::create_dir_all(&claude_dir).expect("Failed to create .claude directory");
+
+    // Create settings.json with user hook
+    let settings_content = r#"{
+        "permissions": {"allow": [], "deny": []},
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "Bash",
+                    "hooks": [
+                        {"type": "command", "command": "user-hook-first.sh"}
+                    ]
+                }
+            ]
+        }
+    }"#;
+
+    fs::write(claude_dir.join("settings.json"), settings_content)
+        .expect("Failed to write settings.json");
+
+    // Run init
+    let output = Command::new("cargo")
+        .args([
+            "run",
+            "--",
+            "init",
+            "--config-path",
+            &temp_dir.path().join(".conclaude.yaml").to_string_lossy(),
+            "--claude-path",
+            &claude_dir.to_string_lossy(),
+        ])
+        .output()
+        .expect("Failed to run CLI init command");
+
+    assert!(output.status.success(), "Init should succeed");
+
+    // Read updated settings.json
+    let updated_content = fs::read_to_string(claude_dir.join("settings.json"))
+        .expect("Failed to read settings.json");
+
+    // Find positions of user hook and conclaude hook
+    let user_hook_pos = updated_content
+        .find("user-hook-first.sh")
+        .expect("User hook should exist");
+    let conclaude_hook_pos = updated_content
+        .find("conclaude Hooks PreToolUse")
+        .expect("Conclaude hook should exist");
+
+    // User hook should come before conclaude hook
+    assert!(
+        user_hook_pos < conclaude_hook_pos,
+        "User hook should come before conclaude hook (user: {}, conclaude: {})",
+        user_hook_pos,
+        conclaude_hook_pos
+    );
+}
+
+#[test]
+fn test_multiple_user_hooks_preserved() {
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let claude_dir = temp_dir.path().join(".claude");
+    fs::create_dir_all(&claude_dir).expect("Failed to create .claude directory");
+
+    // Create settings.json with multiple user hooks
+    let settings_content = r#"{
+        "permissions": {"allow": [], "deny": []},
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "Bash",
+                    "hooks": [
+                        {"type": "command", "command": "first-user-hook.sh"}
+                    ]
+                },
+                {
+                    "matcher": "Edit",
+                    "hooks": [
+                        {"type": "command", "command": "second-user-hook.sh"}
+                    ]
+                }
+            ]
+        }
+    }"#;
+
+    fs::write(claude_dir.join("settings.json"), settings_content)
+        .expect("Failed to write settings.json");
+
+    // Run init
+    let output = Command::new("cargo")
+        .args([
+            "run",
+            "--",
+            "init",
+            "--config-path",
+            &temp_dir.path().join(".conclaude.yaml").to_string_lossy(),
+            "--claude-path",
+            &claude_dir.to_string_lossy(),
+        ])
+        .output()
+        .expect("Failed to run CLI init command");
+
+    assert!(output.status.success(), "Init should succeed");
+
+    // Read updated settings.json
+    let updated_content = fs::read_to_string(claude_dir.join("settings.json"))
+        .expect("Failed to read settings.json");
+
+    // Verify both user hooks are preserved
+    assert!(
+        updated_content.contains("first-user-hook.sh"),
+        "First user hook should be preserved"
+    );
+    assert!(
+        updated_content.contains("second-user-hook.sh"),
+        "Second user hook should be preserved"
+    );
+
+    // Verify conclaude hook was added
+    assert!(
+        updated_content.contains("conclaude Hooks PreToolUse"),
+        "Conclaude hook should be added"
     );
 }
