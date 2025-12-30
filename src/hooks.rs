@@ -1045,32 +1045,42 @@ async fn execute_stop_commands(
             };
 
             // Only include Stdout section if showStdout is true
-            if cmd_config.show_stdout {
-                let stdout_display = if stdout.trim().is_empty() {
-                    "    (no stdout)".to_string()
+            if cmd_config.show_stdout && !stdout.trim().is_empty() {
+                let stdout_content = if let Some(max_lines) = cmd_config.max_output_lines {
+                    let (truncated, is_truncated, omitted) = truncate_output(&stdout, max_lines);
+                    if is_truncated {
+                        format!("{}\n... ({} lines omitted)", truncated, omitted)
+                    } else {
+                        truncated
+                    }
                 } else {
-                    stdout
-                        .trim()
-                        .lines()
-                        .map(|line| format!("    {}", line))
-                        .collect::<Vec<_>>()
-                        .join("\n")
+                    stdout.trim().to_string()
                 };
+                let stdout_display = stdout_content
+                    .lines()
+                    .map(|line| format!("    {}", line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
                 diagnostic.push_str(&format!("\n  Stdout:\n{}", stdout_display));
             }
 
             // Only include Stderr section if showStderr is true
-            if cmd_config.show_stderr {
-                let stderr_display = if stderr.trim().is_empty() {
-                    "    (no stderr)".to_string()
+            if cmd_config.show_stderr && !stderr.trim().is_empty() {
+                let stderr_content = if let Some(max_lines) = cmd_config.max_output_lines {
+                    let (truncated, is_truncated, omitted) = truncate_output(&stderr, max_lines);
+                    if is_truncated {
+                        format!("{}\n... ({} lines omitted)", truncated, omitted)
+                    } else {
+                        truncated
+                    }
                 } else {
-                    stderr
-                        .trim()
-                        .lines()
-                        .map(|line| format!("    {}", line))
-                        .collect::<Vec<_>>()
-                        .join("\n")
+                    stderr.trim().to_string()
                 };
+                let stderr_display = stderr_content
+                    .lines()
+                    .map(|line| format!("    {}", line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
                 diagnostic.push_str(&format!("\n  Stderr:\n{}", stderr_display));
             }
 
