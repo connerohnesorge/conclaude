@@ -1122,3 +1122,285 @@ notifications:
     assert_eq!(rule2.command_pattern, Some("cargo test".to_string()));
     assert_eq!(rule2.agent, Some("code*".to_string()), "agent should be 'code*' glob pattern");
 }
+
+// Tests for notifyPerCommand field parsing and validation
+#[test]
+fn test_notify_per_command_valid_true() {
+    let yaml = r#"
+stop:
+  commands:
+  - run: "npm test"
+    notifyPerCommand: true
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config with notifyPerCommand: true should parse: {:?}",
+        result.err()
+    );
+
+    let config = result.unwrap();
+    assert_eq!(config.stop.commands.len(), 1);
+    assert_eq!(config.stop.commands[0].notify_per_command, Some(true));
+}
+
+#[test]
+fn test_notify_per_command_valid_false() {
+    let yaml = r#"
+stop:
+  commands:
+  - run: "npm test"
+    notifyPerCommand: false
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config with notifyPerCommand: false should parse: {:?}",
+        result.err()
+    );
+
+    let config = result.unwrap();
+    assert_eq!(config.stop.commands.len(), 1);
+    assert_eq!(config.stop.commands[0].notify_per_command, Some(false));
+}
+
+#[test]
+fn test_notify_per_command_omitted_defaults_to_none() {
+    let yaml = r#"
+stop:
+  commands:
+  - run: "npm test"
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config without notifyPerCommand should parse: {:?}",
+        result.err()
+    );
+
+    let config = result.unwrap();
+    assert_eq!(config.stop.commands.len(), 1);
+    assert_eq!(
+        config.stop.commands[0].notify_per_command, None,
+        "notifyPerCommand should default to None when omitted"
+    );
+}
+
+#[test]
+fn test_notify_per_command_invalid_string_value() {
+    let yaml = r#"
+stop:
+  commands:
+  - run: "npm test"
+    notifyPerCommand: "yes"
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_err(),
+        "Config with notifyPerCommand as string should fail parsing"
+    );
+    let error = result.err().unwrap().to_string();
+    assert!(
+        error.contains("invalid type") || error.contains("notifyPerCommand"),
+        "Error should mention type mismatch: {}",
+        error
+    );
+}
+
+#[test]
+fn test_notify_per_command_subagent_stop_valid_true() {
+    let yaml = r#"
+subagentStop:
+  commands:
+    "*":
+      - run: "npm run lint"
+        notifyPerCommand: true
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config with subagent notifyPerCommand: true should parse: {:?}",
+        result.err()
+    );
+
+    let config = result.unwrap();
+    let cmds = config.subagent_stop.commands.get("*").unwrap();
+    assert_eq!(cmds.len(), 1);
+    assert_eq!(cmds[0].notify_per_command, Some(true));
+}
+
+#[test]
+fn test_notify_per_command_subagent_stop_valid_false() {
+    let yaml = r#"
+subagentStop:
+  commands:
+    "*":
+      - run: "npm run lint"
+        notifyPerCommand: false
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config with subagent notifyPerCommand: false should parse: {:?}",
+        result.err()
+    );
+
+    let config = result.unwrap();
+    let cmds = config.subagent_stop.commands.get("*").unwrap();
+    assert_eq!(cmds.len(), 1);
+    assert_eq!(cmds[0].notify_per_command, Some(false));
+}
+
+#[test]
+fn test_notify_per_command_subagent_stop_omitted() {
+    let yaml = r#"
+subagentStop:
+  commands:
+    "*":
+      - run: "npm run lint"
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config without subagent notifyPerCommand should parse: {:?}",
+        result.err()
+    );
+
+    let config = result.unwrap();
+    let cmds = config.subagent_stop.commands.get("*").unwrap();
+    assert_eq!(cmds.len(), 1);
+    assert_eq!(
+        cmds[0].notify_per_command, None,
+        "notifyPerCommand should default to None when omitted"
+    );
+}
+
+#[test]
+fn test_notify_per_command_mixed_configuration() {
+    let yaml = r#"
+stop:
+  commands:
+  - run: "npm test"
+    notifyPerCommand: true
+  - run: "npm run build"
+    notifyPerCommand: false
+  - run: "git status"
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config with mixed notifyPerCommand values should parse: {:?}",
+        result.err()
+    );
+
+    let config = result.unwrap();
+    assert_eq!(config.stop.commands.len(), 3);
+    assert_eq!(
+        config.stop.commands[0].notify_per_command,
+        Some(true),
+        "First command should have notifyPerCommand: true"
+    );
+    assert_eq!(
+        config.stop.commands[1].notify_per_command,
+        Some(false),
+        "Second command should have notifyPerCommand: false"
+    );
+    assert_eq!(
+        config.stop.commands[2].notify_per_command, None,
+        "Third command should have notifyPerCommand: None (omitted)"
+    );
+}

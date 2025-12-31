@@ -181,6 +181,14 @@
             "null"
           ]
         },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command (start and completion). Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "run": {
           "description": "The shell command to execute",
           "type": "string"
@@ -274,6 +282,14 @@
           "description": "Custom error message to display when the command fails (exits with non-zero status)",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command (start and completion). Default: false",
+          "type": [
+            "boolean",
             "null"
           ]
         },

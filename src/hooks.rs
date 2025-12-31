@@ -69,6 +69,7 @@ pub(crate) struct StopCommandConfig {
     pub(crate) max_output_lines: Option<u32>,
     pub(crate) timeout: Option<u64>,
     pub(crate) show_command: bool,
+    pub(crate) notify_per_command: bool,
 }
 
 /// Represents a subagent stop command with its configuration
@@ -80,6 +81,7 @@ pub(crate) struct SubagentStopCommandConfig {
     pub(crate) max_output_lines: Option<u32>,
     pub(crate) timeout: Option<u64>,
     pub(crate) show_command: bool,
+    pub(crate) notify_per_command: bool,
 }
 
 /// Cached configuration instance to avoid repeated loads
@@ -946,6 +948,7 @@ pub(crate) fn collect_stop_commands(config: &ConclaudeConfig) -> Result<Vec<Stop
         let show_stderr = cmd_config.show_stderr.unwrap_or(false);
         let show_command = cmd_config.show_command.unwrap_or(true);
         let max_output_lines = cmd_config.max_output_lines;
+        let notify_per_command = cmd_config.notify_per_command.unwrap_or(false);
         for cmd in extracted {
             commands.push(StopCommandConfig {
                 command: cmd,
@@ -955,6 +958,7 @@ pub(crate) fn collect_stop_commands(config: &ConclaudeConfig) -> Result<Vec<Stop
                 max_output_lines,
                 timeout: cmd_config.timeout,
                 show_command,
+                notify_per_command,
             });
         }
     }
@@ -985,6 +989,16 @@ async fn execute_stop_commands(
             println!("Executing command {}/{}", index + 1, commands.len());
         }
 
+        // Send start notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Running: {}", cmd_config.command)
+            } else {
+                "Running command".to_string()
+            };
+            send_notification("Stop", "running", Some(&context_msg));
+        }
+
         let child = TokioCommand::new("bash")
             .arg("-c")
             .arg(&cmd_config.command)
@@ -1011,6 +1025,16 @@ async fn execute_stop_commands(
                         timeout_secs, cmd_config.command
                     );
                     eprintln!("{}", error_msg);
+
+                    // Send failure notification if per-command notifications are enabled
+                    if cmd_config.notify_per_command {
+                        let context_msg = if cmd_config.show_command {
+                            format!("Command timed out: {}", cmd_config.command)
+                        } else {
+                            "Command timed out".to_string()
+                        };
+                        send_notification("Stop", "failure", Some(&context_msg));
+                    }
 
                     let message = cmd_config.message.as_deref().unwrap_or(&error_msg);
                     return Ok(Some(HookResult::blocked(message)));
@@ -1127,7 +1151,27 @@ async fn execute_stop_commands(
                 format!("Command failed with exit code {exit_code}{stdout_section}{stderr_section}")
             };
 
+            // Send failure notification if per-command notifications are enabled
+            if cmd_config.notify_per_command {
+                let context_msg = if cmd_config.show_command {
+                    format!("Command failed: {}", cmd_config.command)
+                } else {
+                    "Command failed".to_string()
+                };
+                send_notification("Stop", "failure", Some(&context_msg));
+            }
+
             return Ok(Some(HookResult::blocked(error_message)));
+        }
+
+        // Send success notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Command completed: {}", cmd_config.command)
+            } else {
+                "Command completed".to_string()
+            };
+            send_notification("Stop", "success", Some(&context_msg));
         }
 
         // Successful individual commands produce no output
@@ -1390,6 +1434,7 @@ pub(crate) fn collect_subagent_stop_commands(
                 let show_stderr = cmd_config.show_stderr.unwrap_or(false);
                 let show_command = cmd_config.show_command.unwrap_or(true);
                 let max_output_lines = cmd_config.max_output_lines;
+                let notify_per_command = cmd_config.notify_per_command.unwrap_or(false);
 
                 for cmd in extracted {
                     commands.push(SubagentStopCommandConfig {
@@ -1400,6 +1445,7 @@ pub(crate) fn collect_subagent_stop_commands(
                         max_output_lines,
                         timeout: cmd_config.timeout,
                         show_command,
+                        notify_per_command,
                     });
                 }
             }
@@ -1442,6 +1488,16 @@ async fn execute_subagent_stop_commands(
             );
         }
 
+        // Send start notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Running: {}", cmd_config.command)
+            } else {
+                "Running command".to_string()
+            };
+            send_notification("SubagentStop", "running", Some(&context_msg));
+        }
+
         let child = TokioCommand::new("bash")
             .arg("-c")
             .arg(&cmd_config.command)
@@ -1464,6 +1520,17 @@ async fn execute_subagent_stop_commands(
                 } else {
                     eprintln!("Failed to spawn subagent stop command: {}", e);
                 }
+
+                // Send failure notification if per-command notifications are enabled
+                if cmd_config.notify_per_command {
+                    let context_msg = if cmd_config.show_command {
+                        format!("Failed to spawn command: {}", cmd_config.command)
+                    } else {
+                        "Failed to spawn command".to_string()
+                    };
+                    send_notification("SubagentStop", "failure", Some(&context_msg));
+                }
+
                 continue;
             }
         };
@@ -1482,6 +1549,17 @@ async fn execute_subagent_stop_commands(
                         } else {
                             eprintln!("Failed to wait for subagent stop command: {}", e);
                         }
+
+                        // Send failure notification if per-command notifications are enabled
+                        if cmd_config.notify_per_command {
+                            let context_msg = if cmd_config.show_command {
+                                format!("Command failed to wait: {}", cmd_config.command)
+                            } else {
+                                "Command failed to wait".to_string()
+                            };
+                            send_notification("SubagentStop", "failure", Some(&context_msg));
+                        }
+
                         continue;
                     }
                 },
@@ -1502,6 +1580,17 @@ async fn execute_subagent_stop_commands(
                     if let Some(custom_msg) = &cmd_config.message {
                         eprintln!("Message: {}", custom_msg);
                     }
+
+                    // Send failure notification if per-command notifications are enabled
+                    if cmd_config.notify_per_command {
+                        let context_msg = if cmd_config.show_command {
+                            format!("Command timed out: {}", cmd_config.command)
+                        } else {
+                            "Command timed out".to_string()
+                        };
+                        send_notification("SubagentStop", "failure", Some(&context_msg));
+                    }
+
                     continue;
                 }
             }
@@ -1518,6 +1607,17 @@ async fn execute_subagent_stop_commands(
                     } else {
                         eprintln!("Failed to wait for subagent stop command: {}", e);
                     }
+
+                    // Send failure notification if per-command notifications are enabled
+                    if cmd_config.notify_per_command {
+                        let context_msg = if cmd_config.show_command {
+                            format!("Command failed to wait: {}", cmd_config.command)
+                        } else {
+                            "Command failed to wait".to_string()
+                        };
+                        send_notification("SubagentStop", "failure", Some(&context_msg));
+                    }
+
                     continue;
                 }
             }
@@ -1588,6 +1688,16 @@ async fn execute_subagent_stop_commands(
                 eprintln!("Message: {}", custom_msg);
             }
 
+            // Send failure notification if per-command notifications are enabled
+            if cmd_config.notify_per_command {
+                let context_msg = if cmd_config.show_command {
+                    format!("Command failed: {}", cmd_config.command)
+                } else {
+                    "Command failed".to_string()
+                };
+                send_notification("SubagentStop", "failure", Some(&context_msg));
+            }
+
             // Continue to next command (graceful failure handling)
             continue;
         }
@@ -1619,6 +1729,16 @@ async fn execute_subagent_stop_commands(
                 stderr.to_string()
             };
             eprintln!("Stderr: {}", output_to_show);
+        }
+
+        // Send success notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Command completed: {}", cmd_config.command)
+            } else {
+                "Command completed".to_string()
+            };
+            send_notification("SubagentStop", "success", Some(&context_msg));
         }
     }
 
