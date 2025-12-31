@@ -705,6 +705,8 @@ Read → /repo/Cargo.toml            ALLOWED (read-only operation)
 
 ### SubagentStart Hook Payload
 
+> **Note:** Agent-specific hooks are now defined in agent frontmatter (`.claude/agents/*.md`) with the `--agent` flag for cleaner agent-aware execution. Run `conclaude init` to automatically inject hooks into your agent files. This eliminates the need for transcript parsing and provides direct agent context.
+
 The SubagentStart hook is triggered when Claude's internal subagents (like the coder, tester, or stuck agents) begin their work. The hook receives a JSON payload containing information about which subagent is starting and where its transcript will be located.
 
 **SubagentStart Payload Structure:**
@@ -792,6 +794,8 @@ cat subagent_start_payload.json | conclaude Hooks SubagentStart
 ```
 
 ### SubagentStop Hook Payload
+
+> **Note:** Agent-specific hooks are now defined in agent frontmatter (`.claude/agents/*.md`) with the `--agent` flag. This approach is cleaner than transcript parsing and provides direct agent context to hook handlers.
 
 The SubagentStop hook is triggered when Claude's internal subagents (like the coder, tester, or stuck agents) complete their work. The hook receives a JSON payload containing information about which subagent completed and where its transcript is located.
 
