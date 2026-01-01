@@ -34,82 +34,6 @@ Command options (same as stop hook): - `run`: (required) Command to execute - `s
 | **Type** | `object` |
 | **Default** | `{}` |
 
-## Per-Command Notifications
-
-The `notifyPerCommand` field allows you to receive individual desktop notifications when specific subagent stop commands start and complete, providing granular feedback during subagent completion.
-
-### When to Use Per-Command Notifications
-
-Per-command notifications are particularly useful for subagent stop hooks when:
-
-- **Monitoring subagent workflows**: You want to track what validation or cleanup happens when specific subagents complete (e.g., coder, tester, stuck)
-- **Debugging subagent issues**: You need to identify which validation command failed when a subagent completes
-- **Long-running validations**: Your subagent stop commands perform time-consuming operations (linting, testing, builds)
-- **Multi-subagent projects**: You have different commands for different subagent types and want granular tracking
-
-### How It Works
-
-When `notifyPerCommand: true` is set on a subagent stop command:
-
-1. **Start notification**: Sent when the command begins execution (if notifications are enabled)
-2. **Completion notification**: Sent when the command finishes (success or failure)
-3. **Command context**: The notification includes the command name (if `showCommand: true`) or a generic message
-4. **Subagent context**: The notification indicates which subagent triggered the command
-5. **Filter respect**: All existing notification filters (`hooks`, `showErrors`, `showSuccess`) continue to apply
-
-### Requirements
-
-- Global notifications must be enabled: `notifications.enabled: true`
-- The SubagentStop hook must be in the notification hooks list: `notifications.hooks` includes `"SubagentStop"` or `"*"`
-- Notification preferences are respected: `showErrors` and `showSuccess` control what gets notified
-
-### Example Usage
-
-```yaml
-# Enable notifications globally
-notifications:
-  enabled: true
-  hooks: ["SubagentStop"]
-  showErrors: true
-  showSuccess: true
-
-subagentStop:
-  commands:
-    # Get notified when coder subagent completes
-    coder:
-      - run: npm run lint
-        notifyPerCommand: true
-        showCommand: true
-        message: "Linting failed after coder subagent"
-
-      - run: npm test
-        notifyPerCommand: true
-        showCommand: true
-        message: "Tests failed after coder subagent"
-
-    # Get notified for tester subagent validation
-    tester:
-      - run: npm run validate-tests
-        notifyPerCommand: true
-        showCommand: true
-
-    # Wildcard fallback without per-command notifications
-    "*":
-      - run: echo 'Subagent completed'
-        notifyPerCommand: false
-```
-
-With this configuration:
-- When the "coder" subagent completes:
-  - Notification: "Running: npm run lint"
-  - Notification: "Command completed: npm run lint"
-  - Notification: "Running: npm test"
-  - Notification: "Command completed: npm test"
-- When the "tester" subagent completes:
-  - Notification: "Running: npm run validate-tests"
-  - Notification: "Command completed: npm run validate-tests"
-- Other subagents: No per-command notifications (though hook-level notifications still apply)
-
 ## Nested Types
 
 This section uses the following nested type definitions:
@@ -124,7 +48,7 @@ Configuration for individual subagent stop commands with optional messages
 |----------|------|---------|-------------|
 | `maxOutputLines` | `integer | null` | `null` | Maximum number of output lines to display (limits both stdout and stderr) |
 | `message` | `string | null` | `null` | Custom error message to display when the command fails (exits with non-zero status) |
-| `notifyPerCommand` | `boolean | null` | `false` | When true, sends individual notifications for this command's start and completion. Requires notifications to be enabled globally. Respects notification filters (showErrors, showSuccess). |
+| `notifyPerCommand` | `boolean | null` | `null` | Whether to send individual notifications for this command (start and completion) |
 | `run` | `string` | - | The shell command to execute |
 | `showCommand` | `boolean | null` | `true` | Whether to show the command being executed to the user and Claude |
 | `showStderr` | `boolean | null` | `null` | Whether to show the command's standard error output to the user and Claude |
