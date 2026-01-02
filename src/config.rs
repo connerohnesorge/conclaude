@@ -33,6 +33,9 @@ pub struct StopCommand {
     #[serde(default)]
     #[schemars(range(min = 1, max = 3600))]
     pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command (start and completion). Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
 }
 
 /// Configuration for individual subagent stop commands with optional messages
@@ -61,6 +64,9 @@ pub struct SubagentStopCommand {
     #[serde(default)]
     #[schemars(range(min = 1, max = 3600))]
     pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command (start and completion). Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
 }
 
 /// Configuration for subagent stop hooks with pattern-based command execution.

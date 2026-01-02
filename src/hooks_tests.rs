@@ -105,6 +105,7 @@ fn test_collect_stop_commands_with_output_config() {
                     show_stderr: Some(false),
                     max_output_lines: Some(10),
                     timeout: None,
+                    notify_per_command: None,
                 },
                 StopCommand {
                     run: "ls -la".to_string(),
@@ -114,6 +115,7 @@ fn test_collect_stop_commands_with_output_config() {
                     show_stderr: Some(true),
                     max_output_lines: Some(5),
                     timeout: None,
+                    notify_per_command: None,
                 },
             ],
             infinite: false,
@@ -152,6 +154,7 @@ fn test_collect_stop_commands_default_values() {
                 show_stderr: None,
                 max_output_lines: None,
                 timeout: None,
+                    notify_per_command: None,
             }],
             infinite: false,
             infinite_message: None,
@@ -240,6 +243,7 @@ fn test_match_subagent_patterns_prefix_glob() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
 
@@ -274,6 +278,7 @@ fn test_match_subagent_patterns_suffix_glob() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
 
@@ -308,6 +313,7 @@ fn test_match_subagent_patterns_character_class() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
 
@@ -345,6 +351,7 @@ fn test_match_subagent_patterns_multiple_matches() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
     commands.insert(
@@ -357,6 +364,7 @@ fn test_match_subagent_patterns_multiple_matches() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
     commands.insert(
@@ -369,6 +377,7 @@ fn test_match_subagent_patterns_multiple_matches() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
 
@@ -399,6 +408,7 @@ fn test_match_subagent_patterns_wildcard_first() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
     commands.insert(
@@ -411,6 +421,7 @@ fn test_match_subagent_patterns_wildcard_first() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
 
@@ -437,6 +448,7 @@ fn test_match_subagent_patterns_no_match() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
     commands.insert(
@@ -449,6 +461,7 @@ fn test_match_subagent_patterns_no_match() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
 
@@ -587,6 +600,7 @@ fn test_collect_subagent_stop_commands_single_pattern() {
                 show_stderr: Some(false),
                 max_output_lines: Some(10),
                 timeout: None,
+                    notify_per_command: None,
             },
             SubagentStopCommand {
                 run: "echo second".to_string(),
@@ -596,6 +610,7 @@ fn test_collect_subagent_stop_commands_single_pattern() {
                 show_stderr: None,
                 max_output_lines: None,
                 timeout: None,
+                    notify_per_command: None,
             },
         ],
     );
@@ -634,6 +649,7 @@ fn test_collect_subagent_stop_commands_multiple_patterns() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
     commands.insert(
@@ -646,6 +662,7 @@ fn test_collect_subagent_stop_commands_multiple_patterns() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
 
@@ -676,6 +693,7 @@ fn test_collect_subagent_stop_commands_no_matching_patterns() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+                    notify_per_command: None,
         }],
     );
 
@@ -790,4 +808,396 @@ fn test_extract_agent_name_from_transcript_different_agent_types() {
 
         assert_eq!(result, Some(agent_type.to_string()));
     }
+}
+
+// ============================================================================
+// Tests for Per-Command Notifications Feature
+// ============================================================================
+
+#[test]
+fn test_collect_stop_commands_with_notify_per_command_true() {
+    use crate::config::StopCommand;
+
+    let config = ConclaudeConfig {
+        stop: crate::config::StopConfig {
+            commands: vec![StopCommand {
+                run: "echo test".to_string(),
+                message: Some("Test message".to_string()),
+                show_command: Some(true),
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+                notify_per_command: Some(true),
+            }],
+            infinite: false,
+            infinite_message: None,
+        },
+        ..Default::default()
+    };
+
+    let commands = collect_stop_commands(&config).unwrap();
+    assert_eq!(commands.len(), 1);
+
+    assert_eq!(commands[0].command, "echo test");
+    assert!(commands[0].show_command);
+    assert!(commands[0].notify_per_command);
+    assert_eq!(commands[0].message, Some("Test message".to_string()));
+}
+
+#[test]
+fn test_collect_stop_commands_with_notify_per_command_false() {
+    use crate::config::StopCommand;
+
+    let config = ConclaudeConfig {
+        stop: crate::config::StopConfig {
+            commands: vec![StopCommand {
+                run: "echo test".to_string(),
+                message: None,
+                show_command: Some(false),
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+                notify_per_command: Some(false),
+            }],
+            infinite: false,
+            infinite_message: None,
+        },
+        ..Default::default()
+    };
+
+    let commands = collect_stop_commands(&config).unwrap();
+    assert_eq!(commands.len(), 1);
+
+    assert_eq!(commands[0].command, "echo test");
+    assert!(!commands[0].show_command);
+    assert!(!commands[0].notify_per_command);
+}
+
+#[test]
+fn test_collect_stop_commands_notify_per_command_defaults_to_false() {
+    use crate::config::StopCommand;
+
+    let config = ConclaudeConfig {
+        stop: crate::config::StopConfig {
+            commands: vec![StopCommand {
+                run: "echo test".to_string(),
+                message: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+                notify_per_command: None, // Not specified - should default to false
+            }],
+            infinite: false,
+            infinite_message: None,
+        },
+        ..Default::default()
+    };
+
+    let commands = collect_stop_commands(&config).unwrap();
+    assert_eq!(commands.len(), 1);
+
+    // notify_per_command should default to false
+    assert!(!commands[0].notify_per_command);
+}
+
+#[test]
+fn test_collect_stop_commands_mixed_notify_per_command_settings() {
+    use crate::config::StopCommand;
+
+    let config = ConclaudeConfig {
+        stop: crate::config::StopConfig {
+            commands: vec![
+                StopCommand {
+                    run: "echo first".to_string(),
+                    message: None,
+                    show_command: Some(true),
+                    show_stdout: None,
+                    show_stderr: None,
+                    max_output_lines: None,
+                    timeout: None,
+                    notify_per_command: Some(true),
+                },
+                StopCommand {
+                    run: "echo second".to_string(),
+                    message: None,
+                    show_command: Some(false),
+                    show_stdout: None,
+                    show_stderr: None,
+                    max_output_lines: None,
+                    timeout: None,
+                    notify_per_command: Some(false),
+                },
+                StopCommand {
+                    run: "echo third".to_string(),
+                    message: None,
+                    show_command: None,
+                    show_stdout: None,
+                    show_stderr: None,
+                    max_output_lines: None,
+                    timeout: None,
+                    notify_per_command: None, // Should default to false
+                },
+            ],
+            infinite: false,
+            infinite_message: None,
+        },
+        ..Default::default()
+    };
+
+    let commands = collect_stop_commands(&config).unwrap();
+    assert_eq!(commands.len(), 3);
+
+    // First command has notify_per_command: true
+    assert_eq!(commands[0].command, "echo first");
+    assert!(commands[0].show_command);
+    assert!(commands[0].notify_per_command);
+
+    // Second command has notify_per_command: false
+    assert_eq!(commands[1].command, "echo second");
+    assert!(!commands[1].show_command);
+    assert!(!commands[1].notify_per_command);
+
+    // Third command should default to notify_per_command: false
+    assert_eq!(commands[2].command, "echo third");
+    assert!(!commands[2].notify_per_command);
+}
+
+#[test]
+fn test_collect_subagent_stop_commands_with_notify_per_command() {
+    use crate::config::{SubagentStopCommand, SubagentStopConfig};
+
+    let mut commands = std::collections::HashMap::new();
+    commands.insert(
+        "coder".to_string(),
+        vec![
+            SubagentStopCommand {
+                run: "echo coder first".to_string(),
+                message: None,
+                show_command: Some(true),
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+                notify_per_command: Some(true),
+            },
+            SubagentStopCommand {
+                run: "echo coder second".to_string(),
+                message: None,
+                show_command: Some(false),
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+                notify_per_command: Some(false),
+            },
+        ],
+    );
+
+    let config = SubagentStopConfig { commands };
+    let matching_patterns = vec!["coder"];
+
+    let collected = collect_subagent_stop_commands(&config, &matching_patterns).unwrap();
+
+    assert_eq!(collected.len(), 2);
+
+    // First command has notify_per_command: true
+    assert_eq!(collected[0].command, "echo coder first");
+    assert!(collected[0].show_command);
+    assert!(collected[0].notify_per_command);
+
+    // Second command has notify_per_command: false
+    assert_eq!(collected[1].command, "echo coder second");
+    assert!(!collected[1].show_command);
+    assert!(!collected[1].notify_per_command);
+}
+
+#[test]
+fn test_collect_subagent_stop_commands_notify_per_command_defaults_to_false() {
+    use crate::config::{SubagentStopCommand, SubagentStopConfig};
+
+    let mut commands = std::collections::HashMap::new();
+    commands.insert(
+        "tester".to_string(),
+        vec![SubagentStopCommand {
+            run: "echo test".to_string(),
+            message: None,
+            show_command: None,
+            show_stdout: None,
+            show_stderr: None,
+            max_output_lines: None,
+            timeout: None,
+            notify_per_command: None, // Not specified - should default to false
+        }],
+    );
+
+    let config = SubagentStopConfig { commands };
+    let matching_patterns = vec!["tester"];
+
+    let collected = collect_subagent_stop_commands(&config, &matching_patterns).unwrap();
+
+    assert_eq!(collected.len(), 1);
+    assert_eq!(collected[0].command, "echo test");
+    assert!(!collected[0].notify_per_command);
+}
+
+// Tests for notification filter logic
+// Note: These tests verify that the notify_per_command flag is correctly passed through
+// the configuration pipeline. The actual notification filtering (showErrors, showSuccess)
+// is handled by the send_notification() function which checks the NotificationsConfig.
+// These tests document that per-command notifications respect the same filtering logic.
+
+#[test]
+fn test_notify_per_command_respects_show_command_flag() {
+    use crate::config::StopCommand;
+
+    // Test that notify_per_command works with show_command: true
+    let config_show_command = ConclaudeConfig {
+        stop: crate::config::StopConfig {
+            commands: vec![StopCommand {
+                run: "echo test".to_string(),
+                message: None,
+                show_command: Some(true),
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+                notify_per_command: Some(true),
+            }],
+            infinite: false,
+            infinite_message: None,
+        },
+        ..Default::default()
+    };
+
+    let commands = collect_stop_commands(&config_show_command).unwrap();
+    assert_eq!(commands.len(), 1);
+    assert!(commands[0].show_command);
+    assert!(commands[0].notify_per_command);
+
+    // Test that notify_per_command works with show_command: false
+    let config_hide_command = ConclaudeConfig {
+        stop: crate::config::StopConfig {
+            commands: vec![StopCommand {
+                run: "echo test".to_string(),
+                message: None,
+                show_command: Some(false),
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+                notify_per_command: Some(true),
+            }],
+            infinite: false,
+            infinite_message: None,
+        },
+        ..Default::default()
+    };
+
+    let commands = collect_stop_commands(&config_hide_command).unwrap();
+    assert_eq!(commands.len(), 1);
+    assert!(!commands[0].show_command);
+    assert!(commands[0].notify_per_command);
+    // The implementation will show "Running command" instead of "Running: {command}"
+}
+
+#[test]
+fn test_per_command_notification_flag_propagation() {
+    // This test verifies that the notify_per_command flag is correctly
+    // propagated from the config to the StopCommandConfig struct,
+    // which is used by execute_stop_commands to determine whether to send notifications.
+    use crate::config::StopCommand;
+
+    let config = ConclaudeConfig {
+        stop: crate::config::StopConfig {
+            commands: vec![
+                StopCommand {
+                    run: "echo with-notifications".to_string(),
+                    message: None,
+                    show_command: Some(true),
+                    show_stdout: None,
+                    show_stderr: None,
+                    max_output_lines: None,
+                    timeout: None,
+                    notify_per_command: Some(true),
+                },
+                StopCommand {
+                    run: "echo without-notifications".to_string(),
+                    message: None,
+                    show_command: Some(true),
+                    show_stdout: None,
+                    show_stderr: None,
+                    max_output_lines: None,
+                    timeout: None,
+                    notify_per_command: Some(false),
+                },
+            ],
+            infinite: false,
+            infinite_message: None,
+        },
+        ..Default::default()
+    };
+
+    let commands = collect_stop_commands(&config).unwrap();
+    assert_eq!(commands.len(), 2);
+
+    // Verify first command has notifications enabled
+    assert_eq!(commands[0].command, "echo with-notifications");
+    assert!(commands[0].notify_per_command);
+
+    // Verify second command has notifications disabled
+    assert_eq!(commands[1].command, "echo without-notifications");
+    assert!(!commands[1].notify_per_command);
+}
+
+#[test]
+fn test_subagent_stop_notify_per_command_with_show_command() {
+    use crate::config::{SubagentStopCommand, SubagentStopConfig};
+
+    let mut commands = std::collections::HashMap::new();
+    commands.insert(
+        "coder".to_string(),
+        vec![
+            SubagentStopCommand {
+                run: "echo visible".to_string(),
+                message: None,
+                show_command: Some(true),
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+                notify_per_command: Some(true),
+            },
+            SubagentStopCommand {
+                run: "echo hidden".to_string(),
+                message: None,
+                show_command: Some(false),
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+                notify_per_command: Some(true),
+            },
+        ],
+    );
+
+    let config = SubagentStopConfig { commands };
+    let matching_patterns = vec!["coder"];
+
+    let collected = collect_subagent_stop_commands(&config, &matching_patterns).unwrap();
+
+    assert_eq!(collected.len(), 2);
+
+    // First command shows command name in notifications
+    assert_eq!(collected[0].command, "echo visible");
+    assert!(collected[0].show_command);
+    assert!(collected[0].notify_per_command);
+
+    // Second command hides command name in notifications
+    assert_eq!(collected[1].command, "echo hidden");
+    assert!(!collected[1].show_command);
+    assert!(collected[1].notify_per_command);
 }
