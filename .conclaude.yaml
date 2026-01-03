@@ -14,18 +14,29 @@ stop:
       message: "Spec validation (spectr validate --all) failed - please fix errors before continuing"
       maxOutputLines: 100
     - run: "nix develop -c lint"
-      showStdout: true
-      showStderr: true
-      message: "Linting failed - please fix errors before continuing"
+      showStdout: false
+      showStderr: false
+      showCommand: true
+      message: "Linting failed - please fix errors via individual delegation."
       maxOutputLines: 100
     - run: "nix develop -c tests"
       showStdout: true
       showStderr: true
-      message: "Tests failed - please fix failing tests"
+      message: "Tests failed - please fix failing tests via individual delegation."
     - run: "cd docs && bun run build"
       showStdout: true
       showStderr: true
       message: "Docs build (cd docs && bun run build) failed - please fix errors"
+    - run: "generate-docs"
+      showStdout: false
+      showStderr: false
+      showCommand: true
+      message: "Docs build (generate-docs) failed - please fix errors via individual delegation."
+    - run: "generate-schema"
+      showStdout: false
+      showStderr: false
+      showCommand: true
+      message: "Docs build (generate-schema) failed - please fix errors via individual delegation."
   # Examples:
   # commands:
   #   - run: "echo 'Starting build...'"
