@@ -1,6 +1,7 @@
 use crate::config::ConclaudeConfig;
 use crate::hooks::*;
 use serde_json::Value;
+use std::fs;
 use std::path::Path;
 
 #[test]
@@ -154,7 +155,7 @@ fn test_collect_stop_commands_default_values() {
                 show_stderr: None,
                 max_output_lines: None,
                 timeout: None,
-                    notify_per_command: None,
+                notify_per_command: None,
             }],
             infinite: false,
             infinite_message: None,
@@ -243,7 +244,7 @@ fn test_match_subagent_patterns_prefix_glob() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
 
@@ -278,7 +279,7 @@ fn test_match_subagent_patterns_suffix_glob() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
 
@@ -313,7 +314,7 @@ fn test_match_subagent_patterns_character_class() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
 
@@ -351,7 +352,7 @@ fn test_match_subagent_patterns_multiple_matches() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
     commands.insert(
@@ -364,7 +365,7 @@ fn test_match_subagent_patterns_multiple_matches() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
     commands.insert(
@@ -377,7 +378,7 @@ fn test_match_subagent_patterns_multiple_matches() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
 
@@ -408,7 +409,7 @@ fn test_match_subagent_patterns_wildcard_first() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
     commands.insert(
@@ -421,7 +422,7 @@ fn test_match_subagent_patterns_wildcard_first() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
 
@@ -448,7 +449,7 @@ fn test_match_subagent_patterns_no_match() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
     commands.insert(
@@ -461,7 +462,7 @@ fn test_match_subagent_patterns_no_match() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
 
@@ -600,7 +601,7 @@ fn test_collect_subagent_stop_commands_single_pattern() {
                 show_stderr: Some(false),
                 max_output_lines: Some(10),
                 timeout: None,
-                    notify_per_command: None,
+                notify_per_command: None,
             },
             SubagentStopCommand {
                 run: "echo second".to_string(),
@@ -610,7 +611,7 @@ fn test_collect_subagent_stop_commands_single_pattern() {
                 show_stderr: None,
                 max_output_lines: None,
                 timeout: None,
-                    notify_per_command: None,
+                notify_per_command: None,
             },
         ],
     );
@@ -649,7 +650,7 @@ fn test_collect_subagent_stop_commands_multiple_patterns() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
     commands.insert(
@@ -662,7 +663,7 @@ fn test_collect_subagent_stop_commands_multiple_patterns() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
 
@@ -693,7 +694,7 @@ fn test_collect_subagent_stop_commands_no_matching_patterns() {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
-                    notify_per_command: None,
+            notify_per_command: None,
         }],
     );
 
@@ -1200,4 +1201,426 @@ fn test_subagent_stop_notify_per_command_with_show_command() {
     assert_eq!(collected[1].command, "echo hidden");
     assert!(!collected[1].show_command);
     assert!(collected[1].notify_per_command);
+}
+
+#[cfg(test)]
+mod prompt_context_tests {
+    use super::*;
+    use crate::config::ContextInjectionRule;
+    use std::fs;
+    use tempfile::TempDir;
+
+    // Tests for Task 4.2: Regex pattern matching
+
+    #[test]
+    fn test_regex_pattern_matching() {
+        // Test 1: Simple string pattern matching
+        let simple_rule = ContextInjectionRule {
+            pattern: "sidebar".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        let simple_regex = compile_rule_pattern(&simple_rule).unwrap();
+        assert!(
+            simple_regex.is_match("update the sidebar"),
+            "Should match 'sidebar' in phrase"
+        );
+        assert!(
+            simple_regex.is_match("sidebar component"),
+            "Should match 'sidebar' at start"
+        );
+        assert!(
+            !simple_regex.is_match("side bar"),
+            "Should not match 'side bar' (two words)"
+        );
+        assert!(
+            !simple_regex.is_match("update the navigation"),
+            "Should not match unrelated text"
+        );
+
+        // Test 2: Alternation pattern matching
+        let alt_rule = ContextInjectionRule {
+            pattern: "auth|login|authentication".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        let alt_regex = compile_rule_pattern(&alt_rule).unwrap();
+        assert!(
+            alt_regex.is_match("fix auth bug"),
+            "Should match 'auth' alternative"
+        );
+        assert!(
+            alt_regex.is_match("update login page"),
+            "Should match 'login' alternative"
+        );
+        assert!(
+            alt_regex.is_match("add authentication"),
+            "Should match 'authentication' alternative"
+        );
+        assert!(
+            !alt_regex.is_match("update the navbar"),
+            "Should not match unrelated text"
+        );
+
+        // Test 3: Multiple patterns - both match
+        let sidebar_regex = compile_rule_pattern(&simple_rule).unwrap();
+        let auth_rule = ContextInjectionRule {
+            pattern: "auth".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        let auth_regex = compile_rule_pattern(&auth_rule).unwrap();
+        assert!(
+            sidebar_regex.is_match("update the auth sidebar"),
+            "Sidebar pattern should match"
+        );
+        assert!(
+            auth_regex.is_match("update the auth sidebar"),
+            "Auth pattern should match"
+        );
+
+        // Test 4: Multiple patterns - only one matches
+        assert!(
+            sidebar_regex.is_match("update the sidebar"),
+            "Sidebar should match"
+        );
+        assert!(
+            !auth_regex.is_match("update the sidebar"),
+            "Auth should not match"
+        );
+
+        // Test 5: Multiple patterns - none match
+        assert!(
+            !sidebar_regex.is_match("update the navigation"),
+            "Sidebar should not match"
+        );
+        assert!(
+            !auth_regex.is_match("update the navigation"),
+            "Auth should not match"
+        );
+
+        // Test 6: Invalid regex patterns return None
+        let invalid_bracket = ContextInjectionRule {
+            pattern: "[invalid".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        assert!(
+            compile_rule_pattern(&invalid_bracket).is_none(),
+            "Invalid bracket should return None"
+        );
+
+        let invalid_paren = ContextInjectionRule {
+            pattern: "(unclosed".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        assert!(
+            compile_rule_pattern(&invalid_paren).is_none(),
+            "Unclosed paren should return None"
+        );
+    }
+
+    #[test]
+    fn test_regex_case_insensitive_with_flag_in_pattern() {
+        let rule = ContextInjectionRule {
+            pattern: "(?i)database".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+
+        let regex = compile_rule_pattern(&rule).unwrap();
+        assert!(regex.is_match("DATABASE connection"));
+        assert!(regex.is_match("database query"));
+        assert!(regex.is_match("Database setup"));
+    }
+
+    #[test]
+    fn test_regex_case_insensitive_with_config_field() {
+        let rule = ContextInjectionRule {
+            pattern: "database".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: Some(true),
+        };
+
+        let regex = compile_rule_pattern(&rule).unwrap();
+        assert!(regex.is_match("DATABASE connection"));
+        assert!(regex.is_match("database query"));
+        assert!(regex.is_match("Database setup"));
+    }
+
+    #[test]
+    fn test_expand_file_references_valid_file() {
+        // Create temporary directory and file
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.md");
+        fs::write(&file_path, "This is test content").unwrap();
+
+        let prompt = format!("Read @{}", file_path.file_name().unwrap().to_str().unwrap());
+        let expanded = expand_file_references(&prompt, temp_dir.path());
+
+        assert_eq!(expanded, "Read This is test content");
+    }
+
+    #[test]
+    fn test_expand_file_references_missing_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let prompt = "Read @missing-file.md";
+        let expanded = expand_file_references(prompt, temp_dir.path());
+
+        // Missing file reference should be left as-is
+        assert_eq!(expanded, "Read @missing-file.md");
+    }
+
+    #[test]
+    fn test_expand_file_references_multiple_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let file1 = temp_dir.path().join("file1.md");
+        let file2 = temp_dir.path().join("file2.md");
+        fs::write(&file1, "Content 1").unwrap();
+        fs::write(&file2, "Content 2").unwrap();
+
+        let prompt = "Read @file1.md and @file2.md";
+        let expanded = expand_file_references(prompt, temp_dir.path());
+
+        assert_eq!(expanded, "Read Content 1 and Content 2");
+    }
+
+    #[test]
+    fn test_expand_file_references_no_references() {
+        let temp_dir = TempDir::new().unwrap();
+        let prompt = "This is a normal prompt without file references";
+        let expanded = expand_file_references(prompt, temp_dir.path());
+
+        // Prompt should be unchanged
+        assert_eq!(expanded, "This is a normal prompt without file references");
+    }
+}
+
+#[cfg(test)]
+mod agent_session_tests {
+    use super::*;
+
+    #[test]
+    fn test_read_agent_from_session_file_not_exists() {
+        // Should return "main" when no session file exists
+        let result = read_agent_from_session_file("nonexistent-session-id-12345");
+        assert_eq!(result, "main");
+    }
+
+    #[test]
+    fn test_write_and_read_agent_session_file() {
+        let session_id = format!("test-session-{}", std::process::id());
+
+        // Write session file
+        write_agent_session_file(&session_id, "coder").expect("Failed to write session file");
+
+        // Read it back
+        let result = read_agent_from_session_file(&session_id);
+        assert_eq!(result, "coder");
+
+        // Cleanup the file
+        let path = get_agent_session_file_path(&session_id);
+        let _ = fs::remove_file(&path);
+
+        // Verify reading after cleanup returns "main"
+        let result_after = read_agent_from_session_file(&session_id);
+        assert_eq!(result_after, "main");
+    }
+}
+
+#[cfg(test)]
+mod user_prompt_submit_command_tests {
+    use super::*;
+    use crate::config::UserPromptSubmitCommand;
+    use crate::types::{BasePayload, UserPromptSubmitPayload};
+    use tempfile::TempDir;
+
+    // Test: collect_user_prompt_submit_commands() filters by regex pattern
+    #[test]
+    fn test_collect_commands_filters_by_regex_pattern() {
+        let commands = vec![
+            UserPromptSubmitCommand {
+                run: "echo deploy".to_string(),
+                pattern: Some("deploy|release".to_string()),
+                case_insensitive: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+            },
+            UserPromptSubmitCommand {
+                run: "echo test".to_string(),
+                pattern: Some("test".to_string()),
+                case_insensitive: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+            },
+        ];
+
+        // Should match only deploy command
+        let result =
+            collect_user_prompt_submit_commands(&commands, "let's deploy to production").unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result[0].command.contains("deploy"));
+
+        // Should match only test command
+        let result = collect_user_prompt_submit_commands(&commands, "run the test suite").unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result[0].command.contains("test"));
+
+        // Should match no commands
+        let result = collect_user_prompt_submit_commands(&commands, "fix the bug").unwrap();
+        assert_eq!(result.len(), 0);
+
+        // Should match deploy via "release" pattern
+        let result = collect_user_prompt_submit_commands(&commands, "prepare for release").unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result[0].command.contains("deploy"));
+    }
+
+    // Test: build_user_prompt_submit_env_vars() produces correct variables
+    #[test]
+    fn test_build_env_vars_produces_correct_variables() {
+        let temp_dir = TempDir::new().unwrap();
+        let payload = UserPromptSubmitPayload {
+            base: BasePayload {
+                session_id: "test-session-123".to_string(),
+                cwd: "/home/user/project".to_string(),
+                transcript_path: "/tmp/transcript.jsonl".to_string(),
+                hook_event_name: "UserPromptSubmit".to_string(),
+                permission_mode: Some("default".to_string()),
+            },
+            prompt: "update the sidebar component".to_string(),
+        };
+
+        let env_vars = build_user_prompt_submit_env_vars(&payload, temp_dir.path());
+
+        // Verify all expected environment variables are set
+        assert_eq!(
+            env_vars.get("CONCLAUDE_USER_PROMPT"),
+            Some(&"update the sidebar component".to_string())
+        );
+        assert_eq!(
+            env_vars.get("CONCLAUDE_SESSION_ID"),
+            Some(&"test-session-123".to_string())
+        );
+        assert_eq!(
+            env_vars.get("CONCLAUDE_CWD"),
+            Some(&"/home/user/project".to_string())
+        );
+        assert_eq!(
+            env_vars.get("CONCLAUDE_HOOK_EVENT"),
+            Some(&"UserPromptSubmit".to_string())
+        );
+        assert!(env_vars.contains_key("CONCLAUDE_CONFIG_DIR"));
+    }
+
+    // Test: Command with no pattern runs for all prompts
+    #[test]
+    fn test_command_without_pattern_runs_for_all_prompts() {
+        let commands = vec![UserPromptSubmitCommand {
+            run: "echo always".to_string(),
+            pattern: None, // No pattern = match all
+            case_insensitive: None,
+            show_command: None,
+            show_stdout: None,
+            show_stderr: None,
+            max_output_lines: None,
+            timeout: None,
+        }];
+
+        // Should match any prompt
+        let result = collect_user_prompt_submit_commands(&commands, "random prompt").unwrap();
+        assert_eq!(result.len(), 1);
+
+        let result = collect_user_prompt_submit_commands(&commands, "deploy now").unwrap();
+        assert_eq!(result.len(), 1);
+
+        let result = collect_user_prompt_submit_commands(&commands, "test the code").unwrap();
+        assert_eq!(result.len(), 1);
+
+        let result = collect_user_prompt_submit_commands(&commands, "").unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    // Test: Case-insensitive pattern matching works
+    #[test]
+    fn test_case_insensitive_pattern_matching() {
+        let commands = vec![UserPromptSubmitCommand {
+            run: "echo database".to_string(),
+            pattern: Some("database".to_string()),
+            case_insensitive: Some(true),
+            show_command: None,
+            show_stdout: None,
+            show_stderr: None,
+            max_output_lines: None,
+            timeout: None,
+        }];
+
+        // Should match with different cases
+        let result =
+            collect_user_prompt_submit_commands(&commands, "update DATABASE config").unwrap();
+        assert_eq!(result.len(), 1);
+
+        let result = collect_user_prompt_submit_commands(&commands, "database query").unwrap();
+        assert_eq!(result.len(), 1);
+
+        let result = collect_user_prompt_submit_commands(&commands, "Database setup").unwrap();
+        assert_eq!(result.len(), 1);
+
+        let result = collect_user_prompt_submit_commands(&commands, "DaTaBaSe").unwrap();
+        assert_eq!(result.len(), 1);
+
+        // Should not match unrelated text
+        let result = collect_user_prompt_submit_commands(&commands, "update the API").unwrap();
+        assert_eq!(result.len(), 0);
+    }
+
+    // Test: Multiple commands with different patterns
+    #[test]
+    fn test_multiple_commands_different_patterns() {
+        let commands = vec![
+            UserPromptSubmitCommand {
+                run: "echo deploy".to_string(),
+                pattern: Some("deploy".to_string()),
+                case_insensitive: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+            },
+            UserPromptSubmitCommand {
+                run: "echo always".to_string(),
+                pattern: None, // Match all
+                case_insensitive: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+            },
+        ];
+
+        // Both should match for "deploy"
+        let result = collect_user_prompt_submit_commands(&commands, "deploy now").unwrap();
+        assert_eq!(result.len(), 2);
+
+        // Only the "always" command should match for non-deploy
+        let result = collect_user_prompt_submit_commands(&commands, "fix bug").unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result[0].command.contains("always"));
+    }
 }
