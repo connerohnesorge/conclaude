@@ -1,5 +1,6 @@
 use crate::config::{
     extract_bash_commands, load_conclaude_config, ConclaudeConfig, SubagentStopConfig,
+    UserPromptSubmitCommand,
 };
 use crate::gitignore::{find_git_root, is_path_git_ignored};
 use crate::types::{
@@ -82,6 +83,16 @@ pub(crate) struct SubagentStopCommandConfig {
     pub(crate) timeout: Option<u64>,
     pub(crate) show_command: bool,
     pub(crate) notify_per_command: bool,
+}
+
+/// Represents a user prompt submit command with its configuration
+pub(crate) struct UserPromptSubmitCommandConfig {
+    pub(crate) command: String,
+    pub(crate) show_stdout: bool,
+    pub(crate) show_stderr: bool,
+    pub(crate) max_output_lines: Option<u32>,
+    pub(crate) timeout: Option<u64>,
+    pub(crate) show_command: bool,
 }
 
 /// Cached configuration instance to avoid repeated loads
@@ -787,7 +798,341 @@ fn compile_rule_pattern(rule: &crate::config::ContextInjectionRule) -> Option<re
     }
 }
 
+/// Compile a command pattern to a regex.
+/// Returns None if the pattern fails to compile or if no pattern is specified (matches all).
+fn compile_command_pattern(command: &UserPromptSubmitCommand) -> Option<regex::Regex> {
+    use regex::RegexBuilder;
+
+    let Some(pattern) = &command.pattern else {
+        return None; // No pattern means match all prompts
+    };
+
+    let full_pattern = if command.case_insensitive.unwrap_or(false) {
+        format!("(?i){}", pattern)
+    } else {
+        pattern.clone()
+    };
+
+    match RegexBuilder::new(&full_pattern).build() {
+        Ok(regex) => Some(regex),
+        Err(e) => {
+            eprintln!(
+                "Warning: Failed to compile command pattern '{}': {}",
+                pattern, e
+            );
+            None
+        }
+    }
+}
+
+/// Build environment variables for user prompt submit command execution
+///
+/// Creates a HashMap of environment variables to pass to commands, including
+/// user prompt and session information.
+///
+/// # Arguments
+///
+/// * `payload` - The UserPromptSubmitPayload containing prompt information
+/// * `config_dir` - The directory containing the configuration file
+#[must_use]
+pub(crate) fn build_user_prompt_submit_env_vars(
+    payload: &UserPromptSubmitPayload,
+    config_dir: &Path,
+) -> HashMap<String, String> {
+    let mut env_vars = HashMap::new();
+
+    // User prompt environment variable
+    env_vars.insert(
+        "CONCLAUDE_USER_PROMPT".to_string(),
+        payload.prompt.clone(),
+    );
+
+    // Session-level environment variables
+    env_vars.insert(
+        "CONCLAUDE_SESSION_ID".to_string(),
+        payload.base.session_id.clone(),
+    );
+    env_vars.insert("CONCLAUDE_CWD".to_string(), payload.base.cwd.clone());
+    env_vars.insert(
+        "CONCLAUDE_CONFIG_DIR".to_string(),
+        config_dir.to_string_lossy().to_string(),
+    );
+    env_vars.insert(
+        "CONCLAUDE_HOOK_EVENT".to_string(),
+        "UserPromptSubmit".to_string(),
+    );
+
+    env_vars
+}
+
+/// Collect user prompt submit commands from configuration that match the given prompt
+///
+/// Returns commands that either have no pattern (match all) or whose pattern matches the prompt.
+///
+/// # Errors
+///
+/// Returns an error if bash command extraction fails.
+pub(crate) fn collect_user_prompt_submit_commands(
+    commands: &[UserPromptSubmitCommand],
+    prompt: &str,
+) -> Result<Vec<UserPromptSubmitCommandConfig>> {
+    let mut result = Vec::new();
+
+    for cmd_config in commands {
+        // Check if command should run for this prompt
+        let should_run = match compile_command_pattern(cmd_config) {
+            Some(regex) => regex.is_match(prompt),
+            None => true, // No pattern means run for all prompts
+        };
+
+        if !should_run {
+            continue;
+        }
+
+        // Extract and add commands
+        let extracted = extract_bash_commands(&cmd_config.run)?;
+        let show_stdout = cmd_config.show_stdout.unwrap_or(false);
+        let show_stderr = cmd_config.show_stderr.unwrap_or(false);
+        let show_command = cmd_config.show_command.unwrap_or(true);
+        let max_output_lines = cmd_config.max_output_lines;
+        let timeout = cmd_config.timeout;
+
+        for cmd in extracted {
+            result.push(UserPromptSubmitCommandConfig {
+                command: cmd,
+                show_stdout,
+                show_stderr,
+                max_output_lines,
+                timeout,
+                show_command,
+            });
+        }
+    }
+
+    Ok(result)
+}
+
+/// Execute user prompt submit hook commands with environment variables
+///
+/// Commands are observational (read-only) and cannot block prompt processing.
+/// Failures are logged but do not affect the hook result.
+///
+/// # Errors
+///
+/// Returns an error if command spawning fails. Individual command failures are logged
+/// but do not stop subsequent command execution.
+async fn execute_user_prompt_submit_commands(
+    commands: &[UserPromptSubmitCommandConfig],
+    env_vars: &HashMap<String, String>,
+    config_dir: &Path,
+) -> Result<()> {
+    if commands.is_empty() {
+        return Ok(());
+    }
+
+    println!(
+        "Executing {} user prompt submit hook commands",
+        commands.len()
+    );
+
+    for (index, cmd_config) in commands.iter().enumerate() {
+        if cmd_config.show_command {
+            println!(
+                "Executing user prompt submit command {}/{}: {}",
+                index + 1,
+                commands.len(),
+                cmd_config.command
+            );
+        } else {
+            println!(
+                "Executing user prompt submit command {}/{}",
+                index + 1,
+                commands.len()
+            );
+        }
+
+        let child = TokioCommand::new("bash")
+            .arg("-c")
+            .arg(&cmd_config.command)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .envs(env_vars)
+            .current_dir(config_dir)
+            .spawn();
+
+        let child = match child {
+            Ok(c) => c,
+            Err(e) => {
+                // Log error but continue to next command
+                if cmd_config.show_command {
+                    eprintln!(
+                        "Failed to spawn user prompt submit command '{}': {}",
+                        cmd_config.command, e
+                    );
+                } else {
+                    eprintln!("Failed to spawn user prompt submit command: {}", e);
+                }
+                continue;
+            }
+        };
+
+        let output = if let Some(timeout_secs) = cmd_config.timeout {
+            match timeout(Duration::from_secs(timeout_secs), child.wait_with_output()).await {
+                Ok(result) => match result {
+                    Ok(o) => o,
+                    Err(e) => {
+                        if cmd_config.show_command {
+                            eprintln!(
+                                "Failed to wait for user prompt submit command '{}': {}",
+                                cmd_config.command, e
+                            );
+                        } else {
+                            eprintln!("Failed to wait for user prompt submit command: {}", e);
+                        }
+                        continue;
+                    }
+                },
+                Err(_) => {
+                    // Timeout occurred - log and continue
+                    if cmd_config.show_command {
+                        eprintln!(
+                            "User prompt submit command timed out after {} seconds: {}",
+                            timeout_secs, cmd_config.command
+                        );
+                    } else {
+                        eprintln!(
+                            "User prompt submit command timed out after {} seconds",
+                            timeout_secs
+                        );
+                    }
+                    continue;
+                }
+            }
+        } else {
+            match child.wait_with_output().await {
+                Ok(o) => o,
+                Err(e) => {
+                    if cmd_config.show_command {
+                        eprintln!(
+                            "Failed to wait for user prompt submit command '{}': {}",
+                            cmd_config.command, e
+                        );
+                    } else {
+                        eprintln!("Failed to wait for user prompt submit command: {}", e);
+                    }
+                    continue;
+                }
+            }
+        };
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        if !output.status.success() {
+            let exit_code = output.status.code().unwrap_or(1);
+
+            // Log failure information - respect showCommand flag
+            let mut diagnostic = if cmd_config.show_command {
+                format!(
+                    "User prompt submit command failed:\n  Command: {}\n  Status: Failed (exit code: {})",
+                    cmd_config.command, exit_code
+                )
+            } else {
+                format!(
+                    "User prompt submit command failed:\n  Status: Failed (exit code: {})",
+                    exit_code
+                )
+            };
+
+            if cmd_config.show_stdout && !stdout.trim().is_empty() {
+                let stdout_content = if let Some(max_lines) = cmd_config.max_output_lines {
+                    let (truncated, is_truncated, omitted) = truncate_output(&stdout, max_lines);
+                    if is_truncated {
+                        format!("{}\n... ({} lines omitted)", truncated, omitted)
+                    } else {
+                        truncated
+                    }
+                } else {
+                    stdout.trim().to_string()
+                };
+                let stdout_display = stdout_content
+                    .lines()
+                    .map(|line| format!("    {}", line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                diagnostic.push_str(&format!("\n  Stdout:\n{}", stdout_display));
+            }
+
+            if cmd_config.show_stderr && !stderr.trim().is_empty() {
+                let stderr_content = if let Some(max_lines) = cmd_config.max_output_lines {
+                    let (truncated, is_truncated, omitted) = truncate_output(&stderr, max_lines);
+                    if is_truncated {
+                        format!("{}\n... ({} lines omitted)", truncated, omitted)
+                    } else {
+                        truncated
+                    }
+                } else {
+                    stderr.trim().to_string()
+                };
+                let stderr_display = stderr_content
+                    .lines()
+                    .map(|line| format!("    {}", line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                diagnostic.push_str(&format!("\n  Stderr:\n{}", stderr_display));
+            }
+
+            eprintln!("{}", diagnostic);
+
+            // Continue to next command (graceful failure handling)
+            continue;
+        }
+
+        // Successful command - show output if configured
+        if cmd_config.show_stdout && !stdout.trim().is_empty() {
+            let output_to_show = if let Some(max_lines) = cmd_config.max_output_lines {
+                let (truncated, is_truncated, omitted) = truncate_output(&stdout, max_lines);
+                if is_truncated {
+                    format!("{}\n... ({} lines omitted)", truncated, omitted)
+                } else {
+                    truncated
+                }
+            } else {
+                stdout.to_string()
+            };
+            println!("Stdout: {}", output_to_show);
+        }
+
+        if cmd_config.show_stderr && !stderr.trim().is_empty() {
+            let output_to_show = if let Some(max_lines) = cmd_config.max_output_lines {
+                let (truncated, is_truncated, omitted) = truncate_output(&stderr, max_lines);
+                if is_truncated {
+                    format!("{}\n... ({} lines omitted)", truncated, omitted)
+                } else {
+                    truncated
+                }
+            } else {
+                stderr.to_string()
+            };
+            eprintln!("Stderr: {}", output_to_show);
+        }
+    }
+
+    println!("All user prompt submit hook commands completed");
+    Ok(())
+}
+
 /// Handles `UserPromptSubmit` hook events when users submit input to Claude.
+///
+/// This function processes user prompt submissions by:
+/// 1. Validating the payload
+/// 2. Evaluating contextRules for context injection
+/// 3. Executing matching commands (after contextRules processing)
+/// 4. Returning the hook result with any injected context
+///
+/// Commands are observational (read-only) and cannot block prompt processing.
+/// Command failures are logged but do not affect the hook result.
 ///
 /// # Errors
 ///
@@ -806,7 +1151,7 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
         payload.base.session_id
     );
 
-    // Load configuration for context injection rules
+    // Load configuration for context injection rules and commands
     let (config, config_path) = get_config().await?;
     let config_dir = get_config_dir(config_path);
 
@@ -834,16 +1179,40 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
         }
     }
 
-    // If we have matching contexts, combine them and return
-    if !matching_contexts.is_empty() {
+    // Determine context injection result before executing commands
+    let context_result = if !matching_contexts.is_empty() {
         let combined_context = matching_contexts.join("\n\n");
-
         println!(
             "Context injection: {} rule(s) matched user prompt",
             matching_contexts.len()
         );
         println!("Matched patterns: {:?}", matched_patterns);
+        Some(combined_context)
+    } else {
+        None
+    };
 
+    // Execute commands after contextRules processing
+    // Commands are observational and cannot block prompt processing
+    if !config.user_prompt_submit.commands.is_empty() {
+        // Collect commands that match the prompt
+        let commands =
+            collect_user_prompt_submit_commands(&config.user_prompt_submit.commands, &payload.prompt)?;
+
+        if !commands.is_empty() {
+            // Build environment variables
+            let env_vars = build_user_prompt_submit_env_vars(&payload, config_dir);
+
+            // Execute commands (graceful failure handling)
+            if let Err(e) = execute_user_prompt_submit_commands(&commands, &env_vars, config_dir).await {
+                // Log error but don't block the hook result
+                eprintln!("Error executing user prompt submit commands: {}", e);
+            }
+        }
+    }
+
+    // Return the hook result with context if any rules matched
+    if let Some(context) = context_result {
         send_notification(
             "UserPromptSubmit",
             "success",
@@ -852,8 +1221,7 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
                 matching_contexts.len()
             )),
         );
-
-        return Ok(HookResult::with_context(combined_context));
+        return Ok(HookResult::with_context(context));
     }
 
     // Send notification for user prompt submission (no context injection)
@@ -2391,5 +2759,196 @@ mod agent_session_tests {
         // Verify reading after cleanup returns "main"
         let result_after = read_agent_from_session_file(&session_id);
         assert_eq!(result_after, "main");
+    }
+}
+
+#[cfg(test)]
+mod user_prompt_submit_command_tests {
+    use super::*;
+    use crate::config::UserPromptSubmitCommand;
+    use crate::types::{BasePayload, UserPromptSubmitPayload};
+    use tempfile::TempDir;
+
+    // Test: collect_user_prompt_submit_commands() filters by regex pattern
+    #[test]
+    fn test_collect_commands_filters_by_regex_pattern() {
+        let commands = vec![
+            UserPromptSubmitCommand {
+                run: "echo deploy".to_string(),
+                pattern: Some("deploy|release".to_string()),
+                case_insensitive: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+            },
+            UserPromptSubmitCommand {
+                run: "echo test".to_string(),
+                pattern: Some("test".to_string()),
+                case_insensitive: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+            },
+        ];
+
+        // Should match only deploy command
+        let result = collect_user_prompt_submit_commands(&commands, "let's deploy to production").unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result[0].command.contains("deploy"));
+
+        // Should match only test command
+        let result = collect_user_prompt_submit_commands(&commands, "run the test suite").unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result[0].command.contains("test"));
+
+        // Should match no commands
+        let result = collect_user_prompt_submit_commands(&commands, "fix the bug").unwrap();
+        assert_eq!(result.len(), 0);
+
+        // Should match deploy via "release" pattern
+        let result = collect_user_prompt_submit_commands(&commands, "prepare for release").unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result[0].command.contains("deploy"));
+    }
+
+    // Test: build_user_prompt_submit_env_vars() produces correct variables
+    #[test]
+    fn test_build_env_vars_produces_correct_variables() {
+        let temp_dir = TempDir::new().unwrap();
+        let payload = UserPromptSubmitPayload {
+            base: BasePayload {
+                session_id: "test-session-123".to_string(),
+                cwd: "/home/user/project".to_string(),
+                transcript_path: "/tmp/transcript.jsonl".to_string(),
+                hook_event_name: "UserPromptSubmit".to_string(),
+                permission_mode: Some("default".to_string()),
+            },
+            prompt: "update the sidebar component".to_string(),
+        };
+
+        let env_vars = build_user_prompt_submit_env_vars(&payload, temp_dir.path());
+
+        // Verify all expected environment variables are set
+        assert_eq!(
+            env_vars.get("CONCLAUDE_USER_PROMPT"),
+            Some(&"update the sidebar component".to_string())
+        );
+        assert_eq!(
+            env_vars.get("CONCLAUDE_SESSION_ID"),
+            Some(&"test-session-123".to_string())
+        );
+        assert_eq!(
+            env_vars.get("CONCLAUDE_CWD"),
+            Some(&"/home/user/project".to_string())
+        );
+        assert_eq!(
+            env_vars.get("CONCLAUDE_HOOK_EVENT"),
+            Some(&"UserPromptSubmit".to_string())
+        );
+        assert!(env_vars.get("CONCLAUDE_CONFIG_DIR").is_some());
+    }
+
+    // Test: Command with no pattern runs for all prompts
+    #[test]
+    fn test_command_without_pattern_runs_for_all_prompts() {
+        let commands = vec![
+            UserPromptSubmitCommand {
+                run: "echo always".to_string(),
+                pattern: None, // No pattern = match all
+                case_insensitive: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+            },
+        ];
+
+        // Should match any prompt
+        let result = collect_user_prompt_submit_commands(&commands, "random prompt").unwrap();
+        assert_eq!(result.len(), 1);
+
+        let result = collect_user_prompt_submit_commands(&commands, "deploy now").unwrap();
+        assert_eq!(result.len(), 1);
+
+        let result = collect_user_prompt_submit_commands(&commands, "test the code").unwrap();
+        assert_eq!(result.len(), 1);
+
+        let result = collect_user_prompt_submit_commands(&commands, "").unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    // Test: Case-insensitive pattern matching works
+    #[test]
+    fn test_case_insensitive_pattern_matching() {
+        let commands = vec![
+            UserPromptSubmitCommand {
+                run: "echo database".to_string(),
+                pattern: Some("database".to_string()),
+                case_insensitive: Some(true),
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+            },
+        ];
+
+        // Should match with different cases
+        let result = collect_user_prompt_submit_commands(&commands, "update DATABASE config").unwrap();
+        assert_eq!(result.len(), 1);
+
+        let result = collect_user_prompt_submit_commands(&commands, "database query").unwrap();
+        assert_eq!(result.len(), 1);
+
+        let result = collect_user_prompt_submit_commands(&commands, "Database setup").unwrap();
+        assert_eq!(result.len(), 1);
+
+        let result = collect_user_prompt_submit_commands(&commands, "DaTaBaSe").unwrap();
+        assert_eq!(result.len(), 1);
+
+        // Should not match unrelated text
+        let result = collect_user_prompt_submit_commands(&commands, "update the API").unwrap();
+        assert_eq!(result.len(), 0);
+    }
+
+    // Test: Multiple commands with different patterns
+    #[test]
+    fn test_multiple_commands_different_patterns() {
+        let commands = vec![
+            UserPromptSubmitCommand {
+                run: "echo deploy".to_string(),
+                pattern: Some("deploy".to_string()),
+                case_insensitive: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+            },
+            UserPromptSubmitCommand {
+                run: "echo always".to_string(),
+                pattern: None, // Match all
+                case_insensitive: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+            },
+        ];
+
+        // Both should match for "deploy"
+        let result = collect_user_prompt_submit_commands(&commands, "deploy now").unwrap();
+        assert_eq!(result.len(), 2);
+
+        // Only the "always" command should match for non-deploy
+        let result = collect_user_prompt_submit_commands(&commands, "fix bug").unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result[0].command.contains("always"));
     }
 }
