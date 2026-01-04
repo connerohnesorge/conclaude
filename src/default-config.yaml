@@ -126,7 +126,7 @@ notifications:
 #     - "BashOutput"
 #     - "KillShell"
 
-# User prompt submit hook - context injection based on prompt patterns
+# User prompt submit hook - context injection and command execution
 # Automatically prepends context when prompts match patterns
 # Uncomment to enable:
 #
@@ -156,3 +156,28 @@ notifications:
 #     - pattern: "api"
 #       prompt: "Check API documentation first"
 #       caseInsensitive: true
+#
+#   # Command execution (runs after contextRules processing)
+#   # Commands are observational - they cannot block prompt processing
+#   commands:
+#     # Run for all prompts (no pattern)
+#     - run: ".claude/scripts/log-prompt.sh"
+#       showCommand: false
+#
+#     # Run only for prompts matching pattern (regex)
+#     - pattern: "deploy|release|ship"
+#       run: ".claude/scripts/notify-slack.sh"
+#       showCommand: false
+#
+#     # Run with output display options
+#     - pattern: "(?i)sql|database"
+#       run: ".claude/scripts/check-db-access.sh"
+#       showStdout: true
+#       timeout: 30
+#
+#   # Environment variables available to commands:
+#   # - CONCLAUDE_USER_PROMPT: The user's input text
+#   # - CONCLAUDE_SESSION_ID: Current session ID
+#   # - CONCLAUDE_CWD: Current working directory
+#   # - CONCLAUDE_CONFIG_DIR: Directory containing .conclaude.yaml
+#   # - CONCLAUDE_HOOK_EVENT: Always "UserPromptSubmit"
