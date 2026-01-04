@@ -7,15 +7,53 @@
 
 # Stop hook - runs when Claude is about to stop
 stop:
-  commands: []
-  # Example:
-  # - run: "npm test"
-  #   showStdout: true
-  #   showStderr: true
-  #   showCommand: true  # Show "Executing command X/Y: npm test" (default: true)
-  #   message: "Tests failed"
-  #   maxOutputLines: 100
-  #   timeout: 300
+  # Structured command format with optional custom error messages
+  # Each command can have its own error message, and control output display
+  commands:
+    - run: "spectr validate --all"
+      showStdout: true
+      showStderr: true
+      message: "Spec validation (spectr validate --all) failed - please fix errors before continuing"
+      maxOutputLines: 100
+    - run: "nix develop -c lint"
+      showStdout: false
+      showStderr: false
+      showCommand: true
+      message: "Linting failed - please fix errors via individual delegation."
+      maxOutputLines: 100
+    - run: "nix develop -c tests"
+      showStdout: true
+      showStderr: true
+      message: "Tests failed - please fix failing tests via individual delegation."
+    - run: "cd docs && bun run build"
+      showStdout: true
+      showStderr: true
+      message: "Docs build (cd docs && bun run build) failed - please fix errors"
+    - run: "generate-docs"
+      showStdout: false
+      showStderr: false
+      showCommand: true
+      message: "Docs build (generate-docs) failed - please fix errors via individual delegation."
+    - run: "generate-schema"
+      showStdout: false
+      showStderr: false
+      showCommand: true
+      message: "Docs build (generate-schema) failed - please fix errors via individual delegation."
+  # Examples:
+  # commands:
+  #   - run: "echo 'Starting build...'"
+  #     showStdout: true    # User/Claude sees: "Starting build..."
+  #
+  #   - run: "npm test"
+  #     showStdout: true    # Show test results to user/Claude
+  #     showStderr: true    # Show test errors to user/Claude
+  #     message: "Tests failed - please fix failing tests before continuing"
+  #     maxOutputLines: 100 # Limit output to last 100 lines (1-10000)
+  #
+  #   - run: "npm run build"
+  #     showStderr: true    # Only show build errors to user/Claude, hide stdout
+  #     message: "Build failed - please fix compilation errors"
+  #     maxOutputLines: 50  # Limit build output to last 50 lines
 
   infinite: false
   infiniteMessage: "continue working on the task"
@@ -127,7 +165,7 @@ notifications:
 #     - "BashOutput"
 #     - "KillShell"
 
-# User prompt submit hook - context injection based on prompt patterns
+# User prompt submit hook - context injection and command execution
 # Automatically prepends context when prompts match patterns
 # Uncomment to enable:
 #
@@ -157,3 +195,28 @@ notifications:
 #     - pattern: "api"
 #       prompt: "Check API documentation first"
 #       caseInsensitive: true
+#
+#   # Command execution (runs after contextRules processing)
+#   # Commands are observational - they cannot block prompt processing
+#   commands:
+#     # Run for all prompts (no pattern)
+#     - run: ".claude/scripts/log-prompt.sh"
+#       showCommand: false
+#
+#     # Run only for prompts matching pattern (regex)
+#     - pattern: "deploy|release|ship"
+#       run: ".claude/scripts/notify-slack.sh"
+#       showCommand: false
+#
+#     # Run with output display options
+#     - pattern: "(?i)sql|database"
+#       run: ".claude/scripts/check-db-access.sh"
+#       showStdout: true
+#       timeout: 30
+#
+#   # Environment variables available to commands:
+#   # - CONCLAUDE_USER_PROMPT: The user's input text
+#   # - CONCLAUDE_SESSION_ID: Current session ID
+#   # - CONCLAUDE_CWD: Current working directory
+#   # - CONCLAUDE_CONFIG_DIR: Directory containing .conclaude.yaml
+#   # - CONCLAUDE_HOOK_EVENT: Always "UserPromptSubmit"

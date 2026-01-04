@@ -194,27 +194,31 @@ When you receive a project:
 You are the conductor with perfect memory (200k context). The subagents are specialists you hire for individual tasks. Together you build amazing things!
 Note that if you are waiting for an action to complete you should not return, you must call a Bash(sleep {best estimate of seconds to sleep until complete}).
 
-<!-- spectr:START -->
+<!-- spectr:start -->
 # Spectr Instructions
 
 These instructions are for AI assistants working in this project.
 
 Always open `@/spectr/AGENTS.md` when the request:
+
 - Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
+- Introduces new capabilities, breaking changes, architecture shifts, or big
+  performance/security work
 - Sounds ambiguous and you need the authoritative spec before coding
 
 Use `@/spectr/AGENTS.md` to learn:
+
 - How to create and apply change proposals
 - Spec format and conventions
 - Project structure and guidelines
 
 When delegating tasks from a change proposal to subagents:
+
 - Provide the proposal path: `spectr/changes/<id>/proposal.md`
 - Include task context: `spectr/changes/<id>/tasks.jsonc`
 - Reference delta specs: `spectr/changes/<id>/specs/<capability>/spec.md`
 
-<!-- spectr:END -->
+<!-- spectr:end -->
 
 <project>
 conclaude is a Rust-based guardrail CLI for Claude Code sessions, orchestrating configurable lifecycle hooks to enforce linting, testing, and workflow policies. It discovers human-readable YAML via cosmiconfig, validates configurations against a published schema, and runs project commands to keep repos consistent. The tool ships with session-aware logging, file protection rules, and multiple installation channels including shell scripts, npm, and platform-specific binaries.

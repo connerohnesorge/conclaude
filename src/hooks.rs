@@ -1,5 +1,6 @@
 use crate::config::{
     extract_bash_commands, load_conclaude_config, ConclaudeConfig, SubagentStopConfig,
+    UserPromptSubmitCommand,
 };
 use crate::gitignore::{find_git_root, is_path_git_ignored};
 use crate::types::{
@@ -24,6 +25,43 @@ use tokio::time::{timeout, Duration};
 
 /// Environment variable name for passing agent context to hook handlers
 const AGENT_ENV_VAR: &str = "CONCLAUDE_AGENT";
+/// Get the path to the agent session file for a given session.
+pub fn get_agent_session_file_path(session_id: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("conclaude-agent-{}.json", session_id))
+}
+
+/// Write agent info to session file during SubagentStart.
+///
+/// # Errors
+///
+/// Returns an error if the session file cannot be written.
+pub fn write_agent_session_file(session_id: &str, subagent_type: &str) -> std::io::Result<()> {
+    let path = get_agent_session_file_path(session_id);
+    let content = serde_json::json!({
+        "subagent_type": subagent_type
+    });
+    fs::write(&path, content.to_string())
+}
+
+/// Read agent info from session file during PreToolUse.
+/// Returns "main" if no session file exists (we're in the orchestrator session).
+#[must_use]
+pub fn read_agent_from_session_file(session_id: &str) -> String {
+    let path = get_agent_session_file_path(session_id);
+    match fs::read_to_string(&path) {
+        Ok(content) => {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                json.get("subagent_type")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "main".to_string())
+            } else {
+                "main".to_string()
+            }
+        }
+        Err(_) => "main".to_string(), // No file = main session
+    }
+}
 
 /// Represents a stop command with its configuration
 pub(crate) struct StopCommandConfig {
@@ -34,6 +72,7 @@ pub(crate) struct StopCommandConfig {
     pub(crate) max_output_lines: Option<u32>,
     pub(crate) timeout: Option<u64>,
     pub(crate) show_command: bool,
+    pub(crate) notify_per_command: bool,
 }
 
 /// Represents a subagent stop command with its configuration
@@ -45,6 +84,18 @@ pub(crate) struct SubagentStopCommandConfig {
     pub(crate) max_output_lines: Option<u32>,
     pub(crate) timeout: Option<u64>,
     pub(crate) show_command: bool,
+    pub(crate) notify_per_command: bool,
+}
+
+/// Represents a user prompt submit command with its configuration
+pub(crate) struct UserPromptSubmitCommandConfig {
+    pub(crate) command: String,
+    pub(crate) show_stdout: bool,
+    pub(crate) show_stderr: bool,
+    pub(crate) max_output_lines: Option<u32>,
+    pub(crate) timeout: Option<u64>,
+    pub(crate) show_command: bool,
+    pub(crate) notify_per_command: bool,
 }
 
 /// Cached configuration instance to avoid repeated loads
@@ -737,7 +788,7 @@ pub async fn handle_notification() -> Result<HookResult> {
 /// References like @.claude/contexts/sidebar.md are replaced with the file contents.
 /// Files are resolved relative to the config file directory.
 /// Missing files are left as literal text and logged as warnings.
-fn expand_file_references(prompt: &str, config_dir: &Path) -> String {
+pub fn expand_file_references(prompt: &str, config_dir: &Path) -> String {
     use regex::Regex;
 
     // Match @path/to/file.ext pattern
@@ -761,7 +812,7 @@ fn expand_file_references(prompt: &str, config_dir: &Path) -> String {
 
 /// Compile a context injection rule's pattern to a regex.
 /// Returns None if the pattern fails to compile.
-fn compile_rule_pattern(rule: &crate::config::ContextInjectionRule) -> Option<regex::Regex> {
+pub fn compile_rule_pattern(rule: &crate::config::ContextInjectionRule) -> Option<regex::Regex> {
     use regex::RegexBuilder;
 
     let pattern = if rule.case_insensitive.unwrap_or(false) {
@@ -782,7 +833,414 @@ fn compile_rule_pattern(rule: &crate::config::ContextInjectionRule) -> Option<re
     }
 }
 
+/// Compile a command pattern to a regex.
+/// Returns None if the pattern fails to compile or if no pattern is specified (matches all).
+fn compile_command_pattern(command: &UserPromptSubmitCommand) -> Option<regex::Regex> {
+    use regex::RegexBuilder;
+
+    let Some(pattern) = &command.pattern else {
+        return None; // No pattern means match all prompts
+    };
+
+    let full_pattern = if command.case_insensitive.unwrap_or(false) {
+        format!("(?i){}", pattern)
+    } else {
+        pattern.clone()
+    };
+
+    match RegexBuilder::new(&full_pattern).build() {
+        Ok(regex) => Some(regex),
+        Err(e) => {
+            eprintln!(
+                "Warning: Failed to compile command pattern '{}': {}",
+                pattern, e
+            );
+            None
+        }
+    }
+}
+
+/// Build environment variables for user prompt submit command execution
+///
+/// Creates a HashMap of environment variables to pass to commands, including
+/// user prompt and session information.
+///
+/// # Arguments
+///
+/// * `payload` - The UserPromptSubmitPayload containing prompt information
+/// * `config_dir` - The directory containing the configuration file
+#[must_use]
+pub(crate) fn build_user_prompt_submit_env_vars(
+    payload: &UserPromptSubmitPayload,
+    config_dir: &Path,
+) -> HashMap<String, String> {
+    let mut env_vars = HashMap::new();
+
+    // User prompt environment variable
+    env_vars.insert("CONCLAUDE_USER_PROMPT".to_string(), payload.prompt.clone());
+
+    // Session-level environment variables
+    env_vars.insert(
+        "CONCLAUDE_SESSION_ID".to_string(),
+        payload.base.session_id.clone(),
+    );
+    env_vars.insert("CONCLAUDE_CWD".to_string(), payload.base.cwd.clone());
+    env_vars.insert(
+        "CONCLAUDE_CONFIG_DIR".to_string(),
+        config_dir.to_string_lossy().to_string(),
+    );
+    env_vars.insert(
+        "CONCLAUDE_HOOK_EVENT".to_string(),
+        "UserPromptSubmit".to_string(),
+    );
+
+    env_vars
+}
+
+/// Collect user prompt submit commands from configuration that match the given prompt
+///
+/// Returns commands that either have no pattern (match all) or whose pattern matches the prompt.
+///
+/// # Errors
+///
+/// Returns an error if bash command extraction fails.
+pub(crate) fn collect_user_prompt_submit_commands(
+    commands: &[UserPromptSubmitCommand],
+    prompt: &str,
+) -> Result<Vec<UserPromptSubmitCommandConfig>> {
+    let mut result = Vec::new();
+
+    for cmd_config in commands {
+        // Check if command should run for this prompt
+        let should_run = match compile_command_pattern(cmd_config) {
+            Some(regex) => regex.is_match(prompt),
+            None => true, // No pattern means run for all prompts
+        };
+
+        if !should_run {
+            continue;
+        }
+
+        // Extract and add commands
+        let extracted = extract_bash_commands(&cmd_config.run)?;
+        let show_stdout = cmd_config.show_stdout.unwrap_or(false);
+        let show_stderr = cmd_config.show_stderr.unwrap_or(false);
+        let show_command = cmd_config.show_command.unwrap_or(true);
+        let max_output_lines = cmd_config.max_output_lines;
+        let timeout = cmd_config.timeout;
+        let notify_per_command = cmd_config.notify_per_command.unwrap_or(false);
+
+        for cmd in extracted {
+            result.push(UserPromptSubmitCommandConfig {
+                command: cmd,
+                show_stdout,
+                show_stderr,
+                max_output_lines,
+                timeout,
+                show_command,
+                notify_per_command,
+            });
+        }
+    }
+
+    Ok(result)
+}
+
+/// Execute user prompt submit hook commands with environment variables
+///
+/// Commands are observational (read-only) and cannot block prompt processing.
+/// Failures are logged but do not affect the hook result.
+///
+/// # Errors
+///
+/// Returns an error if command spawning fails. Individual command failures are logged
+/// but do not stop subsequent command execution.
+async fn execute_user_prompt_submit_commands(
+    commands: &[UserPromptSubmitCommandConfig],
+    env_vars: &HashMap<String, String>,
+    config_dir: &Path,
+) -> Result<()> {
+    if commands.is_empty() {
+        return Ok(());
+    }
+
+    println!(
+        "Executing {} user prompt submit hook commands",
+        commands.len()
+    );
+
+    for (index, cmd_config) in commands.iter().enumerate() {
+        if cmd_config.show_command {
+            println!(
+                "Executing user prompt submit command {}/{}: {}",
+                index + 1,
+                commands.len(),
+                cmd_config.command
+            );
+        } else {
+            println!(
+                "Executing user prompt submit command {}/{}",
+                index + 1,
+                commands.len()
+            );
+        }
+
+        // Send start notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Running: {}", cmd_config.command)
+            } else {
+                "Running command".to_string()
+            };
+            send_notification("UserPromptSubmit", "running", Some(&context_msg));
+        }
+
+        let child = TokioCommand::new("bash")
+            .arg("-c")
+            .arg(&cmd_config.command)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .envs(env_vars)
+            .current_dir(config_dir)
+            .spawn();
+
+        let child = match child {
+            Ok(c) => c,
+            Err(e) => {
+                // Log error but continue to next command
+                if cmd_config.show_command {
+                    eprintln!(
+                        "Failed to spawn user prompt submit command '{}': {}",
+                        cmd_config.command, e
+                    );
+                } else {
+                    eprintln!("Failed to spawn user prompt submit command: {}", e);
+                }
+
+                // Send failure notification if per-command notifications are enabled
+                if cmd_config.notify_per_command {
+                    let context_msg = if cmd_config.show_command {
+                        format!("Failed to spawn command: {}", cmd_config.command)
+                    } else {
+                        "Failed to spawn command".to_string()
+                    };
+                    send_notification("UserPromptSubmit", "failure", Some(&context_msg));
+                }
+
+                continue;
+            }
+        };
+
+        let output = if let Some(timeout_secs) = cmd_config.timeout {
+            match timeout(Duration::from_secs(timeout_secs), child.wait_with_output()).await {
+                Ok(result) => match result {
+                    Ok(o) => o,
+                    Err(e) => {
+                        if cmd_config.show_command {
+                            eprintln!(
+                                "Failed to wait for user prompt submit command '{}': {}",
+                                cmd_config.command, e
+                            );
+                        } else {
+                            eprintln!("Failed to wait for user prompt submit command: {}", e);
+                        }
+
+                        // Send failure notification if per-command notifications are enabled
+                        if cmd_config.notify_per_command {
+                            let context_msg = if cmd_config.show_command {
+                                format!("Command failed to wait: {}", cmd_config.command)
+                            } else {
+                                "Command failed to wait".to_string()
+                            };
+                            send_notification("UserPromptSubmit", "failure", Some(&context_msg));
+                        }
+
+                        continue;
+                    }
+                },
+                Err(_) => {
+                    // Timeout occurred - log and continue
+                    if cmd_config.show_command {
+                        eprintln!(
+                            "User prompt submit command timed out after {} seconds: {}",
+                            timeout_secs, cmd_config.command
+                        );
+                    } else {
+                        eprintln!(
+                            "User prompt submit command timed out after {} seconds",
+                            timeout_secs
+                        );
+                    }
+
+                    // Send failure notification if per-command notifications are enabled
+                    if cmd_config.notify_per_command {
+                        let context_msg = if cmd_config.show_command {
+                            format!("Command timed out: {}", cmd_config.command)
+                        } else {
+                            "Command timed out".to_string()
+                        };
+                        send_notification("UserPromptSubmit", "failure", Some(&context_msg));
+                    }
+
+                    continue;
+                }
+            }
+        } else {
+            match child.wait_with_output().await {
+                Ok(o) => o,
+                Err(e) => {
+                    if cmd_config.show_command {
+                        eprintln!(
+                            "Failed to wait for user prompt submit command '{}': {}",
+                            cmd_config.command, e
+                        );
+                    } else {
+                        eprintln!("Failed to wait for user prompt submit command: {}", e);
+                    }
+
+                    // Send failure notification if per-command notifications are enabled
+                    if cmd_config.notify_per_command {
+                        let context_msg = if cmd_config.show_command {
+                            format!("Command failed to wait: {}", cmd_config.command)
+                        } else {
+                            "Command failed to wait".to_string()
+                        };
+                        send_notification("UserPromptSubmit", "failure", Some(&context_msg));
+                    }
+
+                    continue;
+                }
+            }
+        };
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        if !output.status.success() {
+            let exit_code = output.status.code().unwrap_or(1);
+
+            // Log failure information - respect showCommand flag
+            let mut diagnostic = if cmd_config.show_command {
+                format!(
+                    "User prompt submit command failed:\n  Command: {}\n  Status: Failed (exit code: {})",
+                    cmd_config.command, exit_code
+                )
+            } else {
+                format!(
+                    "User prompt submit command failed:\n  Status: Failed (exit code: {})",
+                    exit_code
+                )
+            };
+
+            if cmd_config.show_stdout && !stdout.trim().is_empty() {
+                let stdout_content = if let Some(max_lines) = cmd_config.max_output_lines {
+                    let (truncated, is_truncated, omitted) = truncate_output(&stdout, max_lines);
+                    if is_truncated {
+                        format!("{}\n... ({} lines omitted)", truncated, omitted)
+                    } else {
+                        truncated
+                    }
+                } else {
+                    stdout.trim().to_string()
+                };
+                let stdout_display = stdout_content
+                    .lines()
+                    .map(|line| format!("    {}", line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                diagnostic.push_str(&format!("\n  Stdout:\n{}", stdout_display));
+            }
+
+            if cmd_config.show_stderr && !stderr.trim().is_empty() {
+                let stderr_content = if let Some(max_lines) = cmd_config.max_output_lines {
+                    let (truncated, is_truncated, omitted) = truncate_output(&stderr, max_lines);
+                    if is_truncated {
+                        format!("{}\n... ({} lines omitted)", truncated, omitted)
+                    } else {
+                        truncated
+                    }
+                } else {
+                    stderr.trim().to_string()
+                };
+                let stderr_display = stderr_content
+                    .lines()
+                    .map(|line| format!("    {}", line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                diagnostic.push_str(&format!("\n  Stderr:\n{}", stderr_display));
+            }
+
+            eprintln!("{}", diagnostic);
+
+            // Send failure notification if per-command notifications are enabled
+            if cmd_config.notify_per_command {
+                let context_msg = if cmd_config.show_command {
+                    format!("Command failed: {}", cmd_config.command)
+                } else {
+                    "Command failed".to_string()
+                };
+                send_notification("UserPromptSubmit", "failure", Some(&context_msg));
+            }
+
+            // Continue to next command (graceful failure handling)
+            continue;
+        }
+
+        // Successful command - show output if configured
+        if cmd_config.show_stdout && !stdout.trim().is_empty() {
+            let output_to_show = if let Some(max_lines) = cmd_config.max_output_lines {
+                let (truncated, is_truncated, omitted) = truncate_output(&stdout, max_lines);
+                if is_truncated {
+                    format!("{}\n... ({} lines omitted)", truncated, omitted)
+                } else {
+                    truncated
+                }
+            } else {
+                stdout.to_string()
+            };
+            println!("Stdout: {}", output_to_show);
+        }
+
+        if cmd_config.show_stderr && !stderr.trim().is_empty() {
+            let output_to_show = if let Some(max_lines) = cmd_config.max_output_lines {
+                let (truncated, is_truncated, omitted) = truncate_output(&stderr, max_lines);
+                if is_truncated {
+                    format!("{}\n... ({} lines omitted)", truncated, omitted)
+                } else {
+                    truncated
+                }
+            } else {
+                stderr.to_string()
+            };
+            eprintln!("Stderr: {}", output_to_show);
+        }
+
+        // Send success notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Command completed: {}", cmd_config.command)
+            } else {
+                "Command completed".to_string()
+            };
+            send_notification("UserPromptSubmit", "success", Some(&context_msg));
+        }
+    }
+
+    println!("All user prompt submit hook commands completed");
+    Ok(())
+}
+
 /// Handles `UserPromptSubmit` hook events when users submit input to Claude.
+///
+/// This function processes user prompt submissions by:
+/// 1. Validating the payload
+/// 2. Evaluating contextRules for context injection
+/// 3. Executing matching commands (after contextRules processing)
+/// 4. Returning the hook result with any injected context
+///
+/// Commands are observational (read-only) and cannot block prompt processing.
+/// Command failures are logged but do not affect the hook result.
 ///
 /// # Errors
 ///
@@ -809,7 +1267,7 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
         payload.base.session_id
     );
 
-    // Load configuration for context injection rules
+    // Load configuration for context injection rules and commands
     let (config, config_path) = get_config().await?;
     let config_dir = get_config_dir(config_path);
 
@@ -837,16 +1295,44 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
         }
     }
 
-    // If we have matching contexts, combine them and return
-    if !matching_contexts.is_empty() {
+    // Determine context injection result before executing commands
+    let context_result = if !matching_contexts.is_empty() {
         let combined_context = matching_contexts.join("\n\n");
-
         println!(
             "Context injection: {} rule(s) matched user prompt",
             matching_contexts.len()
         );
         println!("Matched patterns: {:?}", matched_patterns);
+        Some(combined_context)
+    } else {
+        None
+    };
 
+    // Execute commands after contextRules processing
+    // Commands are observational and cannot block prompt processing
+    if !config.user_prompt_submit.commands.is_empty() {
+        // Collect commands that match the prompt
+        let commands = collect_user_prompt_submit_commands(
+            &config.user_prompt_submit.commands,
+            &payload.prompt,
+        )?;
+
+        if !commands.is_empty() {
+            // Build environment variables
+            let env_vars = build_user_prompt_submit_env_vars(&payload, config_dir);
+
+            // Execute commands (graceful failure handling)
+            if let Err(e) =
+                execute_user_prompt_submit_commands(&commands, &env_vars, config_dir).await
+            {
+                // Log error but don't block the hook result
+                eprintln!("Error executing user prompt submit commands: {}", e);
+            }
+        }
+    }
+
+    // Return the hook result with context if any rules matched
+    if let Some(context) = context_result {
         send_notification(
             "UserPromptSubmit",
             "success",
@@ -855,8 +1341,7 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
                 matching_contexts.len()
             )),
         );
-
-        return Ok(HookResult::with_context(combined_context));
+        return Ok(HookResult::with_context(context));
     }
 
     // Send notification for user prompt submission (no context injection)
@@ -967,6 +1452,7 @@ pub(crate) fn collect_stop_commands(config: &ConclaudeConfig) -> Result<Vec<Stop
         let show_stderr = cmd_config.show_stderr.unwrap_or(false);
         let show_command = cmd_config.show_command.unwrap_or(true);
         let max_output_lines = cmd_config.max_output_lines;
+        let notify_per_command = cmd_config.notify_per_command.unwrap_or(false);
         for cmd in extracted {
             commands.push(StopCommandConfig {
                 command: cmd,
@@ -976,6 +1462,7 @@ pub(crate) fn collect_stop_commands(config: &ConclaudeConfig) -> Result<Vec<Stop
                 max_output_lines,
                 timeout: cmd_config.timeout,
                 show_command,
+                notify_per_command,
             });
         }
     }
@@ -1006,6 +1493,16 @@ async fn execute_stop_commands(
             println!("Executing command {}/{}", index + 1, commands.len());
         }
 
+        // Send start notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Running: {}", cmd_config.command)
+            } else {
+                "Running command".to_string()
+            };
+            send_notification("Stop", "running", Some(&context_msg));
+        }
+
         let child = TokioCommand::new("bash")
             .arg("-c")
             .arg(&cmd_config.command)
@@ -1032,6 +1529,16 @@ async fn execute_stop_commands(
                         timeout_secs, cmd_config.command
                     );
                     eprintln!("{}", error_msg);
+
+                    // Send failure notification if per-command notifications are enabled
+                    if cmd_config.notify_per_command {
+                        let context_msg = if cmd_config.show_command {
+                            format!("Command timed out: {}", cmd_config.command)
+                        } else {
+                            "Command timed out".to_string()
+                        };
+                        send_notification("Stop", "failure", Some(&context_msg));
+                    }
 
                     let message = cmd_config.message.as_deref().unwrap_or(&error_msg);
                     return Ok(Some(HookResult::blocked(message)));
@@ -1066,32 +1573,42 @@ async fn execute_stop_commands(
             };
 
             // Only include Stdout section if showStdout is true
-            if cmd_config.show_stdout {
-                let stdout_display = if stdout.trim().is_empty() {
-                    "    (no stdout)".to_string()
+            if cmd_config.show_stdout && !stdout.trim().is_empty() {
+                let stdout_content = if let Some(max_lines) = cmd_config.max_output_lines {
+                    let (truncated, is_truncated, omitted) = truncate_output(&stdout, max_lines);
+                    if is_truncated {
+                        format!("{}\n... ({} lines omitted)", truncated, omitted)
+                    } else {
+                        truncated
+                    }
                 } else {
-                    stdout
-                        .trim()
-                        .lines()
-                        .map(|line| format!("    {}", line))
-                        .collect::<Vec<_>>()
-                        .join("\n")
+                    stdout.trim().to_string()
                 };
+                let stdout_display = stdout_content
+                    .lines()
+                    .map(|line| format!("    {}", line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
                 diagnostic.push_str(&format!("\n  Stdout:\n{}", stdout_display));
             }
 
             // Only include Stderr section if showStderr is true
-            if cmd_config.show_stderr {
-                let stderr_display = if stderr.trim().is_empty() {
-                    "    (no stderr)".to_string()
+            if cmd_config.show_stderr && !stderr.trim().is_empty() {
+                let stderr_content = if let Some(max_lines) = cmd_config.max_output_lines {
+                    let (truncated, is_truncated, omitted) = truncate_output(&stderr, max_lines);
+                    if is_truncated {
+                        format!("{}\n... ({} lines omitted)", truncated, omitted)
+                    } else {
+                        truncated
+                    }
                 } else {
-                    stderr
-                        .trim()
-                        .lines()
-                        .map(|line| format!("    {}", line))
-                        .collect::<Vec<_>>()
-                        .join("\n")
+                    stderr.trim().to_string()
                 };
+                let stderr_display = stderr_content
+                    .lines()
+                    .map(|line| format!("    {}", line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
                 diagnostic.push_str(&format!("\n  Stderr:\n{}", stderr_display));
             }
 
@@ -1138,7 +1655,27 @@ async fn execute_stop_commands(
                 format!("Command failed with exit code {exit_code}{stdout_section}{stderr_section}")
             };
 
+            // Send failure notification if per-command notifications are enabled
+            if cmd_config.notify_per_command {
+                let context_msg = if cmd_config.show_command {
+                    format!("Command failed: {}", cmd_config.command)
+                } else {
+                    "Command failed".to_string()
+                };
+                send_notification("Stop", "failure", Some(&context_msg));
+            }
+
             return Ok(Some(HookResult::blocked(error_message)));
+        }
+
+        // Send success notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Command completed: {}", cmd_config.command)
+            } else {
+                "Command completed".to_string()
+            };
+            send_notification("Stop", "success", Some(&context_msg));
         }
 
         // Successful individual commands produce no output
@@ -1412,6 +1949,7 @@ pub(crate) fn collect_subagent_stop_commands(
                 let show_stderr = cmd_config.show_stderr.unwrap_or(false);
                 let show_command = cmd_config.show_command.unwrap_or(true);
                 let max_output_lines = cmd_config.max_output_lines;
+                let notify_per_command = cmd_config.notify_per_command.unwrap_or(false);
 
                 for cmd in extracted {
                     commands.push(SubagentStopCommandConfig {
@@ -1422,6 +1960,7 @@ pub(crate) fn collect_subagent_stop_commands(
                         max_output_lines,
                         timeout: cmd_config.timeout,
                         show_command,
+                        notify_per_command,
                     });
                 }
             }
@@ -1464,6 +2003,16 @@ async fn execute_subagent_stop_commands(
             );
         }
 
+        // Send start notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Running: {}", cmd_config.command)
+            } else {
+                "Running command".to_string()
+            };
+            send_notification("SubagentStop", "running", Some(&context_msg));
+        }
+
         let child = TokioCommand::new("bash")
             .arg("-c")
             .arg(&cmd_config.command)
@@ -1486,6 +2035,17 @@ async fn execute_subagent_stop_commands(
                 } else {
                     eprintln!("Failed to spawn subagent stop command: {}", e);
                 }
+
+                // Send failure notification if per-command notifications are enabled
+                if cmd_config.notify_per_command {
+                    let context_msg = if cmd_config.show_command {
+                        format!("Failed to spawn command: {}", cmd_config.command)
+                    } else {
+                        "Failed to spawn command".to_string()
+                    };
+                    send_notification("SubagentStop", "failure", Some(&context_msg));
+                }
+
                 continue;
             }
         };
@@ -1504,6 +2064,17 @@ async fn execute_subagent_stop_commands(
                         } else {
                             eprintln!("Failed to wait for subagent stop command: {}", e);
                         }
+
+                        // Send failure notification if per-command notifications are enabled
+                        if cmd_config.notify_per_command {
+                            let context_msg = if cmd_config.show_command {
+                                format!("Command failed to wait: {}", cmd_config.command)
+                            } else {
+                                "Command failed to wait".to_string()
+                            };
+                            send_notification("SubagentStop", "failure", Some(&context_msg));
+                        }
+
                         continue;
                     }
                 },
@@ -1524,6 +2095,17 @@ async fn execute_subagent_stop_commands(
                     if let Some(custom_msg) = &cmd_config.message {
                         eprintln!("Message: {}", custom_msg);
                     }
+
+                    // Send failure notification if per-command notifications are enabled
+                    if cmd_config.notify_per_command {
+                        let context_msg = if cmd_config.show_command {
+                            format!("Command timed out: {}", cmd_config.command)
+                        } else {
+                            "Command timed out".to_string()
+                        };
+                        send_notification("SubagentStop", "failure", Some(&context_msg));
+                    }
+
                     continue;
                 }
             }
@@ -1540,6 +2122,17 @@ async fn execute_subagent_stop_commands(
                     } else {
                         eprintln!("Failed to wait for subagent stop command: {}", e);
                     }
+
+                    // Send failure notification if per-command notifications are enabled
+                    if cmd_config.notify_per_command {
+                        let context_msg = if cmd_config.show_command {
+                            format!("Command failed to wait: {}", cmd_config.command)
+                        } else {
+                            "Command failed to wait".to_string()
+                        };
+                        send_notification("SubagentStop", "failure", Some(&context_msg));
+                    }
+
                     continue;
                 }
             }
@@ -1610,6 +2203,16 @@ async fn execute_subagent_stop_commands(
                 eprintln!("Message: {}", custom_msg);
             }
 
+            // Send failure notification if per-command notifications are enabled
+            if cmd_config.notify_per_command {
+                let context_msg = if cmd_config.show_command {
+                    format!("Command failed: {}", cmd_config.command)
+                } else {
+                    "Command failed".to_string()
+                };
+                send_notification("SubagentStop", "failure", Some(&context_msg));
+            }
+
             // Continue to next command (graceful failure handling)
             continue;
         }
@@ -1641,6 +2244,16 @@ async fn execute_subagent_stop_commands(
                 stderr.to_string()
             };
             eprintln!("Stderr: {}", output_to_show);
+        }
+
+        // Send success notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Command completed: {}", cmd_config.command)
+            } else {
+                "Command completed".to_string()
+            };
+            send_notification("SubagentStop", "success", Some(&context_msg));
         }
     }
 

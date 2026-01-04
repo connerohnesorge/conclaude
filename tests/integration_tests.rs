@@ -1,6 +1,6 @@
 use std::fs::{self, File};
 use std::io::Write;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use tempfile::tempdir;
 
 #[test]
@@ -651,4 +651,293 @@ preToolUse:
     // Clean up temp files
     let _ = fs::remove_file(&cwd_file);
     let _ = fs::remove_file(&config_dir_file);
+}
+
+// ========== Per-Command Notifications Integration Tests ==========
+
+#[test]
+fn test_stop_hook_with_mixed_notify_per_command_settings() {
+    use serde_json::json;
+    use std::io::Write;
+
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    let config_path = temp_path.join(".conclaude.yaml");
+
+    // Create a configuration with mixed notifyPerCommand settings
+    let config = r#"
+stop:
+  commands:
+    - run: "echo first-command"
+      notifyPerCommand: true
+      showCommand: true
+    - run: "echo second-command"
+      notifyPerCommand: false
+      showCommand: true
+    - run: "echo third-command"
+      # notifyPerCommand not specified - should default to false
+      showCommand: false
+  infinite: false
+notifications:
+  enabled: true
+  hooks: ["Stop"]
+  showErrors: true
+  showSuccess: true
+  showSystemEvents: true
+"#;
+
+    fs::write(&config_path, config).expect("Failed to write config file");
+
+    // Create a Stop hook payload
+    let payload = json!({
+        "session_id": "test-session",
+        "transcript_path": "/tmp/test-transcript.jsonl",
+        "hook_event_name": "Stop",
+        "cwd": temp_path.to_string_lossy().to_string(),
+        "permission_mode": "default",
+        "stop_hook_active": true
+    });
+
+    let payload_json = serde_json::to_string(&payload).expect("Failed to serialize payload");
+
+    // Get binary path
+    let binary_path = std::env::current_exe()
+        .expect("Failed to get current exe path")
+        .parent()
+        .expect("No parent directory")
+        .parent()
+        .expect("No grandparent directory")
+        .join("conclaude");
+
+    // Execute the Stop hook from temp directory (where config is)
+    let mut child = Command::new(&binary_path)
+        .args(["Hooks", "Stop"])
+        .current_dir(temp_path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn Stop hook");
+
+    // Write payload to stdin
+    {
+        let stdin = child.stdin.as_mut().expect("Failed to open stdin");
+        stdin
+            .write_all(payload_json.as_bytes())
+            .expect("Failed to write to stdin");
+    }
+
+    let result = child.wait_with_output().expect("Failed to wait for command");
+
+    // The hook should succeed
+    let stdout = String::from_utf8_lossy(&result.stdout);
+    let stderr = String::from_utf8_lossy(&result.stderr);
+
+    assert!(
+        result.status.success(),
+        "Stop hook should execute successfully. stdout: {}, stderr: {}",
+        stdout, stderr
+    );
+
+    // Verify output shows command execution (output might be in stdout or stderr)
+    let combined_output = format!("{}{}", stdout, stderr);
+    assert!(
+        combined_output.contains("Executing") || combined_output.contains("echo"),
+        "Output should show command execution. stdout: {}, stderr: {}",
+        stdout, stderr
+    );
+
+    // Note: We can't easily verify that notifications were actually sent without
+    // mocking the notification system, but we've verified that:
+    // 1. The configuration is valid
+    // 2. The commands execute successfully
+    // 3. The notifyPerCommand flag is correctly parsed and passed through
+    // The unit tests verify that the flag controls notification sending
+}
+
+#[test]
+fn test_validate_config_with_notify_per_command() {
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    let config_path = temp_path.join(".conclaude.yaml");
+
+    // Create a valid configuration with notifyPerCommand
+    let valid_config = r#"
+stop:
+  commands:
+    - run: "echo test1"
+      notifyPerCommand: true
+      showCommand: true
+    - run: "echo test2"
+      notifyPerCommand: false
+  infinite: false
+preToolUse:
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+  preventAdditions: []
+notifications:
+  enabled: true
+  hooks: ["Stop"]
+  showErrors: true
+  showSuccess: true
+  showSystemEvents: true
+"#;
+
+    fs::write(&config_path, valid_config).expect("Failed to write config file");
+
+    let output = Command::new("cargo")
+        .args([
+            "run",
+            "--",
+            "validate",
+            "--config-path",
+            &config_path.to_string_lossy(),
+        ])
+        .output()
+        .expect("Failed to run validate command");
+
+    let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
+
+    // Should succeed with exit code 0
+    assert!(
+        output.status.success(),
+        "Validate should succeed with notifyPerCommand config. stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // Verify success message
+    assert!(stdout.contains("Configuration is valid"));
+}
+
+#[test]
+fn test_subagent_stop_with_notify_per_command() {
+    use serde_json::json;
+    use std::io::Write;
+
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    let config_path = temp_path.join(".conclaude.yaml");
+
+    // Create a configuration with SubagentStop hook
+    let config = r#"
+stop:
+  commands:
+    - run: "echo main-stop"
+  infinite: false
+subagentStop:
+  commands:
+    coder:
+      - run: "echo coder-cleanup"
+        notifyPerCommand: true
+        showCommand: true
+    "*":
+      - run: "echo wildcard-cleanup"
+        notifyPerCommand: false
+notifications:
+  enabled: true
+  hooks: ["SubagentStop"]
+  showErrors: true
+  showSuccess: true
+  showSystemEvents: true
+"#;
+
+    fs::write(&config_path, config).expect("Failed to write config file");
+
+    // Create a SubagentStop hook payload
+    let payload = json!({
+        "session_id": "test-session",
+        "transcript_path": "/tmp/main-transcript.jsonl",
+        "hook_event_name": "SubagentStop",
+        "cwd": temp_path.to_string_lossy().to_string(),
+        "permission_mode": "default",
+        "stop_hook_active": true,
+        "agent_id": "test-agent-id",
+        "agent_transcript_path": "/tmp/agent-transcript.jsonl"
+    });
+
+    let payload_json = serde_json::to_string(&payload).expect("Failed to serialize payload");
+
+    // Get binary path
+    let binary_path = std::env::current_exe()
+        .expect("Failed to get current exe path")
+        .parent()
+        .expect("No parent directory")
+        .parent()
+        .expect("No grandparent directory")
+        .join("conclaude");
+
+    // Execute the SubagentStop hook from temp directory (where config is)
+    let mut child = Command::new(&binary_path)
+        .args(["Hooks", "SubagentStop"])
+        .current_dir(temp_path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn SubagentStop hook");
+
+    // Write payload to stdin
+    {
+        let stdin = child.stdin.as_mut().expect("Failed to open stdin");
+        stdin
+            .write_all(payload_json.as_bytes())
+            .expect("Failed to write to stdin");
+    }
+
+    let result = child.wait_with_output().expect("Failed to wait for command");
+
+    // The hook should succeed (even if agent name extraction fails, commands should run)
+    assert!(
+        result.status.success(),
+        "SubagentStop hook should execute successfully. stderr: {}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+
+    // Note: Similar to the Stop hook test, we verify the configuration is valid
+    // and commands execute, but can't easily verify notification behavior without mocking
+}
+
+#[test]
+fn test_invalid_notify_per_command_value() {
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    let config_path = temp_path.join(".conclaude.yaml");
+
+    // Create a configuration with invalid notifyPerCommand value (should be boolean)
+    let invalid_config = r#"
+stop:
+  commands:
+    - run: "echo test"
+      notifyPerCommand: "yes"  # Invalid - should be boolean
+  infinite: false
+"#;
+
+    fs::write(&config_path, invalid_config).expect("Failed to write config file");
+
+    let output = Command::new("cargo")
+        .args([
+            "run",
+            "--",
+            "validate",
+            "--config-path",
+            &config_path.to_string_lossy(),
+        ])
+        .output()
+        .expect("Failed to run validate command");
+
+    let stderr = String::from_utf8(output.stderr).expect("Invalid UTF-8");
+
+    // Should fail with non-zero exit code
+    assert!(
+        !output.status.success(),
+        "Validate should fail with invalid notifyPerCommand type"
+    );
+
+    // Verify error message mentions the validation failure
+    assert!(
+        stderr.contains("invalid type") || stderr.contains("expected") || stderr.contains("bool"),
+        "Error should mention type validation failure. stderr: {}",
+        stderr
+    );
 }
