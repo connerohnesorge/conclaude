@@ -623,6 +623,9 @@ pub struct UserPromptSubmitCommand {
     #[serde(default)]
     #[schemars(range(min = 1, max = 3600))]
     pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command (start and completion). Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
 }
 
 /// Configuration for user prompt submit hook with context injection rules and command execution.

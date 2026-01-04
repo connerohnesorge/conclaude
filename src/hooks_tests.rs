@@ -1456,6 +1456,7 @@ mod user_prompt_submit_command_tests {
                 show_stderr: None,
                 max_output_lines: None,
                 timeout: None,
+                notify_per_command: None,
             },
             UserPromptSubmitCommand {
                 run: "echo test".to_string(),
@@ -1466,6 +1467,7 @@ mod user_prompt_submit_command_tests {
                 show_stderr: None,
                 max_output_lines: None,
                 timeout: None,
+                notify_per_command: None,
             },
         ];
 
@@ -1539,6 +1541,7 @@ mod user_prompt_submit_command_tests {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+            notify_per_command: None,
         }];
 
         // Should match any prompt
@@ -1567,6 +1570,7 @@ mod user_prompt_submit_command_tests {
             show_stderr: None,
             max_output_lines: None,
             timeout: None,
+            notify_per_command: None,
         }];
 
         // Should match with different cases
@@ -1601,6 +1605,7 @@ mod user_prompt_submit_command_tests {
                 show_stderr: None,
                 max_output_lines: None,
                 timeout: None,
+                notify_per_command: None,
             },
             UserPromptSubmitCommand {
                 run: "echo always".to_string(),
@@ -1611,6 +1616,7 @@ mod user_prompt_submit_command_tests {
                 show_stderr: None,
                 max_output_lines: None,
                 timeout: None,
+                notify_per_command: None,
             },
         ];
 
@@ -1622,5 +1628,66 @@ mod user_prompt_submit_command_tests {
         let result = collect_user_prompt_submit_commands(&commands, "fix bug").unwrap();
         assert_eq!(result.len(), 1);
         assert!(result[0].command.contains("always"));
+    }
+
+    // Test: notifyPerCommand flag is correctly passed through
+    #[test]
+    fn test_notify_per_command_flag_passed_through() {
+        let commands = vec![
+            UserPromptSubmitCommand {
+                run: "echo with-notify".to_string(),
+                pattern: None,
+                case_insensitive: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+                notify_per_command: Some(true),
+            },
+            UserPromptSubmitCommand {
+                run: "echo without-notify".to_string(),
+                pattern: None,
+                case_insensitive: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+                notify_per_command: Some(false),
+            },
+            UserPromptSubmitCommand {
+                run: "echo default-notify".to_string(),
+                pattern: None,
+                case_insensitive: None,
+                show_command: None,
+                show_stdout: None,
+                show_stderr: None,
+                max_output_lines: None,
+                timeout: None,
+                notify_per_command: None, // Should default to false
+            },
+        ];
+
+        let result = collect_user_prompt_submit_commands(&commands, "test prompt").unwrap();
+        assert_eq!(result.len(), 3);
+
+        // First command has notifyPerCommand: true
+        assert!(
+            result[0].notify_per_command,
+            "First command should have notify_per_command: true"
+        );
+
+        // Second command has notifyPerCommand: false
+        assert!(
+            !result[1].notify_per_command,
+            "Second command should have notify_per_command: false"
+        );
+
+        // Third command has notifyPerCommand: None (defaults to false)
+        assert!(
+            !result[2].notify_per_command,
+            "Third command should have notify_per_command: false (default)"
+        );
     }
 }

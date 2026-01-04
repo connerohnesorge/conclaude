@@ -93,6 +93,7 @@ pub(crate) struct UserPromptSubmitCommandConfig {
     pub(crate) max_output_lines: Option<u32>,
     pub(crate) timeout: Option<u64>,
     pub(crate) show_command: bool,
+    pub(crate) notify_per_command: bool,
 }
 
 /// Cached configuration instance to avoid repeated loads
@@ -893,6 +894,7 @@ pub(crate) fn collect_user_prompt_submit_commands(
         let show_command = cmd_config.show_command.unwrap_or(true);
         let max_output_lines = cmd_config.max_output_lines;
         let timeout = cmd_config.timeout;
+        let notify_per_command = cmd_config.notify_per_command.unwrap_or(false);
 
         for cmd in extracted {
             result.push(UserPromptSubmitCommandConfig {
@@ -902,6 +904,7 @@ pub(crate) fn collect_user_prompt_submit_commands(
                 max_output_lines,
                 timeout,
                 show_command,
+                notify_per_command,
             });
         }
     }
@@ -948,6 +951,16 @@ async fn execute_user_prompt_submit_commands(
             );
         }
 
+        // Send start notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Running: {}", cmd_config.command)
+            } else {
+                "Running command".to_string()
+            };
+            send_notification("UserPromptSubmit", "running", Some(&context_msg));
+        }
+
         let child = TokioCommand::new("bash")
             .arg("-c")
             .arg(&cmd_config.command)
@@ -970,6 +983,17 @@ async fn execute_user_prompt_submit_commands(
                 } else {
                     eprintln!("Failed to spawn user prompt submit command: {}", e);
                 }
+
+                // Send failure notification if per-command notifications are enabled
+                if cmd_config.notify_per_command {
+                    let context_msg = if cmd_config.show_command {
+                        format!("Failed to spawn command: {}", cmd_config.command)
+                    } else {
+                        "Failed to spawn command".to_string()
+                    };
+                    send_notification("UserPromptSubmit", "failure", Some(&context_msg));
+                }
+
                 continue;
             }
         };
@@ -987,6 +1011,17 @@ async fn execute_user_prompt_submit_commands(
                         } else {
                             eprintln!("Failed to wait for user prompt submit command: {}", e);
                         }
+
+                        // Send failure notification if per-command notifications are enabled
+                        if cmd_config.notify_per_command {
+                            let context_msg = if cmd_config.show_command {
+                                format!("Command failed to wait: {}", cmd_config.command)
+                            } else {
+                                "Command failed to wait".to_string()
+                            };
+                            send_notification("UserPromptSubmit", "failure", Some(&context_msg));
+                        }
+
                         continue;
                     }
                 },
@@ -1003,6 +1038,17 @@ async fn execute_user_prompt_submit_commands(
                             timeout_secs
                         );
                     }
+
+                    // Send failure notification if per-command notifications are enabled
+                    if cmd_config.notify_per_command {
+                        let context_msg = if cmd_config.show_command {
+                            format!("Command timed out: {}", cmd_config.command)
+                        } else {
+                            "Command timed out".to_string()
+                        };
+                        send_notification("UserPromptSubmit", "failure", Some(&context_msg));
+                    }
+
                     continue;
                 }
             }
@@ -1018,6 +1064,17 @@ async fn execute_user_prompt_submit_commands(
                     } else {
                         eprintln!("Failed to wait for user prompt submit command: {}", e);
                     }
+
+                    // Send failure notification if per-command notifications are enabled
+                    if cmd_config.notify_per_command {
+                        let context_msg = if cmd_config.show_command {
+                            format!("Command failed to wait: {}", cmd_config.command)
+                        } else {
+                            "Command failed to wait".to_string()
+                        };
+                        send_notification("UserPromptSubmit", "failure", Some(&context_msg));
+                    }
+
                     continue;
                 }
             }
@@ -1082,6 +1139,16 @@ async fn execute_user_prompt_submit_commands(
 
             eprintln!("{}", diagnostic);
 
+            // Send failure notification if per-command notifications are enabled
+            if cmd_config.notify_per_command {
+                let context_msg = if cmd_config.show_command {
+                    format!("Command failed: {}", cmd_config.command)
+                } else {
+                    "Command failed".to_string()
+                };
+                send_notification("UserPromptSubmit", "failure", Some(&context_msg));
+            }
+
             // Continue to next command (graceful failure handling)
             continue;
         }
@@ -1113,6 +1180,16 @@ async fn execute_user_prompt_submit_commands(
                 stderr.to_string()
             };
             eprintln!("Stderr: {}", output_to_show);
+        }
+
+        // Send success notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Command completed: {}", cmd_config.command)
+            } else {
+                "Command completed".to_string()
+            };
+            send_notification("UserPromptSubmit", "success", Some(&context_msg));
         }
     }
 
