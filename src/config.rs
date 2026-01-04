@@ -564,10 +564,75 @@ pub struct ContextInjectionRule {
     pub case_insensitive: Option<bool>,
 }
 
-/// Configuration for user prompt submit hook with context injection rules
+/// Configuration for individual user prompt submit commands.
+///
+/// These commands run when a user submits a prompt to Claude.
+/// Commands are observational (read-only) and cannot block prompt processing.
+///
+/// # Environment Variables
+///
+/// The following environment variables are available in commands:
+/// - `CONCLAUDE_USER_PROMPT` - The user's input text
+/// - `CONCLAUDE_SESSION_ID` - Current session ID
+/// - `CONCLAUDE_CWD` - Current working directory
+/// - `CONCLAUDE_CONFIG_DIR` - Directory containing .conclaude.yaml
+/// - `CONCLAUDE_HOOK_EVENT` - Always "UserPromptSubmit"
+///
+/// # Examples
+///
+/// ```yaml
+/// userPromptSubmit:
+///   commands:
+///     # Run for all prompts
+///     - run: ".claude/scripts/log-prompt.sh"
+///
+///     # Run only for prompts matching pattern (regex)
+///     - pattern: "deploy|release"
+///       run: ".claude/scripts/notify-deploy.sh"
+///
+///     # Run with output display options
+///     - pattern: "test"
+///       run: ".claude/scripts/pre-test-check.sh"
+///       showStdout: true
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct UserPromptSubmitCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_USER_PROMPT, CONCLAUDE_SESSION_ID, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_HOOK_EVENT
+    pub run: String,
+    /// Regex pattern to filter which prompts trigger this command. Default: runs for all prompts
+    #[serde(default)]
+    pub pattern: Option<String>,
+    /// Use case-insensitive pattern matching. Default: false
+    #[serde(default, rename = "caseInsensitive")]
+    pub case_insensitive: Option<bool>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated (but does not block prompt processing).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command (start and completion). Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for user prompt submit hook with context injection rules and command execution.
 ///
 /// This hook allows automatic injection of context or instructions into Claude's
-/// system prompt based on pattern matching against user-submitted prompts.
+/// system prompt based on pattern matching against user-submitted prompts, as well
+/// as running shell commands when prompts match patterns.
 ///
 /// # Examples
 ///
@@ -593,6 +658,15 @@ pub struct ContextInjectionRule {
 ///     - pattern: "performance"
 ///       prompt: "Consider performance implications"
 ///       enabled: false
+///
+///   # Command execution (runs after contextRules processing)
+///   commands:
+///     # Run for all prompts
+///     - run: ".claude/scripts/log-prompt.sh"
+///
+///     # Run only for prompts matching pattern
+///     - pattern: "deploy|release"
+///       run: ".claude/scripts/notify-deploy.sh"
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
 #[serde(deny_unknown_fields)]
@@ -609,6 +683,24 @@ pub struct UserPromptSubmitConfig {
     /// - `caseInsensitive`: (optional) Case-insensitive matching. Default: false
     #[serde(default, rename = "contextRules")]
     pub context_rules: Vec<ContextInjectionRule>,
+
+    /// List of commands to execute when user prompts are submitted.
+    ///
+    /// Commands run after contextRules are evaluated. They are observational
+    /// (read-only) and cannot block prompt processing. Use them for logging,
+    /// notifications, or triggering external integrations.
+    ///
+    /// Each command supports:
+    /// - `run`: (required) Shell command to execute
+    /// - `pattern`: (optional) Regex pattern to filter prompts. Default: runs for all
+    /// - `caseInsensitive`: (optional) Case-insensitive pattern matching. Default: false
+    /// - `showCommand`: (optional) Show command being executed. Default: true
+    /// - `showStdout`: (optional) Show stdout. Default: false
+    /// - `showStderr`: (optional) Show stderr. Default: false
+    /// - `maxOutputLines`: (optional) Limit output lines. Range: 1-10000
+    /// - `timeout`: (optional) Command timeout in seconds. Range: 1-3600
+    #[serde(default)]
+    pub commands: Vec<UserPromptSubmitCommand>,
 }
 
 /// Configuration for permission request hooks that control tool permission decisions.
@@ -789,6 +881,10 @@ pub fn suggest_similar_fields(unknown_field: &str, section: &str) -> Vec<String>
         ("userPromptSubmit", UserPromptSubmitConfig::field_names()),
         ("commands", StopCommand::field_names()),
         ("subagentStopCommands", SubagentStopCommand::field_names()),
+        (
+            "userPromptSubmitCommands",
+            UserPromptSubmitCommand::field_names(),
+        ),
     ];
 
     // Find the section's valid fields
@@ -1085,6 +1181,85 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
         }
     }
 
+    // Validate userPromptSubmit commands
+    for (idx, command) in config.user_prompt_submit.commands.iter().enumerate() {
+        // Validate pattern regex syntax if specified
+        if let Some(pattern) = &command.pattern {
+            let regex_result = if command.case_insensitive.unwrap_or(false) {
+                regex::RegexBuilder::new(pattern)
+                    .case_insensitive(true)
+                    .build()
+            } else {
+                regex::Regex::new(pattern)
+            };
+
+            if let Err(e) = regex_result {
+                let error_msg = format!(
+                    "Invalid regex pattern in userPromptSubmit.commands[{idx}].pattern\n\n\
+                     Error: Pattern '{}' failed to compile\n\n\
+                     Regex error: {}\n\n\
+                     Common causes:\n\
+                       • Unclosed brackets or parentheses\n\
+                       • Invalid escape sequences\n\
+                       • Incorrect regex syntax\n\n\
+                     Example valid patterns:\n\
+                       pattern: \"deploy|release\"       # Multiple options (OR)\n\
+                       pattern: \"(?i)database\"         # Case-insensitive\n\
+                       pattern: \"test.*feature\"        # Wildcard matching\n\n\
+                     For regex help, see: https://docs.rs/regex/latest/regex/#syntax\n\n\
+                     For a valid configuration template, run:\n\
+                       conclaude init",
+                    pattern, e
+                );
+                return Err(anyhow::anyhow!(error_msg));
+            }
+        }
+
+        // Validate timeout range (1-3600)
+        if let Some(timeout) = command.timeout {
+            if !(1..=3600).contains(&timeout) {
+                let error_msg = format!(
+                    "Range validation failed for userPromptSubmit.commands[{idx}].timeout\n\n\
+                     Error: Value {timeout} is out of valid range\n\n\
+                     Valid range: 1 to 3600 seconds (1 second to 1 hour)\n\n\
+                     Common causes:\n\
+                       • Value is too large (maximum is 3600 seconds / 1 hour)\n\
+                       • Value is too small (minimum is 1 second)\n\
+                       • Using a negative number\n\n\
+                     Example valid configurations:\n\
+                       timeout: 30       # 30 seconds\n\
+                       timeout: 300      # 5 minutes\n\
+                       timeout: 3600     # maximum allowed (1 hour)\n\n\
+                     For a valid configuration template, run:\n\
+                       conclaude init"
+                );
+                return Err(anyhow::anyhow!(error_msg));
+            }
+        }
+
+        // Validate maxOutputLines range (1-10000)
+        if let Some(max_lines) = command.max_output_lines {
+            if !(1..=10000).contains(&max_lines) {
+                let error_msg = format!(
+                    "Range validation failed for userPromptSubmit.commands[{idx}].maxOutputLines\n\n\
+                     Error: Value {max_lines} is out of valid range\n\n\
+                     Valid range: 1 to 10000\n\n\
+                     Common causes:\n\
+                       • Value is too large (maximum is 10000)\n\
+                       • Value is too small (minimum is 1)\n\
+                       • Using a negative number\n\n\
+                     Example valid configurations:\n\
+                       maxOutputLines: 100      # default, good for most cases\n\
+                       maxOutputLines: 1000     # for verbose output\n\
+                       maxOutputLines: 10000    # maximum allowed\n\n\
+                     For a valid configuration template, run:\n\
+                       conclaude init"
+                );
+                return Err(anyhow::anyhow!(error_msg));
+            }
+        }
+    }
+
     // Validate subagentStop configuration
     for (pattern, commands) in &config.subagent_stop.commands {
         // Validate pattern is not empty
@@ -1293,4 +1468,236 @@ EOF"#
 #[must_use]
 pub fn generate_default_config() -> String {
     include_str!("default-config.yaml").to_string()
+}
+
+#[cfg(test)]
+mod user_prompt_submit_command_validation_tests {
+    use super::*;
+    use std::path::Path;
+
+    // Test: Config validation rejects invalid regex patterns
+    #[test]
+    fn test_config_rejects_invalid_regex_pattern() {
+        let config_yaml = r#"
+userPromptSubmit:
+  commands:
+    - run: "echo test"
+      pattern: "[invalid"
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("Invalid regex pattern"));
+        assert!(error.contains("userPromptSubmit.commands[0].pattern"));
+    }
+
+    // Test: Config accepts valid regex pattern
+    #[test]
+    fn test_config_accepts_valid_regex_pattern() {
+        let config_yaml = r#"
+userPromptSubmit:
+  commands:
+    - run: "echo test"
+      pattern: "deploy|release"
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+    }
+
+    // Test: Config validation rejects invalid timeout values
+    #[test]
+    fn test_config_rejects_invalid_timeout_too_high() {
+        let config_yaml = r#"
+userPromptSubmit:
+  commands:
+    - run: "echo test"
+      timeout: 5000
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("Range validation failed"));
+        assert!(error.contains("timeout"));
+        assert!(error.contains("5000"));
+    }
+
+    #[test]
+    fn test_config_rejects_invalid_timeout_zero() {
+        let config_yaml = r#"
+userPromptSubmit:
+  commands:
+    - run: "echo test"
+      timeout: 0
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("Range validation failed"));
+        assert!(error.contains("timeout"));
+    }
+
+    // Test: Config accepts valid timeout values
+    #[test]
+    fn test_config_accepts_valid_timeout() {
+        let config_yaml = r#"
+userPromptSubmit:
+  commands:
+    - run: "echo test"
+      timeout: 300
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+    }
+
+    // Test: Config validation rejects invalid maxOutputLines values
+    #[test]
+    fn test_config_rejects_invalid_max_output_lines_too_high() {
+        let config_yaml = r#"
+userPromptSubmit:
+  commands:
+    - run: "echo test"
+      maxOutputLines: 20000
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("Range validation failed"));
+        assert!(error.contains("maxOutputLines"));
+    }
+
+    #[test]
+    fn test_config_rejects_invalid_max_output_lines_zero() {
+        let config_yaml = r#"
+userPromptSubmit:
+  commands:
+    - run: "echo test"
+      maxOutputLines: 0
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("Range validation failed"));
+        assert!(error.contains("maxOutputLines"));
+    }
+
+    // Test: Config accepts valid maxOutputLines values
+    #[test]
+    fn test_config_accepts_valid_max_output_lines() {
+        let config_yaml = r#"
+userPromptSubmit:
+  commands:
+    - run: "echo test"
+      maxOutputLines: 500
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+    }
+
+    // Test: Empty commands array is valid
+    #[test]
+    fn test_config_accepts_empty_commands_array() {
+        let config_yaml = r#"
+userPromptSubmit:
+  commands: []
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+    }
+
+    // Test: Commands coexist with contextRules
+    #[test]
+    fn test_config_accepts_commands_with_context_rules() {
+        let config_yaml = r#"
+userPromptSubmit:
+  contextRules:
+    - pattern: "auth"
+      prompt: "Review auth docs"
+  commands:
+    - run: "echo logging"
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        assert_eq!(config.user_prompt_submit.context_rules.len(), 1);
+        assert_eq!(config.user_prompt_submit.commands.len(), 1);
+    }
+
+    // Test: Missing commands field uses default (empty array)
+    #[test]
+    fn test_config_defaults_to_empty_commands() {
+        let config_yaml = r#"
+userPromptSubmit:
+  contextRules:
+    - pattern: "test"
+      prompt: "Test context"
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        assert!(config.user_prompt_submit.commands.is_empty());
+    }
+
+    // Test: Command with all options specified
+    #[test]
+    fn test_config_accepts_command_with_all_options() {
+        let config_yaml = r#"
+userPromptSubmit:
+  commands:
+    - run: ".claude/scripts/log.sh"
+      pattern: "deploy|release"
+      caseInsensitive: true
+      showCommand: true
+      showStdout: true
+      showStderr: false
+      maxOutputLines: 100
+      timeout: 30
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let cmd = &config.user_prompt_submit.commands[0];
+        assert_eq!(cmd.run, ".claude/scripts/log.sh");
+        assert_eq!(cmd.pattern, Some("deploy|release".to_string()));
+        assert_eq!(cmd.case_insensitive, Some(true));
+        assert_eq!(cmd.show_command, Some(true));
+        assert_eq!(cmd.show_stdout, Some(true));
+        assert_eq!(cmd.show_stderr, Some(false));
+        assert_eq!(cmd.max_output_lines, Some(100));
+        assert_eq!(cmd.timeout, Some(30));
+    }
+
+    // Test: Command with minimal options uses defaults
+    #[test]
+    fn test_config_command_uses_defaults() {
+        let config_yaml = r#"
+userPromptSubmit:
+  commands:
+    - run: "echo received"
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let cmd = &config.user_prompt_submit.commands[0];
+        assert_eq!(cmd.run, "echo received");
+        assert_eq!(cmd.pattern, None); // Default: matches all
+        assert_eq!(cmd.case_insensitive, None); // Default: false
+        assert_eq!(cmd.show_command, Some(true)); // Default: true
+        assert_eq!(cmd.show_stdout, None); // Default: false
+        assert_eq!(cmd.show_stderr, None); // Default: false
+        assert_eq!(cmd.max_output_lines, None); // Default: no limit
+        assert_eq!(cmd.timeout, None); // Default: no timeout
+    }
 }
