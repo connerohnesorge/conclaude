@@ -1,6 +1,6 @@
 use crate::config::{
-    extract_bash_commands, load_conclaude_config, ConclaudeConfig, SubagentStopConfig,
-    UserPromptSubmitCommand,
+    extract_bash_commands, load_conclaude_config, ConclaudeConfig, PostToolUseCommand,
+    SubagentStopConfig, UserPromptSubmitCommand,
 };
 use crate::gitignore::{find_git_root, is_path_git_ignored};
 use crate::types::{
@@ -87,6 +87,17 @@ pub(crate) struct SubagentStopCommandConfig {
 
 /// Represents a user prompt submit command with its configuration
 pub(crate) struct UserPromptSubmitCommandConfig {
+    pub(crate) command: String,
+    pub(crate) show_stdout: bool,
+    pub(crate) show_stderr: bool,
+    pub(crate) max_output_lines: Option<u32>,
+    pub(crate) timeout: Option<u64>,
+    pub(crate) show_command: bool,
+    pub(crate) notify_per_command: bool,
+}
+
+/// Represents a post tool use command with its configuration
+pub(crate) struct PostToolUseCommandConfig {
     pub(crate) command: String,
     pub(crate) show_stdout: bool,
     pub(crate) show_stderr: bool,
@@ -691,12 +702,421 @@ pub fn matches_agent_pattern(agent_name: &str, pattern: &str) -> bool {
     }
 }
 
+/// Build environment variables for post tool use command execution
+///
+/// Creates a HashMap of environment variables to pass to commands, including
+/// tool execution data and session information.
+///
+/// # Arguments
+///
+/// * `payload` - The PostToolUsePayload containing tool execution information
+/// * `config_dir` - The directory containing the configuration file
+#[must_use]
+pub(crate) fn build_post_tool_use_env_vars(
+    payload: &PostToolUsePayload,
+    config_dir: &Path,
+) -> HashMap<String, String> {
+    let mut env_vars = HashMap::new();
+
+    // Tool execution environment variables
+    env_vars.insert("CONCLAUDE_TOOL_NAME".to_string(), payload.tool_name.clone());
+
+    // Serialize tool_input to JSON
+    if let Ok(json) = serde_json::to_string(&payload.tool_input) {
+        env_vars.insert("CONCLAUDE_TOOL_INPUT".to_string(), json);
+    }
+
+    // Serialize tool_response to JSON
+    if let Ok(json) = serde_json::to_string(&payload.tool_response) {
+        env_vars.insert("CONCLAUDE_TOOL_OUTPUT".to_string(), json);
+    }
+
+    // Timestamp - using Unix timestamp in seconds for simplicity
+    // (ISO 8601 would require chrono or more complex formatting)
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs().to_string())
+        .unwrap_or_else(|_| "0".to_string());
+    env_vars.insert("CONCLAUDE_TOOL_TIMESTAMP".to_string(), timestamp);
+
+    // Tool use ID if present
+    if let Some(tool_use_id) = &payload.tool_use_id {
+        env_vars.insert("CONCLAUDE_TOOL_USE_ID".to_string(), tool_use_id.clone());
+    }
+
+    // Session-level environment variables
+    env_vars.insert(
+        "CONCLAUDE_SESSION_ID".to_string(),
+        payload.base.session_id.clone(),
+    );
+    env_vars.insert("CONCLAUDE_CWD".to_string(), payload.base.cwd.clone());
+    env_vars.insert(
+        "CONCLAUDE_CONFIG_DIR".to_string(),
+        config_dir.to_string_lossy().to_string(),
+    );
+
+    env_vars
+}
+
+/// Check if a tool name matches a pattern using glob matching
+///
+/// Supports exact matches, wildcard "*", and glob patterns like "*Search*"
+///
+/// # Arguments
+///
+/// * `tool_name` - The name of the tool to match
+/// * `pattern` - The glob pattern to match against
+#[must_use]
+pub(crate) fn matches_tool_pattern(tool_name: &str, pattern: &str) -> bool {
+    if pattern == "*" {
+        return true;
+    }
+
+    match Pattern::new(pattern) {
+        Ok(glob_pattern) => glob_pattern.matches(tool_name),
+        Err(e) => {
+            eprintln!("Invalid tool pattern '{}': {}", pattern, e);
+            false // Invalid pattern = no match (safe default)
+        }
+    }
+}
+
+/// Collect post tool use commands from configuration that match the given tool name
+///
+/// Returns commands that either have no tool pattern (match all) or whose pattern matches the tool name.
+///
+/// # Errors
+///
+/// Returns an error if bash command extraction fails.
+pub(crate) fn collect_post_tool_use_commands(
+    commands: &[PostToolUseCommand],
+    tool_name: &str,
+) -> Result<Vec<PostToolUseCommandConfig>> {
+    let mut result = Vec::new();
+
+    for cmd_config in commands {
+        // Check if command should run for this tool
+        let tool_pattern = cmd_config.tool.as_deref().unwrap_or("*");
+        if !matches_tool_pattern(tool_name, tool_pattern) {
+            continue;
+        }
+
+        // Extract and add commands
+        let extracted = extract_bash_commands(&cmd_config.run)?;
+        let show_stdout = cmd_config.show_stdout.unwrap_or(false);
+        let show_stderr = cmd_config.show_stderr.unwrap_or(false);
+        let show_command = cmd_config.show_command.unwrap_or(true);
+        let max_output_lines = cmd_config.max_output_lines;
+        let timeout = cmd_config.timeout;
+        let notify_per_command = cmd_config.notify_per_command.unwrap_or(false);
+
+        for cmd in extracted {
+            result.push(PostToolUseCommandConfig {
+                command: cmd,
+                show_stdout,
+                show_stderr,
+                max_output_lines,
+                timeout,
+                show_command,
+                notify_per_command,
+            });
+        }
+    }
+
+    Ok(result)
+}
+
+/// Execute post tool use hook commands with environment variables
+///
+/// Commands are observational (read-only) and cannot block tool execution.
+/// Failures are logged but do not affect the hook result.
+///
+/// # Errors
+///
+/// Returns an error if command spawning fails. Individual command failures are logged
+/// but do not stop subsequent command execution.
+async fn execute_post_tool_use_commands(
+    commands: &[PostToolUseCommandConfig],
+    env_vars: &HashMap<String, String>,
+    config_dir: &Path,
+) -> Result<()> {
+    if commands.is_empty() {
+        return Ok(());
+    }
+
+    println!(
+        "Executing {} post tool use hook commands",
+        commands.len()
+    );
+
+    for (index, cmd_config) in commands.iter().enumerate() {
+        if cmd_config.show_command {
+            println!(
+                "Executing post tool use command {}/{}: {}",
+                index + 1,
+                commands.len(),
+                cmd_config.command
+            );
+        } else {
+            println!(
+                "Executing post tool use command {}/{}",
+                index + 1,
+                commands.len()
+            );
+        }
+
+        // Send start notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Running: {}", cmd_config.command)
+            } else {
+                "Running command".to_string()
+            };
+            send_notification("PostToolUse", "running", Some(&context_msg));
+        }
+
+        let child = TokioCommand::new("bash")
+            .arg("-c")
+            .arg(&cmd_config.command)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .envs(env_vars)
+            .current_dir(config_dir)
+            .spawn();
+
+        let child = match child {
+            Ok(c) => c,
+            Err(e) => {
+                // Log error but continue to next command
+                if cmd_config.show_command {
+                    eprintln!(
+                        "Failed to spawn post tool use command '{}': {}",
+                        cmd_config.command, e
+                    );
+                } else {
+                    eprintln!("Failed to spawn post tool use command: {}", e);
+                }
+
+                // Send failure notification if per-command notifications are enabled
+                if cmd_config.notify_per_command {
+                    let context_msg = if cmd_config.show_command {
+                        format!("Failed to spawn command: {}", cmd_config.command)
+                    } else {
+                        "Failed to spawn command".to_string()
+                    };
+                    send_notification("PostToolUse", "failure", Some(&context_msg));
+                }
+
+                continue;
+            }
+        };
+
+        let output = if let Some(timeout_secs) = cmd_config.timeout {
+            match timeout(Duration::from_secs(timeout_secs), child.wait_with_output()).await {
+                Ok(result) => match result {
+                    Ok(o) => o,
+                    Err(e) => {
+                        if cmd_config.show_command {
+                            eprintln!(
+                                "Failed to wait for post tool use command '{}': {}",
+                                cmd_config.command, e
+                            );
+                        } else {
+                            eprintln!("Failed to wait for post tool use command: {}", e);
+                        }
+
+                        // Send failure notification if per-command notifications are enabled
+                        if cmd_config.notify_per_command {
+                            let context_msg = if cmd_config.show_command {
+                                format!("Command failed to wait: {}", cmd_config.command)
+                            } else {
+                                "Command failed to wait".to_string()
+                            };
+                            send_notification("PostToolUse", "failure", Some(&context_msg));
+                        }
+
+                        continue;
+                    }
+                },
+                Err(_) => {
+                    // Timeout occurred - log and continue
+                    if cmd_config.show_command {
+                        eprintln!(
+                            "Post tool use command timed out after {} seconds: {}",
+                            timeout_secs, cmd_config.command
+                        );
+                    } else {
+                        eprintln!(
+                            "Post tool use command timed out after {} seconds",
+                            timeout_secs
+                        );
+                    }
+
+                    // Send failure notification if per-command notifications are enabled
+                    if cmd_config.notify_per_command {
+                        let context_msg = if cmd_config.show_command {
+                            format!("Command timed out: {}", cmd_config.command)
+                        } else {
+                            "Command timed out".to_string()
+                        };
+                        send_notification("PostToolUse", "failure", Some(&context_msg));
+                    }
+
+                    continue;
+                }
+            }
+        } else {
+            match child.wait_with_output().await {
+                Ok(o) => o,
+                Err(e) => {
+                    if cmd_config.show_command {
+                        eprintln!(
+                            "Failed to wait for post tool use command '{}': {}",
+                            cmd_config.command, e
+                        );
+                    } else {
+                        eprintln!("Failed to wait for post tool use command: {}", e);
+                    }
+
+                    // Send failure notification if per-command notifications are enabled
+                    if cmd_config.notify_per_command {
+                        let context_msg = if cmd_config.show_command {
+                            format!("Command failed to wait: {}", cmd_config.command)
+                        } else {
+                            "Command failed to wait".to_string()
+                        };
+                        send_notification("PostToolUse", "failure", Some(&context_msg));
+                    }
+
+                    continue;
+                }
+            }
+        };
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        if !output.status.success() {
+            let exit_code = output.status.code().unwrap_or(1);
+
+            // Log failure information - respect showCommand flag
+            let mut diagnostic = if cmd_config.show_command {
+                format!(
+                    "Post tool use command failed:\n  Command: {}\n  Status: Failed (exit code: {})",
+                    cmd_config.command, exit_code
+                )
+            } else {
+                format!(
+                    "Post tool use command failed:\n  Status: Failed (exit code: {})",
+                    exit_code
+                )
+            };
+
+            if cmd_config.show_stdout && !stdout.trim().is_empty() {
+                let stdout_content = if let Some(max_lines) = cmd_config.max_output_lines {
+                    let (truncated, is_truncated, omitted) = truncate_output(&stdout, max_lines);
+                    if is_truncated {
+                        format!("{}\n... ({} lines omitted)", truncated, omitted)
+                    } else {
+                        truncated
+                    }
+                } else {
+                    stdout.trim().to_string()
+                };
+                let stdout_display = stdout_content
+                    .lines()
+                    .map(|line| format!("    {}", line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                diagnostic.push_str(&format!("\n  Stdout:\n{}", stdout_display));
+            }
+
+            if cmd_config.show_stderr && !stderr.trim().is_empty() {
+                let stderr_content = if let Some(max_lines) = cmd_config.max_output_lines {
+                    let (truncated, is_truncated, omitted) = truncate_output(&stderr, max_lines);
+                    if is_truncated {
+                        format!("{}\n... ({} lines omitted)", truncated, omitted)
+                    } else {
+                        truncated
+                    }
+                } else {
+                    stderr.trim().to_string()
+                };
+                let stderr_display = stderr_content
+                    .lines()
+                    .map(|line| format!("    {}", line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                diagnostic.push_str(&format!("\n  Stderr:\n{}", stderr_display));
+            }
+
+            eprintln!("{}", diagnostic);
+
+            // Send failure notification if per-command notifications are enabled
+            if cmd_config.notify_per_command {
+                let context_msg = if cmd_config.show_command {
+                    format!("Command failed: {}", cmd_config.command)
+                } else {
+                    "Command failed".to_string()
+                };
+                send_notification("PostToolUse", "failure", Some(&context_msg));
+            }
+
+            // Continue to next command (graceful failure handling)
+            continue;
+        }
+
+        // Successful command - show output if configured
+        if cmd_config.show_stdout && !stdout.trim().is_empty() {
+            let output_to_show = if let Some(max_lines) = cmd_config.max_output_lines {
+                let (truncated, is_truncated, omitted) = truncate_output(&stdout, max_lines);
+                if is_truncated {
+                    format!("{}\n... ({} lines omitted)", truncated, omitted)
+                } else {
+                    truncated
+                }
+            } else {
+                stdout.to_string()
+            };
+            println!("Stdout: {}", output_to_show);
+        }
+
+        if cmd_config.show_stderr && !stderr.trim().is_empty() {
+            let output_to_show = if let Some(max_lines) = cmd_config.max_output_lines {
+                let (truncated, is_truncated, omitted) = truncate_output(&stderr, max_lines);
+                if is_truncated {
+                    format!("{}\n... ({} lines omitted)", truncated, omitted)
+                } else {
+                    truncated
+                }
+            } else {
+                stderr.to_string()
+            };
+            eprintln!("Stderr: {}", output_to_show);
+        }
+
+        // Send success notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = if cmd_config.show_command {
+                format!("Command completed: {}", cmd_config.command)
+            } else {
+                "Command completed".to_string()
+            };
+            send_notification("PostToolUse", "success", Some(&context_msg));
+        }
+    }
+
+    println!("All post tool use hook commands completed");
+    Ok(())
+}
+
 /// Handles `PostToolUse` hook events fired after Claude executes a tool.
 ///
 /// # Errors
 ///
 /// Returns an error if payload validation fails or configuration loading fails.
-#[allow(clippy::unused_async)]
 pub async fn handle_post_tool_use() -> Result<HookResult> {
     let payload: PostToolUsePayload = read_payload_from_stdin()?;
 
@@ -711,12 +1131,38 @@ pub async fn handle_post_tool_use() -> Result<HookResult> {
         payload.base.session_id, payload.tool_name
     );
 
+    // Load configuration to check for postToolUse commands
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    // Check if postToolUse.commands is configured and not empty
+    if !config.post_tool_use.commands.is_empty() {
+        // Collect commands that match the tool name
+        let commands = collect_post_tool_use_commands(
+            &config.post_tool_use.commands,
+            &payload.tool_name,
+        )?;
+
+        if !commands.is_empty() {
+            // Build environment variables
+            let env_vars = build_post_tool_use_env_vars(&payload, config_dir);
+
+            // Execute commands (graceful failure handling - errors are logged but don't block)
+            if let Err(e) = execute_post_tool_use_commands(&commands, &env_vars, config_dir).await {
+                // Log error but don't block the hook result
+                eprintln!("Error executing post tool use commands: {}", e);
+            }
+        }
+    }
+
     // Send notification for post tool use completion
     send_notification(
         "PostToolUse",
         "success",
         Some(&format!("Tool '{}' completed", payload.tool_name)),
     );
+
+    // PostToolUse hooks always return success (read-only observation, cannot block)
     Ok(HookResult::success())
 }
 

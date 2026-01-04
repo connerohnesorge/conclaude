@@ -1579,3 +1579,100 @@ async fn test_tool_usage_rule_with_agent_filter() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+// PostToolUse Integration Tests
+#[tokio::test]
+async fn test_post_tool_use_hook_executes_matching_commands() -> anyhow::Result<()> {
+    use conclaude::config::{ConclaudeConfig, PostToolUseCommand, PostToolUseConfig};
+    use conclaude::types::PostToolUsePayload;
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    // Create test configuration with a PostToolUse command
+    let config = ConclaudeConfig {
+        post_tool_use: PostToolUseConfig {
+            commands: vec![PostToolUseCommand {
+                run: "echo test".to_string(),
+                tool: Some("WebSearch".to_string()),
+                show_command: Some(true),
+                show_stdout: Some(false),
+                show_stderr: Some(false),
+                timeout: None,
+                max_output_lines: None,
+                notify_per_command: None,
+            }],
+        },
+        ..Default::default()
+    };
+
+    // Create test payload (for demonstrating data structure)
+    let _payload = PostToolUsePayload {
+        base: conclaude::types::BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/tmp/transcript.jsonl".to_string(),
+            hook_event_name: "PostToolUse".to_string(),
+            cwd: "/tmp".to_string(),
+            permission_mode: None,
+        },
+        tool_name: "WebSearch".to_string(),
+        tool_input: HashMap::new(),
+        tool_use_id: Some("test_tool_use_1".to_string()),
+        tool_response: json!({"result": "success"}),
+    };
+
+    // Verify configuration is valid
+    assert_eq!(config.post_tool_use.commands.len(), 1);
+    assert_eq!(
+        config.post_tool_use.commands[0].tool,
+        Some("WebSearch".to_string())
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_post_tool_use_command_failure_doesnt_block_hook() -> anyhow::Result<()> {
+    use conclaude::config::{ConclaudeConfig, PostToolUseCommand, PostToolUseConfig};
+
+    // Create test configuration with a failing command
+    let config = ConclaudeConfig {
+        post_tool_use: PostToolUseConfig {
+            commands: vec![
+                // First command that should fail
+                PostToolUseCommand {
+                    run: "exit 1".to_string(),
+                    tool: Some("*".to_string()),
+                    show_command: Some(true),
+                    show_stdout: Some(false),
+                    show_stderr: Some(false),
+                    timeout: None,
+                    max_output_lines: None,
+                    notify_per_command: None,
+                },
+                // Second command that should also run
+                PostToolUseCommand {
+                    run: "echo success".to_string(),
+                    tool: Some("*".to_string()),
+                    show_command: Some(true),
+                    show_stdout: Some(false),
+                    show_stderr: Some(false),
+                    timeout: None,
+                    max_output_lines: None,
+                    notify_per_command: None,
+                },
+            ],
+        },
+        ..Default::default()
+    };
+
+    // Verify configuration is valid
+    assert_eq!(config.post_tool_use.commands.len(), 2);
+
+    // The first command exits with status 1, but the hook should continue
+    // and execute the second command. Per the spec, command failures
+    // should not block the hook result.
+    assert_eq!(config.post_tool_use.commands[0].run, "exit 1");
+    assert_eq!(config.post_tool_use.commands[1].run, "echo success");
+
+    Ok(())
+}

@@ -564,6 +564,69 @@ pub struct ContextInjectionRule {
     pub case_insensitive: Option<bool>,
 }
 
+/// Configuration for individual post-tool-use commands.
+///
+/// These commands run after a tool completes execution.
+/// Commands are observational (read-only) and cannot block tool execution.
+///
+/// # Environment Variables
+///
+/// The following environment variables are available in commands:
+/// - `CONCLAUDE_TOOL_NAME` - The name of the tool that was executed
+/// - `CONCLAUDE_TOOL_INPUT` - JSON string of tool input parameters
+/// - `CONCLAUDE_TOOL_OUTPUT` - JSON string of tool response/result
+/// - `CONCLAUDE_TOOL_TIMESTAMP` - ISO 8601 timestamp of completion
+/// - `CONCLAUDE_TOOL_USE_ID` - Unique identifier for correlation with preToolUse
+/// - `CONCLAUDE_SESSION_ID` - Current session ID
+/// - `CONCLAUDE_CWD` - Current working directory
+/// - `CONCLAUDE_CONFIG_DIR` - Directory containing .conclaude.yaml
+///
+/// # Examples
+///
+/// ```yaml
+/// postToolUse:
+///   commands:
+///     # Run for all tools
+///     - run: ".claude/scripts/log-tool.sh"
+///
+///     # Run only for specific tools (glob patterns supported)
+///     - tool: "AskUserQuestion"
+///       run: ".claude/scripts/log-qa.sh"
+///
+///     # Run for multiple tool patterns
+///     - tool: "*Search*"
+///       run: ".claude/scripts/log-search.sh"
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct PostToolUseCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_TOOL_NAME, CONCLAUDE_TOOL_INPUT, CONCLAUDE_TOOL_OUTPUT, CONCLAUDE_TOOL_TIMESTAMP, CONCLAUDE_TOOL_USE_ID, CONCLAUDE_SESSION_ID, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR
+    pub run: String,
+    /// Glob pattern to filter which tools trigger this command. Default: "*" (all tools)
+    #[serde(default)]
+    pub tool: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated (but does not block tool execution).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command (start and completion). Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
 /// Configuration for individual user prompt submit commands.
 ///
 /// These commands run when a user submits a prompt to Claude.
@@ -626,6 +689,51 @@ pub struct UserPromptSubmitCommand {
     /// Whether to send individual notifications for this command (start and completion). Default: false
     #[serde(default, rename = "notifyPerCommand")]
     pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for post-tool-use hook with command execution.
+///
+/// This hook allows running commands after tools complete execution for logging,
+/// documentation, and integration purposes. Commands are observational (read-only)
+/// and cannot block or modify tool execution.
+///
+/// # Examples
+///
+/// ```yaml
+/// postToolUse:
+///   commands:
+///     # Run for all tools
+///     - run: ".claude/scripts/log-tool.sh"
+///
+///     # Run only for specific tools (glob patterns supported)
+///     - tool: "AskUserQuestion"
+///       run: ".claude/scripts/log-qa.sh"
+///
+///     # Run for multiple tool patterns
+///     - tool: "*Search*"
+///       run: ".claude/scripts/log-search.sh"
+///       showStdout: false
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct PostToolUseConfig {
+    /// List of commands to execute when tools complete.
+    ///
+    /// Commands run after tool execution completes. They are observational
+    /// (read-only) and cannot block or modify tool execution. Use them for logging,
+    /// notifications, or triggering external integrations.
+    ///
+    /// Each command supports:
+    /// - `run`: (required) Shell command to execute
+    /// - `tool`: (optional) Glob pattern to filter tools. Default: "*" (all tools)
+    /// - `showCommand`: (optional) Show command being executed. Default: true
+    /// - `showStdout`: (optional) Show stdout. Default: false
+    /// - `showStderr`: (optional) Show stderr. Default: false
+    /// - `maxOutputLines`: (optional) Limit output lines. Range: 1-10000
+    /// - `timeout`: (optional) Command timeout in seconds. Range: 1-3600
+    /// - `notifyPerCommand`: (optional) Send individual notifications. Default: false
+    #[serde(default)]
+    pub commands: Vec<PostToolUseCommand>,
 }
 
 /// Configuration for user prompt submit hook with context injection rules and command execution.
@@ -848,6 +956,8 @@ pub struct ConclaudeConfig {
     pub subagent_stop: SubagentStopConfig,
     #[serde(default, rename = "preToolUse")]
     pub pre_tool_use: PreToolUseConfig,
+    #[serde(default, rename = "postToolUse")]
+    pub post_tool_use: PostToolUseConfig,
     #[serde(default)]
     pub notifications: NotificationsConfig,
     #[serde(default, rename = "permissionRequest")]
@@ -876,6 +986,7 @@ pub fn suggest_similar_fields(unknown_field: &str, section: &str) -> Vec<String>
         ("stop", StopConfig::field_names()),
         ("subagentStop", SubagentStopConfig::field_names()),
         ("preToolUse", PreToolUseConfig::field_names()),
+        ("postToolUse", PostToolUseConfig::field_names()),
         ("notifications", NotificationsConfig::field_names()),
         ("permissionRequest", PermissionRequestConfig::field_names()),
         ("userPromptSubmit", UserPromptSubmitConfig::field_names()),
@@ -884,6 +995,10 @@ pub fn suggest_similar_fields(unknown_field: &str, section: &str) -> Vec<String>
         (
             "userPromptSubmitCommands",
             UserPromptSubmitCommand::field_names(),
+        ),
+        (
+            "postToolUseCommands",
+            PostToolUseCommand::field_names(),
         ),
     ];
 
@@ -999,6 +1114,7 @@ fn format_parse_error(error: &serde_yaml::Error, config_path: &Path) -> String {
             "  preToolUse: preventAdditions, preventRootAdditions, preventRootAdditionsMessage, uneditableFiles, preventUpdateGitIgnored, toolUsageValidation"
                 .to_string(),
         );
+        parts.push("  postToolUse: commands".to_string());
         parts.push(
             "  notifications: enabled, hooks, showErrors, showSuccess, showSystemEvents"
                 .to_string(),
@@ -1009,6 +1125,7 @@ fn format_parse_error(error: &serde_yaml::Error, config_path: &Path) -> String {
                 .to_string(),
         );
         parts.push("  commands (subagentStop): run, message, showStdout, showStderr, maxOutputLines, timeout".to_string());
+        parts.push("  commands (postToolUse): run, tool, showCommand, showStdout, showStderr, maxOutputLines, timeout, notifyPerCommand".to_string());
     } else if base_error.contains("invalid type") {
         parts.push(String::new());
         parts.push("Type mismatch detected. Common causes:".to_string());
@@ -1323,6 +1440,72 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
                     );
                     return Err(anyhow::anyhow!(error_msg));
                 }
+            }
+        }
+    }
+
+    // Validate postToolUse commands
+    for (idx, command) in config.post_tool_use.commands.iter().enumerate() {
+        // Validate tool glob pattern syntax if specified
+        if let Some(tool_pattern) = &command.tool {
+            if let Err(e) = glob::Pattern::new(tool_pattern) {
+                let error_msg = format!(
+                    "Invalid glob pattern in postToolUse.commands[{idx}].tool\n\n\
+                     Error: Pattern '{tool_pattern}' failed to compile\n\n\
+                     Glob error: {e}\n\n\
+                     Example valid patterns:\n\
+                       tool: \"*\"                    # Matches all tools\n\
+                       tool: \"AskUserQuestion\"      # Exact match\n\
+                       tool: \"*Search*\"             # Contains \"Search\"\n\
+                       tool: \"Bash\"                 # Exact match\n\n\
+                     For a valid configuration template, run:\n\
+                       conclaude init"
+                );
+                return Err(anyhow::anyhow!(error_msg));
+            }
+        }
+
+        // Validate maxOutputLines range (1-10000)
+        if let Some(max_lines) = command.max_output_lines {
+            if !(1..=10000).contains(&max_lines) {
+                let error_msg = format!(
+                    "Range validation failed for postToolUse.commands[{idx}].maxOutputLines\n\n\
+                     Error: Value {max_lines} is out of valid range\n\n\
+                     Valid range: 1 to 10000\n\n\
+                     Common causes:\n\
+                       • Value is too large (maximum is 10000)\n\
+                       • Value is too small (minimum is 1)\n\
+                       • Using a negative number\n\n\
+                     Example valid configurations:\n\
+                       maxOutputLines: 100      # default, good for most cases\n\
+                       maxOutputLines: 1000     # for verbose output\n\
+                       maxOutputLines: 10000    # maximum allowed\n\n\
+                     For a valid configuration template, run:\n\
+                       conclaude init"
+                );
+                return Err(anyhow::anyhow!(error_msg));
+            }
+        }
+
+        // Validate timeout range (1-3600)
+        if let Some(timeout) = command.timeout {
+            if !(1..=3600).contains(&timeout) {
+                let error_msg = format!(
+                    "Range validation failed for postToolUse.commands[{idx}].timeout\n\n\
+                     Error: Value {timeout} is out of valid range\n\n\
+                     Valid range: 1 to 3600 seconds (1 second to 1 hour)\n\n\
+                     Common causes:\n\
+                       • Value is too large (maximum is 3600 seconds / 1 hour)\n\
+                       • Value is too small (minimum is 1 second)\n\
+                       • Using a negative number\n\n\
+                     Example valid configurations:\n\
+                       timeout: 30       # 30 seconds\n\
+                       timeout: 300      # 5 minutes\n\
+                       timeout: 3600     # maximum allowed (1 hour)\n\n\
+                     For a valid configuration template, run:\n\
+                       conclaude init"
+                );
+                return Err(anyhow::anyhow!(error_msg));
             }
         }
     }
@@ -1699,5 +1882,254 @@ userPromptSubmit:
         assert_eq!(cmd.show_stderr, None); // Default: false
         assert_eq!(cmd.max_output_lines, None); // Default: no limit
         assert_eq!(cmd.timeout, None); // Default: no timeout
+    }
+}
+
+#[cfg(test)]
+mod post_tool_use_command_validation_tests {
+    use super::*;
+    use std::path::Path;
+
+    // Test: Config accepts valid postToolUse configuration
+    #[test]
+    fn test_config_accepts_post_tool_use_commands() {
+        let config_yaml = r#"
+postToolUse:
+  commands:
+    - run: "echo test"
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        assert_eq!(config.post_tool_use.commands.len(), 1);
+        assert_eq!(config.post_tool_use.commands[0].run, "echo test");
+    }
+
+    // Test: Config accepts postToolUse command with all options
+    #[test]
+    fn test_config_accepts_post_tool_use_command_with_all_options() {
+        let config_yaml = r#"
+postToolUse:
+  commands:
+    - run: ".claude/scripts/log-qa.sh"
+      tool: "AskUserQuestion"
+      showCommand: true
+      showStdout: true
+      showStderr: false
+      maxOutputLines: 100
+      timeout: 30
+      notifyPerCommand: true
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let cmd = &config.post_tool_use.commands[0];
+        assert_eq!(cmd.run, ".claude/scripts/log-qa.sh");
+        assert_eq!(cmd.tool, Some("AskUserQuestion".to_string()));
+        assert_eq!(cmd.show_command, Some(true));
+        assert_eq!(cmd.show_stdout, Some(true));
+        assert_eq!(cmd.show_stderr, Some(false));
+        assert_eq!(cmd.max_output_lines, Some(100));
+        assert_eq!(cmd.timeout, Some(30));
+        assert_eq!(cmd.notify_per_command, Some(true));
+    }
+
+    // Test: Config uses defaults for missing options
+    #[test]
+    fn test_config_post_tool_use_command_uses_defaults() {
+        let config_yaml = r#"
+postToolUse:
+  commands:
+    - run: "echo completed"
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let cmd = &config.post_tool_use.commands[0];
+        assert_eq!(cmd.run, "echo completed");
+        assert_eq!(cmd.tool, None); // Default: "*" (all tools)
+        assert_eq!(cmd.show_command, Some(true)); // Default: true
+        assert_eq!(cmd.show_stdout, None); // Default: false
+        assert_eq!(cmd.show_stderr, None); // Default: false
+        assert_eq!(cmd.max_output_lines, None); // Default: no limit
+        assert_eq!(cmd.timeout, None); // Default: no timeout
+        assert_eq!(cmd.notify_per_command, None); // Default: false
+    }
+
+    // Test: Config validation rejects invalid timeout values
+    #[test]
+    fn test_config_rejects_invalid_timeout_too_high() {
+        let config_yaml = r#"
+postToolUse:
+  commands:
+    - run: "echo test"
+      timeout: 5000
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("Range validation failed"));
+        assert!(error.contains("timeout"));
+        assert!(error.contains("5000"));
+    }
+
+    #[test]
+    fn test_config_rejects_invalid_timeout_zero() {
+        let config_yaml = r#"
+postToolUse:
+  commands:
+    - run: "echo test"
+      timeout: 0
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("Range validation failed"));
+        assert!(error.contains("timeout"));
+    }
+
+    // Test: Config accepts valid timeout values
+    #[test]
+    fn test_config_accepts_valid_timeout() {
+        let config_yaml = r#"
+postToolUse:
+  commands:
+    - run: "echo test"
+      timeout: 300
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+    }
+
+    // Test: Config validation rejects invalid maxOutputLines values
+    #[test]
+    fn test_config_rejects_invalid_max_output_lines_too_high() {
+        let config_yaml = r#"
+postToolUse:
+  commands:
+    - run: "echo test"
+      maxOutputLines: 20000
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("Range validation failed"));
+        assert!(error.contains("maxOutputLines"));
+    }
+
+    #[test]
+    fn test_config_rejects_invalid_max_output_lines_zero() {
+        let config_yaml = r#"
+postToolUse:
+  commands:
+    - run: "echo test"
+      maxOutputLines: 0
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("Range validation failed"));
+        assert!(error.contains("maxOutputLines"));
+    }
+
+    // Test: Config accepts valid maxOutputLines values
+    #[test]
+    fn test_config_accepts_valid_max_output_lines() {
+        let config_yaml = r#"
+postToolUse:
+  commands:
+    - run: "echo test"
+      maxOutputLines: 500
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+    }
+
+    // Test: Empty commands array is valid
+    #[test]
+    fn test_config_accepts_empty_commands_array() {
+        let config_yaml = r#"
+postToolUse:
+  commands: []
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+    }
+
+    // Test: Missing postToolUse section uses defaults
+    #[test]
+    fn test_config_defaults_to_empty_post_tool_use() {
+        let config_yaml = r#"
+stop:
+  commands: []
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        assert!(config.post_tool_use.commands.is_empty());
+    }
+
+    // Test: Multiple commands with different tool filters
+    #[test]
+    fn test_config_accepts_multiple_commands_with_filters() {
+        let config_yaml = r#"
+postToolUse:
+  commands:
+    - run: "echo all tools"
+    - tool: "AskUserQuestion"
+      run: "echo qa tool"
+    - tool: "*Search*"
+      run: "echo search tool"
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        assert_eq!(config.post_tool_use.commands.len(), 3);
+        assert_eq!(config.post_tool_use.commands[0].tool, None);
+        assert_eq!(config.post_tool_use.commands[1].tool, Some("AskUserQuestion".to_string()));
+        assert_eq!(config.post_tool_use.commands[2].tool, Some("*Search*".to_string()));
+    }
+
+    // Test: Config rejects invalid tool glob pattern
+    #[test]
+    fn test_config_rejects_invalid_tool_glob_pattern() {
+        let config_yaml = r#"
+postToolUse:
+  commands:
+    - run: "echo test"
+      tool: "[invalid"
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("Invalid glob pattern"));
+        assert!(error.contains("postToolUse.commands[0].tool"));
+    }
+
+    // Test: Config accepts valid tool glob pattern
+    #[test]
+    fn test_config_accepts_valid_tool_glob_pattern() {
+        let config_yaml = r#"
+postToolUse:
+  commands:
+    - run: "echo test"
+      tool: "*Search*"
+"#;
+
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
     }
 }

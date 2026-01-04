@@ -109,6 +109,97 @@
       ],
       "type": "object"
     },
+    "PostToolUseCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual post-tool-use commands.\n\nThese commands run after a tool completes execution. Commands are observational (read-only) and cannot block tool execution.\n\n# Environment Variables\n\nThe following environment variables are available in commands: - `CONCLAUDE_TOOL_NAME` - The name of the tool that was executed - `CONCLAUDE_TOOL_INPUT` - JSON string of tool input parameters - `CONCLAUDE_TOOL_OUTPUT` - JSON string of tool response/result - `CONCLAUDE_TOOL_TIMESTAMP` - ISO 8601 timestamp of completion - `CONCLAUDE_TOOL_USE_ID` - Unique identifier for correlation with preToolUse - `CONCLAUDE_SESSION_ID` - Current session ID - `CONCLAUDE_CWD` - Current working directory - `CONCLAUDE_CONFIG_DIR` - Directory containing .conclaude.yaml\n\n# Examples\n\n```yaml postToolUse: commands: # Run for all tools - run: \".claude/scripts/log-tool.sh\"\n\n# Run only for specific tools (glob patterns supported) - tool: \"AskUserQuestion\" run: \".claude/scripts/log-qa.sh\"\n\n# Run for multiple tool patterns - tool: \"*Search*\" run: \".claude/scripts/log-search.sh\" ```",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command (start and completion). Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_TOOL_NAME, CONCLAUDE_TOOL_INPUT, CONCLAUDE_TOOL_OUTPUT, CONCLAUDE_TOOL_TIMESTAMP, CONCLAUDE_TOOL_USE_ID, CONCLAUDE_SESSION_ID, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated (but does not block tool execution).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "tool": {
+          "default": null,
+          "description": "Glob pattern to filter which tools trigger this command. Default: \"*\" (all tools)",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "PostToolUseConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for post-tool-use hook with command execution.\n\nThis hook allows running commands after tools complete execution for logging, documentation, and integration purposes. Commands are observational (read-only) and cannot block or modify tool execution.\n\n# Examples\n\n```yaml postToolUse: commands: # Run for all tools - run: \".claude/scripts/log-tool.sh\"\n\n# Run only for specific tools (glob patterns supported) - tool: \"AskUserQuestion\" run: \".claude/scripts/log-qa.sh\"\n\n# Run for multiple tool patterns - tool: \"*Search*\" run: \".claude/scripts/log-search.sh\" showStdout: false ```",
+      "properties": {
+        "commands": {
+          "default": [],
+          "description": "List of commands to execute when tools complete.\n\nCommands run after tool execution completes. They are observational (read-only) and cannot block or modify tool execution. Use them for logging, notifications, or triggering external integrations.\n\nEach command supports: - `run`: (required) Shell command to execute - `tool`: (optional) Glob pattern to filter tools. Default: \"*\" (all tools) - `showCommand`: (optional) Show command being executed. Default: true - `showStdout`: (optional) Show stdout. Default: false - `showStderr`: (optional) Show stderr. Default: false - `maxOutputLines`: (optional) Limit output lines. Range: 1-10000 - `timeout`: (optional) Command timeout in seconds. Range: 1-3600 - `notifyPerCommand`: (optional) Send individual notifications. Default: false",
+          "items": {
+            "$ref": "#/definitions/PostToolUseCommand"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "PreToolUseConfig": {
       "additionalProperties": false,
       "description": "Configuration for pre-tool-use hooks that run before tools are executed.\n\nAll file protection rules are consolidated in this section to prevent Claude from making unintended modifications to protected files, directories, or executing dangerous commands.\n\n# Examples\n\n```yaml preToolUse: # Prevent root-level file creation preventRootAdditions: true\n\n# Protect specific files with glob patterns uneditableFiles: - \".conclaude.yml\" - \"*.lock\" - pattern: \".env*\" message: \"Environment files contain secrets\"\n\n# Prevent modifications to git-ignored files preventUpdateGitIgnored: false\n\n# Fine-grained tool control toolUsageValidation: - tool: \"Bash\" commandPattern: \"git push --force*\" action: \"block\" message: \"Force push is not allowed\"\n\n# Block additions to specific directories preventAdditions: - \"dist\" - \"build\" ```",
@@ -178,6 +269,14 @@
           "description": "Custom error message to display when the command fails (exits with non-zero status)",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command (start and completion). Default: false",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -274,6 +373,14 @@
           "description": "Custom error message to display when the command fails (exits with non-zero status)",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command (start and completion). Default: false",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -431,10 +538,102 @@
       ],
       "description": "Configuration for an uneditable file rule.\n\nFiles that Claude cannot edit, using glob patterns. Supports various glob patterns for flexible file protection.\n\n# Formats\n\nTwo formats are supported for backward compatibility:\n\n1. **Simple string patterns**: `\"*.lock\"` - Just the glob pattern as a string - Uses a generic error message when blocking\n\n2. **Detailed objects with custom messages**: `{pattern: \"*.lock\", message: \"...\"}` - Allows specifying a custom error message - More descriptive feedback when files are blocked\n\n# Examples\n\n```yaml uneditableFiles: # Simple patterns (backward compatible) - \"./package.json\"      # specific file - \"*.md\"                # file extension - \"src/**/*.ts\"         # nested patterns - \"docs/**\"             # entire directories\n\n# Detailed patterns with custom error messages - pattern: \"*.lock\" message: \"Lock files are automatically created. Run 'npm install' to update.\" - pattern: \".env*\" message: \"Environment files contain secrets. Use .env.example instead.\" - pattern: \"{package,tsconfig}.json\" message: \"Configuration files require team review before changes.\"\n\n# Agent-scoped patterns (only applied to specific agents) - pattern: \"src/**/*.test.ts\" agent: \"coder\" message: \"The coder agent should not modify test files.\" - pattern: \"dist/**\" agent: \"test*\" message: \"Test agents should not modify build output.\" ```\n\nThe `#[serde(untagged)]` attribute allows serde to automatically handle both plain string patterns and detailed object configurations."
     },
+    "UserPromptSubmitCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual user prompt submit commands.\n\nThese commands run when a user submits a prompt to Claude. Commands are observational (read-only) and cannot block prompt processing.\n\n# Environment Variables\n\nThe following environment variables are available in commands: - `CONCLAUDE_USER_PROMPT` - The user's input text - `CONCLAUDE_SESSION_ID` - Current session ID - `CONCLAUDE_CWD` - Current working directory - `CONCLAUDE_CONFIG_DIR` - Directory containing .conclaude.yaml - `CONCLAUDE_HOOK_EVENT` - Always \"UserPromptSubmit\"\n\n# Examples\n\n```yaml userPromptSubmit: commands: # Run for all prompts - run: \".claude/scripts/log-prompt.sh\"\n\n# Run only for prompts matching pattern (regex) - pattern: \"deploy|release\" run: \".claude/scripts/notify-deploy.sh\"\n\n# Run with output display options - pattern: \"test\" run: \".claude/scripts/pre-test-check.sh\" showStdout: true ```",
+      "properties": {
+        "caseInsensitive": {
+          "default": null,
+          "description": "Use case-insensitive pattern matching. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command (start and completion). Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "pattern": {
+          "default": null,
+          "description": "Regex pattern to filter which prompts trigger this command. Default: runs for all prompts",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_USER_PROMPT, CONCLAUDE_SESSION_ID, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_HOOK_EVENT",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated (but does not block prompt processing).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
     "UserPromptSubmitConfig": {
       "additionalProperties": false,
-      "description": "Configuration for user prompt submit hook with context injection rules\n\nThis hook allows automatic injection of context or instructions into Claude's system prompt based on pattern matching against user-submitted prompts.\n\n# Examples\n\n```yaml userPromptSubmit: contextRules: # Basic pattern matching - pattern: \"sidebar\" prompt: | Make sure to read @.claude/contexts/sidebar.md before proceeding.\n\n# Multiple patterns with logical OR - pattern: \"auth|login|authentication\" prompt: | Review the authentication patterns in @.claude/contexts/auth.md\n\n# Case-insensitive matching - pattern: \"(?i)database|sql|query\" prompt: | Follow the database conventions in @.claude/contexts/database.md\n\n# Optional rule that can be disabled - pattern: \"performance\" prompt: \"Consider performance implications\" enabled: false ```",
+      "description": "Configuration for user prompt submit hook with context injection rules and command execution.\n\nThis hook allows automatic injection of context or instructions into Claude's system prompt based on pattern matching against user-submitted prompts, as well as running shell commands when prompts match patterns.\n\n# Examples\n\n```yaml userPromptSubmit: contextRules: # Basic pattern matching - pattern: \"sidebar\" prompt: | Make sure to read @.claude/contexts/sidebar.md before proceeding.\n\n# Multiple patterns with logical OR - pattern: \"auth|login|authentication\" prompt: | Review the authentication patterns in @.claude/contexts/auth.md\n\n# Case-insensitive matching - pattern: \"(?i)database|sql|query\" prompt: | Follow the database conventions in @.claude/contexts/database.md\n\n# Optional rule that can be disabled - pattern: \"performance\" prompt: \"Consider performance implications\" enabled: false\n\n# Command execution (runs after contextRules processing) commands: # Run for all prompts - run: \".claude/scripts/log-prompt.sh\"\n\n# Run only for prompts matching pattern - pattern: \"deploy|release\" run: \".claude/scripts/notify-deploy.sh\" ```",
       "properties": {
+        "commands": {
+          "default": [],
+          "description": "List of commands to execute when user prompts are submitted.\n\nCommands run after contextRules are evaluated. They are observational (read-only) and cannot block prompt processing. Use them for logging, notifications, or triggering external integrations.\n\nEach command supports: - `run`: (required) Shell command to execute - `pattern`: (optional) Regex pattern to filter prompts. Default: runs for all - `caseInsensitive`: (optional) Case-insensitive pattern matching. Default: false - `showCommand`: (optional) Show command being executed. Default: true - `showStdout`: (optional) Show stdout. Default: false - `showStderr`: (optional) Show stderr. Default: false - `maxOutputLines`: (optional) Limit output lines. Range: 1-10000 - `timeout`: (optional) Command timeout in seconds. Range: 1-3600",
+          "items": {
+            "$ref": "#/definitions/UserPromptSubmitCommand"
+          },
+          "type": "array"
+        },
         "contextRules": {
           "default": [],
           "description": "List of context injection rules that match user prompts and inject context.\n\nRules are evaluated in order. Multiple rules can match a single prompt, and their contexts will be concatenated in configuration order.\n\nEach rule supports: - `pattern`: (required) Regex pattern to match user prompt - `prompt`: (required) Context to inject when pattern matches - `enabled`: (optional) Whether rule is active. Default: true - `caseInsensitive`: (optional) Case-insensitive matching. Default: false",
@@ -473,6 +672,16 @@
         }
       ],
       "default": null
+    },
+    "postToolUse": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/PostToolUseConfig"
+        }
+      ],
+      "default": {
+        "commands": []
+      }
     },
     "preToolUse": {
       "allOf": [
@@ -518,6 +727,7 @@
         }
       ],
       "default": {
+        "commands": [],
         "contextRules": []
       }
     }

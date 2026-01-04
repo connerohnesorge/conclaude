@@ -1691,3 +1691,195 @@ mod user_prompt_submit_command_tests {
         );
     }
 }
+
+// PostToolUse Tests
+#[test]
+fn test_matches_tool_pattern_exact_match() {
+    // Test exact tool name matches
+    assert!(matches_tool_pattern("AskUserQuestion", "AskUserQuestion"));
+    assert!(matches_tool_pattern("Bash", "Bash"));
+    assert!(matches_tool_pattern("WebSearch", "WebSearch"));
+    
+    // Test exact non-matches
+    assert!(!matches_tool_pattern("AskUserQuestion", "Bash"));
+    assert!(!matches_tool_pattern("Bash", "AskUserQuestion"));
+}
+
+#[test]
+fn test_matches_tool_pattern_wildcard() {
+    // Test wildcard patterns
+    assert!(matches_tool_pattern("AnyTool", "*"));
+    assert!(matches_tool_pattern("Bash", "*"));
+    assert!(matches_tool_pattern("WebSearch", "*"));
+    assert!(matches_tool_pattern("anything", "*"));
+}
+
+#[test]
+fn test_matches_tool_pattern_glob() {
+    // Test glob patterns with asterisk
+    assert!(matches_tool_pattern("WebSearch", "*Search*"));
+    assert!(matches_tool_pattern("DatabaseSearch", "*Search*"));
+    assert!(matches_tool_pattern("SearchTools", "*Search*"));
+    
+    assert!(matches_tool_pattern("AskUserQuestion", "Ask*"));
+    assert!(matches_tool_pattern("AskDatabase", "Ask*"));
+    
+    assert!(matches_tool_pattern("Bash", "*ash"));
+    assert!(matches_tool_pattern("Trash", "*ash"));
+    
+    // Test non-matches with glob
+    assert!(!matches_tool_pattern("Grep", "*Search*"));
+    assert!(!matches_tool_pattern("Read", "Ask*"));
+    assert!(!matches_tool_pattern("Run", "*ash"));
+}
+
+#[test]
+fn test_build_post_tool_use_env_vars() {
+    use crate::types::{PostToolUsePayload, BasePayload};
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    // Create test input and output
+    let mut tool_input = HashMap::new();
+    tool_input.insert("param1".to_string(), json!("value1"));
+    tool_input.insert("param2".to_string(), json!(42));
+
+    let tool_response = json!({
+        "result": "success",
+        "data": [1, 2, 3]
+    });
+
+    let payload = PostToolUsePayload {
+        base: BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/tmp/transcript.jsonl".to_string(),
+            hook_event_name: "PostToolUse".to_string(),
+            cwd: "/home/user/project".to_string(),
+            permission_mode: None,
+        },
+        tool_name: "WebSearch".to_string(),
+        tool_input: tool_input.clone(),
+        tool_use_id: Some("tool_use_12345".to_string()),
+        tool_response: tool_response.clone(),
+    };
+
+    let env_vars = build_post_tool_use_env_vars(
+        &payload,
+        std::path::Path::new("/home/user/project"),
+    );
+
+    // Verify all required environment variables are present
+    assert_eq!(env_vars.get("CONCLAUDE_TOOL_NAME"), Some(&"WebSearch".to_string()));
+    assert!(env_vars.contains_key("CONCLAUDE_TOOL_INPUT"));
+    assert!(env_vars.contains_key("CONCLAUDE_TOOL_OUTPUT"));
+    assert!(env_vars.contains_key("CONCLAUDE_TOOL_TIMESTAMP"));
+    assert_eq!(env_vars.get("CONCLAUDE_TOOL_USE_ID"), Some(&"tool_use_12345".to_string()));
+    assert_eq!(env_vars.get("CONCLAUDE_CONFIG_DIR"), Some(&"/home/user/project".to_string()));
+
+    // Verify JSON values are properly formatted
+    let tool_input_json = env_vars.get("CONCLAUDE_TOOL_INPUT").unwrap();
+    assert!(serde_json::from_str::<serde_json::Value>(tool_input_json).is_ok());
+
+    let tool_output_json = env_vars.get("CONCLAUDE_TOOL_OUTPUT").unwrap();
+    assert!(serde_json::from_str::<serde_json::Value>(tool_output_json).is_ok());
+}
+
+#[test]
+fn test_build_post_tool_use_env_vars_without_tool_use_id() {
+    use crate::types::{PostToolUsePayload, BasePayload};
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    let tool_input = HashMap::new();
+    let tool_response = json!({ "status": "ok" });
+
+    let payload = PostToolUsePayload {
+        base: BasePayload {
+            session_id: "test_session".to_string(),
+            transcript_path: "/tmp/transcript.jsonl".to_string(),
+            hook_event_name: "PostToolUse".to_string(),
+            cwd: "/tmp".to_string(),
+            permission_mode: None,
+        },
+        tool_name: "Bash".to_string(),
+        tool_input,
+        tool_use_id: None,
+        tool_response,
+    };
+
+    let env_vars = build_post_tool_use_env_vars(
+        &payload,
+        std::path::Path::new("/tmp/config"),
+    );
+
+    // Verify tool_use_id is not set when not present in payload
+    assert!(!env_vars.contains_key("CONCLAUDE_TOOL_USE_ID"));
+    // But other vars should still be present
+    assert_eq!(env_vars.get("CONCLAUDE_TOOL_NAME"), Some(&"Bash".to_string()));
+}
+
+#[test]
+fn test_collect_post_tool_use_commands() {
+    use crate::config::PostToolUseCommand;
+
+    let commands = vec![
+        PostToolUseCommand {
+            run: "echo command1".to_string(),
+            tool: Some("WebSearch".to_string()),
+            show_command: Some(true),
+            show_stdout: Some(false),
+            show_stderr: Some(false),
+            timeout: None,
+            max_output_lines: None,
+            notify_per_command: None,
+        },
+        PostToolUseCommand {
+            run: "echo command2".to_string(),
+            tool: Some("*Search*".to_string()),
+            show_command: Some(true),
+            show_stdout: Some(false),
+            show_stderr: Some(false),
+            timeout: None,
+            max_output_lines: None,
+            notify_per_command: None,
+        },
+        PostToolUseCommand {
+            run: "echo command3".to_string(),
+            tool: Some("*".to_string()),
+            show_command: Some(true),
+            show_stdout: Some(false),
+            show_stderr: Some(false),
+            timeout: None,
+            max_output_lines: None,
+            notify_per_command: None,
+        },
+    ];
+
+    // Test: WebSearch should match commands 1, 2, and 3
+    let matching = collect_post_tool_use_commands(&commands, "WebSearch").unwrap();
+    assert_eq!(matching.len(), 3);
+    assert_eq!(matching[0].command, "echo command1");
+    assert_eq!(matching[1].command, "echo command2");
+    assert_eq!(matching[2].command, "echo command3");
+
+    // Test: Bash should only match command 3
+    let matching = collect_post_tool_use_commands(&commands, "Bash").unwrap();
+    assert_eq!(matching.len(), 1);
+    assert_eq!(matching[0].command, "echo command3");
+
+    // Test: DatabaseSearch should match commands 2 and 3
+    let matching = collect_post_tool_use_commands(&commands, "DatabaseSearch").unwrap();
+    assert_eq!(matching.len(), 2);
+    assert_eq!(matching[0].command, "echo command2");
+    assert_eq!(matching[1].command, "echo command3");
+}
+
+#[test]
+fn test_collect_post_tool_use_commands_empty() {
+    use crate::config::PostToolUseCommand;
+
+    let commands: Vec<PostToolUseCommand> = vec![];
+
+    let matching = collect_post_tool_use_commands(&commands, "AnyTool").unwrap();
+    assert_eq!(matching.len(), 0);
+}

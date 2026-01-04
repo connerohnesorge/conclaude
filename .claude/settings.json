@@ -4,30 +4,6 @@
     "deny": []
   },
   "hooks": {
-    "SubagentStop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks SubagentStop",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks Notification",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
     "SubagentStart": [
       {
         "matcher": "",
@@ -35,54 +11,6 @@
           {
             "type": "command",
             "command": "conclaude Hooks SubagentStart",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks PostToolUse",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks PreCompact",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks SessionStart",
-            "timeout": 600
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "conclaude Hooks PreToolUse",
             "timeout": 600
           }
         ]
@@ -112,13 +40,49 @@
         ]
       }
     ],
-    "SessionEnd": [
+    "PreToolUse": [
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "conclaude Hooks SessionEnd",
+            "command": "conclaude Hooks PreToolUse",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks SessionStart",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks SubagentStop",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks PostToolUse",
             "timeout": 600
           }
         ]
@@ -131,6 +95,42 @@
           {
             "type": "command",
             "command": "conclaude Hooks Stop",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks Notification",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks PreCompact",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks SessionEnd",
             "timeout": 600
           }
         ]

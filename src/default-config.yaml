@@ -181,3 +181,32 @@ notifications:
 #   # - CONCLAUDE_CWD: Current working directory
 #   # - CONCLAUDE_CONFIG_DIR: Directory containing .conclaude.yaml
 #   # - CONCLAUDE_HOOK_EVENT: Always "UserPromptSubmit"
+
+# PostToolUse hook - runs after tools complete (read-only observation)
+# Use for logging, documentation, auditing, or external integrations
+# Uncomment to enable:
+#
+# postToolUse:
+#   commands:
+#     # Run for all tools
+#     - run: ".claude/scripts/log-tool.sh"
+#       showCommand: false
+#
+#     # Run only for specific tools (glob patterns)
+#     - tool: "AskUserQuestion"
+#       run: ".claude/scripts/log-qa.sh"
+#       showStdout: true
+#
+#     # Run for tools matching a pattern
+#     - tool: "*Search*"
+#       run: ".claude/scripts/log-search.sh"
+#
+#   # Environment variables available to commands:
+#   # - CONCLAUDE_TOOL_NAME: The tool that completed
+#   # - CONCLAUDE_TOOL_INPUT: JSON string of input parameters
+#   # - CONCLAUDE_TOOL_OUTPUT: JSON string of tool response
+#   # - CONCLAUDE_TOOL_TIMESTAMP: ISO 8601 timestamp of completion
+#   # - CONCLAUDE_TOOL_USE_ID: Unique ID for correlation with PreToolUse
+#   # - CONCLAUDE_SESSION_ID: Current session ID
+#   # - CONCLAUDE_CWD: Current working directory
+#   # - CONCLAUDE_CONFIG_DIR: Directory containing .conclaude.yaml
