@@ -15,11 +15,10 @@ Conclaude uses YAML configuration files to define lifecycle hooks, file protecti
 |---------|-------------|-------------|
 | [Notifications](/conclaude/reference/config/notifications) | Configuration for system notifications | `enabled`, `hooks`, `showErrors` |
 | [Permission Request](/conclaude/reference/config/permission-request) | Configuration for permission request hooks that control tool permission decisions | `allow`, `default`, `deny` |
-| [Post Tool Use](/conclaude/reference/config/post-tool-use) | Configuration for post-tool-use hook with command execution | `commands` |
 | [Pre Tool Use](/conclaude/reference/config/pre-tool-use) | Configuration for pre-tool-use hooks that run before tools are executed | `preventAdditions`, `preventRootAdditions`, `preventRootAdditionsMessage` |
 | [Stop](/conclaude/reference/config/stop) | Configuration for stop hook commands that run when Claude is about to stop | `commands`, `infinite`, `infiniteMessage` |
 | [Subagent Stop](/conclaude/reference/config/subagent-stop) | Configuration for subagent stop hooks with pattern-based command execution | `commands` |
-| [User Prompt Submit](/conclaude/reference/config/user-prompt-submit) | Configuration for user prompt submit hook with context injection rules and command execution | `commands`, `contextRules` |
+| [User Prompt Submit](/conclaude/reference/config/user-prompt-submit) | Configuration for user prompt submit hook with context injection rules | `contextRules` |
 
 ## Configuration Sections
 
@@ -32,10 +31,6 @@ Configuration for system notifications.
 ### [Permission Request](/conclaude/reference/config/permission-request)
 
 Configuration for permission request hooks that control tool permission decisions.
-
-### [Post Tool Use](/conclaude/reference/config/post-tool-use)
-
-Configuration for post-tool-use hook with command execution.
 
 ### [Pre Tool Use](/conclaude/reference/config/pre-tool-use)
 
@@ -51,5 +46,5 @@ Configuration for subagent stop hooks with pattern-based command execution.
 
 ### [User Prompt Submit](/conclaude/reference/config/user-prompt-submit)
 
-Configuration for user prompt submit hook with context injection rules and command execution.
+Configuration for user prompt submit hook with context injection rules
 
