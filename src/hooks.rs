@@ -17,7 +17,7 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{self, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::OnceLock;
 use tokio::process::Command as TokioCommand;
@@ -26,6 +26,7 @@ use tokio::time::{timeout, Duration};
 /// Environment variable name for passing agent context to hook handlers
 const AGENT_ENV_VAR: &str = "CONCLAUDE_AGENT";
 /// Get the path to the agent session file for a given session.
+#[allow(dead_code)]
 pub fn get_agent_session_file_path(session_id: &str) -> PathBuf {
     std::env::temp_dir().join(format!("conclaude-agent-{}.json", session_id))
 }
@@ -35,6 +36,7 @@ pub fn get_agent_session_file_path(session_id: &str) -> PathBuf {
 /// # Errors
 ///
 /// Returns an error if the session file cannot be written.
+#[allow(dead_code)]
 pub fn write_agent_session_file(session_id: &str, subagent_type: &str) -> std::io::Result<()> {
     let path = get_agent_session_file_path(session_id);
     let content = serde_json::json!({
@@ -45,6 +47,7 @@ pub fn write_agent_session_file(session_id: &str, subagent_type: &str) -> std::i
 
 /// Read agent info from session file during PreToolUse.
 /// Returns "main" if no session file exists (we're in the orchestrator session).
+#[allow(dead_code)]
 #[must_use]
 pub fn read_agent_from_session_file(session_id: &str) -> String {
     let path = get_agent_session_file_path(session_id);
