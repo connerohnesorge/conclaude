@@ -4,68 +4,14 @@
     "deny": []
   },
   "hooks": {
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "./target/release/conclaude Hooks UserPromptSubmit"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "./target/release/conclaude Hooks PreToolUse"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "./target/release/conclaude Hooks Stop"
-          }
-        ]
-      }
-    ],
     "SubagentStop": [
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "./target/release/conclaude Hooks SubagentStop"
-          }
-        ]
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "./target/release/conclaude Hooks PermissionRequest"
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "./target/release/conclaude Hooks SessionEnd"
+            "command": "conclaude Hooks SubagentStop",
+            "timeout": 600
           }
         ]
       }
@@ -76,7 +22,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./target/release/conclaude Hooks Notification"
+            "command": "conclaude Hooks Notification",
+            "timeout": 600
           }
         ]
       }
@@ -87,7 +34,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./target/release/conclaude Hooks SubagentStart"
+            "command": "conclaude Hooks SubagentStart",
+            "timeout": 600
           }
         ]
       }
@@ -98,7 +46,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./target/release/conclaude Hooks PostToolUse"
+            "command": "conclaude Hooks PostToolUse",
+            "timeout": 600
           }
         ]
       }
@@ -109,7 +58,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./target/release/conclaude Hooks PreCompact"
+            "command": "conclaude Hooks PreCompact",
+            "timeout": 600
           }
         ]
       }
@@ -120,14 +70,71 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./target/release/conclaude Hooks SessionStart"
+            "command": "conclaude Hooks SessionStart",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks PreToolUse",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks UserPromptSubmit",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks PermissionRequest",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks SessionEnd",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "conclaude Hooks Stop",
+            "timeout": 600
           }
         ]
       }
     ]
-  },
-  "enabledPlugins": {
-    "rust-analyzer-lsp@claude-plugins-official": true,
-    "ralph-wiggum@claude-code-plugins": true
   }
 }
