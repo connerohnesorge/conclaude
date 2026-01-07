@@ -5,7 +5,7 @@
 # For full documentation of all options, run: conclaude config --docs
 # Or see the generated documentation from `cargo doc --open`
 
-# Stop hook configuration - runs when Claude is about to stop
+# Stop hook - runs when Claude is about to stop
 stop:
   # Structured command format with optional custom error messages
   # Each command can have its own error message, and control output display
@@ -145,10 +145,11 @@ preToolUse:
 # System notifications
 notifications:
   enabled: false
-  hooks: [] # ["*"] for all, or ["Stop", "PreToolUse"]
+  hooks: []  # ["*"] for all, or ["Stop", "PreToolUse"]
   showErrors: false
   showSuccess: false
   showSystemEvents: true
+
 # Permission request hook - auto-approve/deny tools
 # Uncomment to enable:
 #

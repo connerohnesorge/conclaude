@@ -2,7 +2,7 @@
 
 ## 1. Configuration Types
 
-- [ ] 1.1 Add `UserPromptSubmitCommand` struct to `src/config.rs` with fields:
+- [x] 1.1 Add `UserPromptSubmitCommand` struct to `src/config.rs` with fields:
   - `run`: String (required)
   - `pattern`: Option<String> (regex pattern)
   - `case_insensitive`: Option<bool> (default false)
@@ -12,38 +12,38 @@
   - `max_output_lines`: Option<u32> (1-10000)
   - `timeout`: Option<u64> (1-3600 seconds)
 
-- [ ] 1.2 Add `commands` field to `UserPromptSubmitConfig` struct:
+- [x] 1.2 Add `commands` field to `UserPromptSubmitConfig` struct:
   - `commands`: Vec<UserPromptSubmitCommand>
 
-- [ ] 1.3 Derive `FieldList` for `UserPromptSubmitCommand` struct (auto-generated field suggestions)
+- [x] 1.3 Derive `FieldList` for `UserPromptSubmitCommand` struct (auto-generated field suggestions)
 
-- [ ] 1.4 Update `suggest_similar_fields()` to include userPromptSubmit command fields
+- [x] 1.4 Update `suggest_similar_fields()` to include userPromptSubmit command fields
 
 ## 2. Hook Implementation
 
-- [ ] 2.1 Create `UserPromptSubmitCommandConfig` internal struct in `src/hooks.rs`:
+- [x] 2.1 Create `UserPromptSubmitCommandConfig` internal struct in `src/hooks.rs`:
   - Similar to `StopCommandConfig` but with regex pattern field
   - Include compiled regex for efficient matching
 
-- [ ] 2.2 Create `build_user_prompt_submit_env_vars()` function in `src/hooks.rs`:
+- [x] 2.2 Create `build_user_prompt_submit_env_vars()` function in `src/hooks.rs`:
   - `CONCLAUDE_USER_PROMPT` - from payload.prompt
   - `CONCLAUDE_SESSION_ID` - from payload.base.session_id
   - `CONCLAUDE_CWD` - from payload.base.cwd
   - `CONCLAUDE_CONFIG_DIR` - from config path
   - `CONCLAUDE_HOOK_EVENT` - "UserPromptSubmit"
 
-- [ ] 2.3 Create `collect_user_prompt_submit_commands()` function:
+- [x] 2.3 Create `collect_user_prompt_submit_commands()` function:
   - Compile regex patterns for each command
   - Filter commands by pattern matching against payload.prompt
   - Return filtered command configs
 
-- [ ] 2.4 Create `execute_user_prompt_submit_commands()` function:
+- [x] 2.4 Create `execute_user_prompt_submit_commands()` function:
   - Similar to `execute_stop_commands()` but non-blocking (failures logged, not returned)
   - Run commands with environment variables
   - Respect timeout, showStdout, showStderr, maxOutputLines settings
   - Commands continue executing even if one fails
 
-- [ ] 2.5 Update `handle_user_prompt_submit()` to:
+- [x] 2.5 Update `handle_user_prompt_submit()` to:
   - After contextRules processing, check for commands configuration
   - Build environment variables
   - Collect matching commands
@@ -52,45 +52,45 @@
 
 ## 3. Configuration Validation
 
-- [ ] 3.1 Add validation for `userPromptSubmit.commands[].pattern` regex syntax in `validate_config_constraints()`
+- [x] 3.1 Add validation for `userPromptSubmit.commands[].pattern` regex syntax in `validate_config_constraints()`
 
-- [ ] 3.2 Add validation for `userPromptSubmit.commands[].timeout` range (1-3600)
+- [x] 3.2 Add validation for `userPromptSubmit.commands[].timeout` range (1-3600)
 
-- [ ] 3.3 Add validation for `userPromptSubmit.commands[].maxOutputLines` range (1-10000)
+- [x] 3.3 Add validation for `userPromptSubmit.commands[].maxOutputLines` range (1-10000)
 
 ## 4. Default Configuration
 
-- [ ] 4.1 Add commented `commands` example to `src/default-config.yaml` under userPromptSubmit section:
+- [x] 4.1 Add commented `commands` example to `src/default-config.yaml` under userPromptSubmit section:
   - Example with pattern filtering
   - Example running for all prompts
   - Example with output display options
 
 ## 5. Tests
 
-- [ ] 5.1 Unit test: `collect_user_prompt_submit_commands()` filters by regex pattern
+- [x] 5.1 Unit test: `collect_user_prompt_submit_commands()` filters by regex pattern
 
-- [ ] 5.2 Unit test: `build_user_prompt_submit_env_vars()` produces correct variables
+- [x] 5.2 Unit test: `build_user_prompt_submit_env_vars()` produces correct variables
 
-- [ ] 5.3 Unit test: Command with no pattern runs for all prompts
+- [x] 5.3 Unit test: Command with no pattern runs for all prompts
 
-- [ ] 5.4 Unit test: Case-insensitive pattern matching works
+- [x] 5.4 Unit test: Case-insensitive pattern matching works
 
-- [ ] 5.5 Integration test: Commands execute after contextRules processing
+- [x] 5.5 Integration test: Commands execute after contextRules processing
 
-- [ ] 5.6 Integration test: Command failures don't block the hook result
+- [x] 5.6 Integration test: Command failures don't block the hook result
 
-- [ ] 5.7 Unit test: Config validation rejects invalid regex patterns
+- [x] 5.7 Unit test: Config validation rejects invalid regex patterns
 
-- [ ] 5.8 Unit test: Config validation rejects invalid timeout/maxOutputLines values
+- [x] 5.8 Unit test: Config validation rejects invalid timeout/maxOutputLines values
 
 ## 6. Documentation
 
-- [ ] 6.1 Update `docs/src/content/docs/reference/config/user-prompt-submit.md`:
+- [x] 6.1 Update `docs/src/content/docs/reference/config/user-prompt-submit.md`:
   - Add `commands` section documentation
   - Document `UserPromptSubmitCommand` type properties
   - Add complete examples showing commands usage
 
-- [ ] 6.2 Verify JSON schema generates correctly for updated config section
+- [x] 6.2 Verify JSON schema generates correctly for updated config section
 
 ## Dependencies
 

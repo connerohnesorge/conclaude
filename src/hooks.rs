@@ -16,14 +16,17 @@ use notify_rust::{Notification, Urgency};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::{self, BufRead, BufReader, Read};
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::OnceLock;
 use tokio::process::Command as TokioCommand;
 use tokio::time::{timeout, Duration};
 
+/// Environment variable name for passing agent context to hook handlers
+const AGENT_ENV_VAR: &str = "CONCLAUDE_AGENT";
 /// Get the path to the agent session file for a given session.
+#[allow(dead_code)]
 pub fn get_agent_session_file_path(session_id: &str) -> PathBuf {
     std::env::temp_dir().join(format!("conclaude-agent-{}.json", session_id))
 }
@@ -33,6 +36,7 @@ pub fn get_agent_session_file_path(session_id: &str) -> PathBuf {
 /// # Errors
 ///
 /// Returns an error if the session file cannot be written.
+#[allow(dead_code)]
 pub fn write_agent_session_file(session_id: &str, subagent_type: &str) -> std::io::Result<()> {
     let path = get_agent_session_file_path(session_id);
     let content = serde_json::json!({
@@ -43,6 +47,7 @@ pub fn write_agent_session_file(session_id: &str, subagent_type: &str) -> std::i
 
 /// Read agent info from session file during PreToolUse.
 /// Returns "main" if no session file exists (we're in the orchestrator session).
+#[allow(dead_code)]
 #[must_use]
 pub fn read_agent_from_session_file(session_id: &str) -> String {
     let path = get_agent_session_file_path(session_id);
@@ -320,6 +325,14 @@ pub async fn handle_pre_tool_use() -> Result<HookResult> {
         return Err(anyhow::anyhow!("Missing required field: tool_name"));
     }
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing PreToolUse hook: session_id={}, tool_name={}",
         payload.base.session_id, payload.tool_name
@@ -385,6 +398,14 @@ pub async fn handle_permission_request() -> Result<HookResult> {
     let payload: PermissionRequestPayload = read_payload_from_stdin()?;
 
     validate_permission_request_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
 
     println!(
         "Processing PermissionRequest hook: session_id={}, tool_name={}",
@@ -523,8 +544,8 @@ async fn check_file_validation_rules(payload: &PreToolUsePayload) -> Result<Opti
         return Ok(Some(HookResult::blocked(error_message)));
     }
 
-    // Detect current agent context from session file
-    let current_agent = read_agent_from_session_file(&payload.base.session_id);
+    // Detect current agent context from environment variable (set by CLI --agent flag)
+    let current_agent = std::env::var(AGENT_ENV_VAR).unwrap_or_else(|_| "main".to_string());
 
     // Check uneditableFiles rule
     for rule in &config.pre_tool_use.uneditable_files {
@@ -706,6 +727,14 @@ pub async fn handle_post_tool_use() -> Result<HookResult> {
         return Err(anyhow::anyhow!("Missing required field: tool_name"));
     }
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing PostToolUse hook: session_id={}, tool_name={}",
         payload.base.session_id, payload.tool_name
@@ -733,6 +762,14 @@ pub async fn handle_notification() -> Result<HookResult> {
 
     if payload.message.is_empty() {
         return Err(anyhow::anyhow!("Missing required field: message"));
+    }
+
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
     println!(
@@ -1220,6 +1257,14 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
         return Err(anyhow::anyhow!("Missing required field: prompt"));
     }
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing UserPromptSubmit hook: session_id={}",
         payload.base.session_id
@@ -1322,6 +1367,14 @@ pub async fn handle_session_start() -> Result<HookResult> {
         return Err(anyhow::anyhow!("Missing required field: source"));
     }
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing SessionStart hook: session_id={}, source={}",
         payload.base.session_id, payload.source
@@ -1349,6 +1402,14 @@ pub async fn handle_session_end() -> Result<HookResult> {
 
     if payload.reason.is_empty() {
         return Err(anyhow::anyhow!("Missing required field: reason"));
+    }
+
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
     println!(
@@ -1638,6 +1699,14 @@ pub async fn handle_stop() -> Result<HookResult> {
 
     validate_base_payload(&payload.base).map_err(|e| anyhow::anyhow!(e))?;
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing Stop hook: session_id={}",
         payload.base.session_id
@@ -1725,6 +1794,14 @@ pub async fn handle_subagent_start() -> Result<HookResult> {
     // Validate the payload including agent_id, subagent_type, and agent_transcript_path fields
     validate_subagent_start_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing SubagentStart hook: session_id={}, agent_id={}",
         payload.base.session_id, payload.agent_id
@@ -1738,11 +1815,6 @@ pub async fn handle_subagent_start() -> Result<HookResult> {
         "CONCLAUDE_AGENT_TRANSCRIPT_PATH",
         &payload.agent_transcript_path,
     );
-
-    // Write agent session file for cross-process agent detection
-    if let Err(e) = write_agent_session_file(&payload.base.session_id, &payload.subagent_type) {
-        eprintln!("Warning: Failed to write agent session file: {}", e);
-    }
 
     // Send notification for subagent start with agent ID included
     send_notification(
@@ -2192,141 +2264,6 @@ async fn execute_subagent_stop_commands(
     Ok(())
 }
 
-/// Extract the agent name (subagent_type) from the main transcript file
-/// by finding the Task tool call that spawned this agent.
-///
-/// Returns None if the agent name cannot be found.
-///
-/// # Arguments
-///
-/// * `transcript_path` - Path to the main transcript file (JSONL format)
-/// * `agent_id` - The agent ID to search for
-///
-/// # Errors
-///
-/// Returns an error if the file cannot be opened or read.
-pub fn extract_agent_name_from_transcript(
-    transcript_path: &str,
-    agent_id: &str,
-) -> Result<Option<String>> {
-    // Open the transcript file
-    let file = match fs::File::open(transcript_path) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!(
-                "Failed to open transcript file '{}' for agent name extraction: {}",
-                transcript_path, e
-            );
-            return Ok(None);
-        }
-    };
-
-    let reader = BufReader::new(file);
-
-    // First pass: find the tool_result with matching agentId and get the tool_use_id
-    let mut tool_use_id: Option<String> = None;
-
-    for line_result in reader.lines() {
-        let line = match line_result {
-            Ok(l) => l,
-            Err(e) => {
-                eprintln!("Error reading line from transcript: {}", e);
-                continue;
-            }
-        };
-
-        // Parse the JSON line
-        let parsed: Value = match serde_json::from_str(&line) {
-            Ok(v) => v,
-            Err(_) => continue, // Skip malformed lines
-        };
-
-        // Check if this is a tool_result with matching agentId
-        if let Some(tool_use_result) = parsed.get("toolUseResult") {
-            if let Some(result_agent_id) = tool_use_result.get("agentId").and_then(|v| v.as_str()) {
-                if result_agent_id == agent_id {
-                    // Found the matching tool result, extract tool_use_id
-                    if let Some(message) = parsed.get("message") {
-                        if let Some(content) = message.get("content").and_then(|v| v.as_array()) {
-                            for item in content {
-                                if let Some(use_id) =
-                                    item.get("tool_use_id").and_then(|v| v.as_str())
-                                {
-                                    tool_use_id = Some(use_id.to_string());
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-    }
-
-    let tool_use_id = match tool_use_id {
-        Some(id) => id,
-        None => {
-            eprintln!(
-                "Could not find tool_result with agentId '{}' in transcript",
-                agent_id
-            );
-            return Ok(None);
-        }
-    };
-
-    // Second pass: find the Task tool_use with matching id and extract subagent_type
-    let file = fs::File::open(transcript_path)?;
-    let reader = BufReader::new(file);
-
-    for line_result in reader.lines() {
-        let line = match line_result {
-            Ok(l) => l,
-            Err(e) => {
-                eprintln!("Error reading line from transcript: {}", e);
-                continue;
-            }
-        };
-
-        // Parse the JSON line
-        let parsed: Value = match serde_json::from_str(&line) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-
-        // Check if this has a message.content array
-        if let Some(message) = parsed.get("message") {
-            if let Some(content) = message.get("content").and_then(|v| v.as_array()) {
-                for item in content {
-                    // Check if this is a tool_use with type "tool_use"
-                    if item.get("type").and_then(|v| v.as_str()) == Some("tool_use") {
-                        // Check if the id matches
-                        if item.get("id").and_then(|v| v.as_str()) == Some(&tool_use_id) {
-                            // Check if the name is "Task"
-                            if item.get("name").and_then(|v| v.as_str()) == Some("Task") {
-                                // Extract subagent_type from input
-                                if let Some(input) = item.get("input") {
-                                    if let Some(subagent_type) =
-                                        input.get("subagent_type").and_then(|v| v.as_str())
-                                    {
-                                        return Ok(Some(subagent_type.to_string()));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    eprintln!(
-        "Could not find Task tool_use with id '{}' in transcript",
-        tool_use_id
-    );
-    Ok(None)
-}
-
 /// Handles `SubagentStop` hook events when Claude subagents complete their tasks.
 ///
 /// This function processes subagent stop events by:
@@ -2350,9 +2287,8 @@ pub async fn handle_subagent_stop() -> Result<HookResult> {
         payload.base.session_id, payload.agent_id
     );
 
-    // Extract agent name from main transcript
-    let agent_name =
-        extract_agent_name_from_transcript(&payload.base.transcript_path, &payload.agent_id)?;
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
     // Set environment variables for the subagent's information
     std::env::set_var("CONCLAUDE_AGENT_ID", &payload.agent_id);
@@ -2361,18 +2297,18 @@ pub async fn handle_subagent_stop() -> Result<HookResult> {
         &payload.agent_transcript_path,
     );
 
-    // Set CONCLAUDE_AGENT_NAME to the extracted name, or fall back to agent_id
+    // Set CONCLAUDE_AGENT_NAME to the agent name from env var, or fall back to agent_id
     let agent_name_value = agent_name.as_deref().unwrap_or(&payload.agent_id);
     std::env::set_var("CONCLAUDE_AGENT_NAME", agent_name_value);
 
     if let Some(name) = &agent_name {
         println!(
-            "Extracted agent name '{}' for agent_id '{}'",
+            "Using agent name '{}' for agent_id '{}'",
             name, payload.agent_id
         );
     } else {
         println!(
-            "Could not extract agent name for agent_id '{}', using agent_id as fallback",
+            "No agent name provided, using agent_id '{}' as fallback",
             payload.agent_id
         );
     }
@@ -2432,6 +2368,14 @@ pub async fn handle_pre_compact() -> Result<HookResult> {
 
     validate_base_payload(&payload.base).map_err(|e| anyhow::anyhow!(e))?;
 
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
     println!(
         "Processing PreCompact hook: session_id={}, trigger={:?}",
         payload.base.session_id, payload.trigger
@@ -2454,8 +2398,8 @@ pub async fn handle_pre_compact() -> Result<HookResult> {
 async fn check_tool_usage_rules(payload: &PreToolUsePayload) -> Result<Option<HookResult>> {
     let (config, _config_path) = get_config().await?;
 
-    // Detect current agent context from session file
-    let current_agent = read_agent_from_session_file(&payload.base.session_id);
+    // Detect current agent context from environment variable (set by CLI --agent flag)
+    let current_agent = std::env::var(AGENT_ENV_VAR).unwrap_or_else(|_| "main".to_string());
 
     for rule in &config.pre_tool_use.tool_usage_validation {
         if rule.tool == payload.tool_name || rule.tool == "*" {
@@ -2652,4 +2596,158 @@ fn check_root_additions(snapshot: &HashSet<String>) -> Result<Option<HookResult>
     }
 
     Ok(None)
+}
+
+#[cfg(test)]
+mod prompt_context_tests {
+    use super::*;
+    use crate::config::ContextInjectionRule;
+    use std::fs;
+    use tempfile::TempDir;
+
+    // Tests for Task 4.2: Regex pattern matching
+
+    #[test]
+    fn test_regex_pattern_matching() {
+        // Test 1: Simple string pattern matching
+        let simple_rule = ContextInjectionRule {
+            pattern: "sidebar".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        let simple_regex = compile_rule_pattern(&simple_rule).unwrap();
+        assert!(simple_regex.is_match("update the sidebar"), "Should match 'sidebar' in phrase");
+        assert!(simple_regex.is_match("sidebar component"), "Should match 'sidebar' at start");
+        assert!(!simple_regex.is_match("side bar"), "Should not match 'side bar' (two words)");
+        assert!(!simple_regex.is_match("update the navigation"), "Should not match unrelated text");
+
+        // Test 2: Alternation pattern matching
+        let alt_rule = ContextInjectionRule {
+            pattern: "auth|login|authentication".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        let alt_regex = compile_rule_pattern(&alt_rule).unwrap();
+        assert!(alt_regex.is_match("fix auth bug"), "Should match 'auth' alternative");
+        assert!(alt_regex.is_match("update login page"), "Should match 'login' alternative");
+        assert!(alt_regex.is_match("add authentication"), "Should match 'authentication' alternative");
+        assert!(!alt_regex.is_match("update the navbar"), "Should not match unrelated text");
+
+        // Test 3: Multiple patterns - both match
+        let sidebar_regex = compile_rule_pattern(&simple_rule).unwrap();
+        let auth_rule = ContextInjectionRule {
+            pattern: "auth".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        let auth_regex = compile_rule_pattern(&auth_rule).unwrap();
+        assert!(sidebar_regex.is_match("update the auth sidebar"), "Sidebar pattern should match");
+        assert!(auth_regex.is_match("update the auth sidebar"), "Auth pattern should match");
+
+        // Test 4: Multiple patterns - only one matches
+        assert!(sidebar_regex.is_match("update the sidebar"), "Sidebar should match");
+        assert!(!auth_regex.is_match("update the sidebar"), "Auth should not match");
+
+        // Test 5: Multiple patterns - none match
+        assert!(!sidebar_regex.is_match("update the navigation"), "Sidebar should not match");
+        assert!(!auth_regex.is_match("update the navigation"), "Auth should not match");
+
+        // Test 6: Invalid regex patterns return None
+        let invalid_bracket = ContextInjectionRule {
+            pattern: "[invalid".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        assert!(compile_rule_pattern(&invalid_bracket).is_none(), "Invalid bracket should return None");
+
+        let invalid_paren = ContextInjectionRule {
+            pattern: "(unclosed".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+        assert!(compile_rule_pattern(&invalid_paren).is_none(), "Unclosed paren should return None");
+    }
+
+    #[test]
+    fn test_regex_case_insensitive_with_flag_in_pattern() {
+        let rule = ContextInjectionRule {
+            pattern: "(?i)database".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: None,
+        };
+
+        let regex = compile_rule_pattern(&rule).unwrap();
+        assert!(regex.is_match("DATABASE connection"));
+        assert!(regex.is_match("database query"));
+        assert!(regex.is_match("Database setup"));
+    }
+
+    #[test]
+    fn test_regex_case_insensitive_with_config_field() {
+        let rule = ContextInjectionRule {
+            pattern: "database".to_string(),
+            prompt: "Test".to_string(),
+            enabled: Some(true),
+            case_insensitive: Some(true),
+        };
+
+        let regex = compile_rule_pattern(&rule).unwrap();
+        assert!(regex.is_match("DATABASE connection"));
+        assert!(regex.is_match("database query"));
+        assert!(regex.is_match("Database setup"));
+    }
+
+    #[test]
+    fn test_expand_file_references_valid_file() {
+        // Create temporary directory and file
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.md");
+        fs::write(&file_path, "This is test content").unwrap();
+
+        let prompt = format!("Read @{}", file_path.file_name().unwrap().to_str().unwrap());
+        let expanded = expand_file_references(&prompt, temp_dir.path());
+
+        assert_eq!(expanded, "Read This is test content");
+    }
+
+    #[test]
+    fn test_expand_file_references_missing_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let prompt = "Read @missing-file.md";
+        let expanded = expand_file_references(prompt, temp_dir.path());
+
+        // Missing file reference should be left as-is
+        assert_eq!(expanded, "Read @missing-file.md");
+    }
+
+    #[test]
+    fn test_expand_file_references_multiple_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let file1 = temp_dir.path().join("file1.md");
+        let file2 = temp_dir.path().join("file2.md");
+        fs::write(&file1, "Content 1").unwrap();
+        fs::write(&file2, "Content 2").unwrap();
+
+        let prompt = "Read @file1.md and @file2.md";
+        let expanded = expand_file_references(prompt, temp_dir.path());
+
+        assert_eq!(expanded, "Read Content 1 and Content 2");
+    }
+
+    #[test]
+    fn test_expand_file_references_no_references() {
+        let temp_dir = TempDir::new().unwrap();
+        let prompt = "This is a normal prompt without file references";
+        let expanded = expand_file_references(prompt, temp_dir.path());
+
+        // Prompt should be unchanged
+        assert_eq!(expanded, "This is a normal prompt without file references");
+    }
+
 }
