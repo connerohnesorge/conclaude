@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] - 2026-01-07
+
+### Features
+
+- [**breaking**] Remove preventGeneratedFileEdits and add schema generation skill (#197) ([64a4a1a](https://github.com/connerohnesorge/conclaude/commit/64a4a1a93742aea67a01ba3297f19575227c4ff2))
+- Add agent frontmatter hooks to replace brittle subagent system ([05bfd1e](https://github.com/connerohnesorge/conclaude/commit/05bfd1ef05f9d9bfbebe345d2e97e17b68236822))
+
+### Bug Fixes
+
+- Resolve clippy warnings in agent hooks tests ([b933981](https://github.com/connerohnesorge/conclaude/commit/b93398171a28976a28a77d89ed049398115f723c))
+- Apply max_output_lines to stop command diagnostic output (#211) ([a94a079](https://github.com/connerohnesorge/conclaude/commit/a94a07904ef8fa8856d941031ae653119d2fb977))
+- Resolve linting errors and warnings ([8872777](https://github.com/connerohnesorge/conclaude/commit/8872777b7e6c6c9e18e1b0f5bff3a74b1b06b4a5))
+- Fix failing ci ([f1d4783](https://github.com/connerohnesorge/conclaude/commit/f1d47836bec40d369d174796d6ac8b28fd2b87e5))
+
+### Refactoring
+
+- Clean up test duplication and fix useless assertions (#201) ([63bc7d5](https://github.com/connerohnesorge/conclaude/commit/63bc7d5d326fd77a002c4407da7e2a7e030be0f9))
+- Consolidate redundant tests and remove low-value assertions (#203) ([6624fcf](https://github.com/connerohnesorge/conclaude/commit/6624fcfc2a30f7354239e63e6ad9d76bd7f43264))
+- Remove redundant and low-value test assertions (#205) ([36f70bf](https://github.com/connerohnesorge/conclaude/commit/36f70bf60557ea8e03bb3b4ced33681374b42d8e))
+- Remove 17 useless tests from hooks_tests.rs (#206) ([3f87277](https://github.com/connerohnesorge/conclaude/commit/3f87277aee69800f59e995e5354252759cd826fe))
+- Remove all emojis from codebase and documentation (#207) ([09db52c](https://github.com/connerohnesorge/conclaude/commit/09db52ccad5cef1cd33f2d81246f9d950bdda8dd))
+
+### Miscellaneous Tasks
+
+- **release:** Update CHANGELOG.md for v0.2.7 ([23b8752](https://github.com/connerohnesorge/conclaude/commit/23b8752e8d636203ffe6cb483465907fa9f17290))
+
+### Spectr
+
+- **archive:** Remove-dead-code (#196) ([1f9adfb](https://github.com/connerohnesorge/conclaude/commit/1f9adfb442862f8440124bc826ce52e22c2b90cd))
+- **archive:** Remove-prevent-generated-file-edits (#199) ([b72ea6d](https://github.com/connerohnesorge/conclaude/commit/b72ea6db43485eb525bd4f94269c8845c8c3aa95))
+- **archive:** Add-show-command-config (#200) ([a845133](https://github.com/connerohnesorge/conclaude/commit/a845133d12df473acfb633e087b0f89e2c6099dd))
+- **proposal:** Add-ts-hook-command (#210) ([10ff3fe](https://github.com/connerohnesorge/conclaude/commit/10ff3fea37a7a431aa66f833ffc729e8d602bfd9))
+- **proposal:** Add-rg-hook-command (#209) ([030bf9f](https://github.com/connerohnesorge/conclaude/commit/030bf9fcb677f7f78099f843c7310e1bde0d79b9))
+- **proposal:** Add-per-command-notifications (#212) ([dc8eb9a](https://github.com/connerohnesorge/conclaude/commit/dc8eb9a9a30b4c0ddb7dd56ba4f7b4c3f9c7b8df))
+- **archive:** Add-per-command-notifications (#215) ([c0bbf61](https://github.com/connerohnesorge/conclaude/commit/c0bbf61d3b1cb9d5aa3046919e037c9c266c17d8))
+- **proposal:** Add-post-tool-use-commands (#216) ([fed1017](https://github.com/connerohnesorge/conclaude/commit/fed10178e5e7e8b5644a41996599b6479a3e3828))
+- **proposal:** Add-user-prompt-submit-commands (#217) ([9e0fd06](https://github.com/connerohnesorge/conclaude/commit/9e0fd068d319a80182698c789fa519b5d4e07e42))
+- **archive:** Add-post-tool-use-commands (#219) ([33f20ce](https://github.com/connerohnesorge/conclaude/commit/33f20ceed82d64ad8411a6ae7a0d16a184079cad))
+- **archive:** Add-user-prompt-submit-commands (#220) ([a5a6bca](https://github.com/connerohnesorge/conclaude/commit/a5a6bca7d2d92a28fb7d9b74a6b96231be6ccb17))
+
 ## [0.2.7] - 2025-12-22
 
 ### Features
