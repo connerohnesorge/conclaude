@@ -10,6 +10,12 @@ pub struct HookResult {
     pub blocked: Option<bool>,
     /// Context to prepend to Claude's system prompt when context injection rules match
     pub system_prompt: Option<String>,
+    /// Modified tool input parameters to replace the original input (PreToolUse only)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_input: Option<std::collections::HashMap<String, serde_json::Value>>,
+    /// Explicit permission decision for PreToolUse hooks: "allow", "deny", or "ask"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decision: Option<String>,
 }
 
 impl HookResult {
@@ -19,6 +25,8 @@ impl HookResult {
             message: None,
             blocked: Some(false),
             system_prompt: None,
+            updated_input: None,
+            decision: None,
         }
     }
 
@@ -27,6 +35,8 @@ impl HookResult {
             message: Some(message.into()),
             blocked: Some(true),
             system_prompt: None,
+            updated_input: None,
+            decision: None,
         }
     }
 
@@ -37,6 +47,25 @@ impl HookResult {
             message: None,
             blocked: Some(false),
             system_prompt: Some(context.into()),
+            updated_input: None,
+            decision: None,
+        }
+    }
+
+    /// Create a result that asks user permission while providing modified input
+    /// The updated_input will be used if the user approves the operation
+    #[must_use]
+    #[allow(dead_code)]
+    pub fn ask_with_input(
+        message: impl Into<String>,
+        updated_input: std::collections::HashMap<String, serde_json::Value>,
+    ) -> Self {
+        Self {
+            message: Some(message.into()),
+            blocked: None,
+            system_prompt: None,
+            updated_input: Some(updated_input),
+            decision: Some("ask".to_string()),
         }
     }
 }
@@ -430,5 +459,158 @@ mod tests {
         let payload: UserPromptSubmitPayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.prompt, "test prompt");
         assert_eq!(payload.base.session_id, "test_session");
+    }
+
+    // Tests for new HookResult fields: updated_input and decision
+
+    #[test]
+    fn test_hook_result_updated_input_serialization() {
+        let mut updated_input = HashMap::new();
+        updated_input.insert("param1".to_string(), serde_json::json!("modified_value"));
+        updated_input.insert("param2".to_string(), serde_json::json!(42));
+
+        let result = HookResult {
+            message: Some("Input modified".to_string()),
+            blocked: None,
+            system_prompt: None,
+            updated_input: Some(updated_input),
+            decision: None,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"updated_input\""));
+        assert!(json.contains("\"param1\":\"modified_value\""));
+        assert!(json.contains("\"param2\":42"));
+    }
+
+    #[test]
+    fn test_hook_result_updated_input_deserialization() {
+        let json = r#"{
+            "message": "Input modified",
+            "blocked": null,
+            "system_prompt": null,
+            "updated_input": {
+                "file_path": "/new/path.txt",
+                "content": "new content"
+            },
+            "decision": null
+        }"#;
+
+        let result: HookResult = serde_json::from_str(json).unwrap();
+        assert_eq!(result.message, Some("Input modified".to_string()));
+        assert!(result.updated_input.is_some());
+
+        let updated = result.updated_input.unwrap();
+        assert_eq!(updated.get("file_path").unwrap(), "/new/path.txt");
+        assert_eq!(updated.get("content").unwrap(), "new content");
+    }
+
+    #[test]
+    fn test_hook_result_decision_serialization() {
+        let result = HookResult {
+            message: Some("Permission required".to_string()),
+            blocked: None,
+            system_prompt: None,
+            updated_input: None,
+            decision: Some("ask".to_string()),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"decision\":\"ask\""));
+    }
+
+    #[test]
+    fn test_hook_result_decision_deserialization() {
+        let json_ask = r#"{"message": null, "blocked": null, "system_prompt": null, "decision": "ask"}"#;
+        let result_ask: HookResult = serde_json::from_str(json_ask).unwrap();
+        assert_eq!(result_ask.decision, Some("ask".to_string()));
+
+        let json_allow = r#"{"message": null, "blocked": null, "system_prompt": null, "decision": "allow"}"#;
+        let result_allow: HookResult = serde_json::from_str(json_allow).unwrap();
+        assert_eq!(result_allow.decision, Some("allow".to_string()));
+
+        let json_deny = r#"{"message": null, "blocked": null, "system_prompt": null, "decision": "deny"}"#;
+        let result_deny: HookResult = serde_json::from_str(json_deny).unwrap();
+        assert_eq!(result_deny.decision, Some("deny".to_string()));
+    }
+
+    #[test]
+    fn test_hook_result_ask_with_input_constructor() {
+        let mut updated_input = HashMap::new();
+        updated_input.insert("file_path".to_string(), serde_json::json!("/safe/path.txt"));
+        updated_input.insert("content".to_string(), serde_json::json!("safe content"));
+
+        let result = HookResult::ask_with_input(
+            "Confirm operation with modified input",
+            updated_input.clone(),
+        );
+
+        assert_eq!(
+            result.message,
+            Some("Confirm operation with modified input".to_string())
+        );
+        assert_eq!(result.blocked, None);
+        assert_eq!(result.system_prompt, None);
+        assert_eq!(result.decision, Some("ask".to_string()));
+        assert!(result.updated_input.is_some());
+
+        let result_input = result.updated_input.unwrap();
+        assert_eq!(result_input.get("file_path").unwrap(), "/safe/path.txt");
+        assert_eq!(result_input.get("content").unwrap(), "safe content");
+    }
+
+    #[test]
+    fn test_hook_result_skip_serializing_if_none() {
+        // Test that updated_input and decision are omitted when None
+        let result = HookResult::success();
+        let json = serde_json::to_string(&result).unwrap();
+
+        // Should NOT contain updated_input or decision fields
+        assert!(!json.contains("\"updated_input\""));
+        assert!(!json.contains("\"decision\""));
+
+        // Should still contain the other fields
+        assert!(json.contains("\"blocked\":false"));
+    }
+
+    #[test]
+    fn test_hook_result_constructors_initialize_new_fields() {
+        // Test success() constructor
+        let success = HookResult::success();
+        assert_eq!(success.updated_input, None);
+        assert_eq!(success.decision, None);
+
+        // Test blocked() constructor
+        let blocked = HookResult::blocked("Test blocked");
+        assert_eq!(blocked.updated_input, None);
+        assert_eq!(blocked.decision, None);
+
+        // Test with_context() constructor
+        let with_context = HookResult::with_context("Test context");
+        assert_eq!(with_context.updated_input, None);
+        assert_eq!(with_context.decision, None);
+    }
+
+    #[test]
+    fn test_hook_result_combined_fields_serialization() {
+        let mut updated_input = HashMap::new();
+        updated_input.insert("key".to_string(), serde_json::json!("value"));
+
+        let result = HookResult {
+            message: Some("Combined test".to_string()),
+            blocked: Some(false),
+            system_prompt: Some("Context".to_string()),
+            updated_input: Some(updated_input),
+            decision: Some("allow".to_string()),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: HookResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.message, Some("Combined test".to_string()));
+        assert_eq!(deserialized.blocked, Some(false));
+        assert_eq!(deserialized.system_prompt, Some("Context".to_string()));
+        assert_eq!(deserialized.decision, Some("allow".to_string()));
+        assert!(deserialized.updated_input.is_some());
     }
 }
