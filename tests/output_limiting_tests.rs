@@ -252,7 +252,7 @@ preToolUse:
 
     let config = result.unwrap();
     assert_eq!(config.stop.commands.len(), 1);
-    assert_eq!(config.stop.commands[0].run, "echo minimal");
+    assert_eq!(config.stop.commands[0].run, Some("echo minimal".to_string()));
     assert_eq!(config.stop.commands[0].message, None);
     assert_eq!(config.stop.commands[0].show_stdout, None);
     assert_eq!(config.stop.commands[0].show_stderr, None);
@@ -327,7 +327,7 @@ notifications:
     assert_eq!(config.stop.commands.len(), 3);
 
     // First command
-    assert_eq!(config.stop.commands[0].run, "npm test");
+    assert_eq!(config.stop.commands[0].run, Some("npm test".to_string()));
     assert_eq!(
         config.stop.commands[0].message,
         Some("Tests failed. Please fix before continuing.".to_string())
@@ -337,7 +337,7 @@ notifications:
     assert_eq!(config.stop.commands[0].max_output_lines, Some(50));
 
     // Second command
-    assert_eq!(config.stop.commands[1].run, "npm run lint");
+    assert_eq!(config.stop.commands[1].run, Some("npm run lint".to_string()));
     assert_eq!(
         config.stop.commands[1].message,
         Some("Linting failed".to_string())
@@ -347,7 +347,7 @@ notifications:
     assert_eq!(config.stop.commands[1].max_output_lines, Some(100));
 
     // Third command (no maxOutputLines)
-    assert_eq!(config.stop.commands[2].run, "echo no limits");
+    assert_eq!(config.stop.commands[2].run, Some("echo no limits".to_string()));
     assert_eq!(config.stop.commands[2].show_stdout, Some(true));
     assert_eq!(config.stop.commands[2].max_output_lines, None);
 

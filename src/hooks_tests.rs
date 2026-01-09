@@ -1,4 +1,4 @@
-use crate::config::ConclaudeConfig;
+use crate::config::{CommandAction, ConclaudeConfig};
 use crate::hooks::*;
 use serde_json::Value;
 use std::fs;
@@ -99,7 +99,9 @@ fn test_collect_stop_commands_with_output_config() {
         stop: crate::config::StopConfig {
             commands: vec![
                 StopCommand {
-                    run: "echo hello".to_string(),
+                    run: Some("echo hello".to_string()),
+                    rg: None,
+                    action: CommandAction::Block,
                     message: Some("Custom message".to_string()),
                     show_command: None,
                     show_stdout: Some(true),
@@ -109,7 +111,9 @@ fn test_collect_stop_commands_with_output_config() {
                     notify_per_command: None,
                 },
                 StopCommand {
-                    run: "ls -la".to_string(),
+                    run: Some("ls -la".to_string()),
+                    rg: None,
+                    action: CommandAction::Block,
                     message: None,
                     show_command: None,
                     show_stdout: Some(false),
@@ -125,20 +129,20 @@ fn test_collect_stop_commands_with_output_config() {
         ..Default::default()
     };
 
-    let commands = collect_stop_commands(&config).unwrap();
-    assert_eq!(commands.len(), 2);
+    let collected = collect_stop_commands(&config).unwrap();
+    assert_eq!(collected.shell_commands.len(), 2);
 
-    assert_eq!(commands[0].command, "echo hello");
-    assert!(commands[0].show_stdout);
-    assert!(!commands[0].show_stderr);
-    assert_eq!(commands[0].max_output_lines, Some(10));
-    assert_eq!(commands[0].message, Some("Custom message".to_string()));
+    assert_eq!(collected.shell_commands[0].command, "echo hello");
+    assert!(collected.shell_commands[0].show_stdout);
+    assert!(!collected.shell_commands[0].show_stderr);
+    assert_eq!(collected.shell_commands[0].max_output_lines, Some(10));
+    assert_eq!(collected.shell_commands[0].message, Some("Custom message".to_string()));
 
-    assert_eq!(commands[1].command, "ls -la");
-    assert!(!commands[1].show_stdout);
-    assert!(commands[1].show_stderr);
-    assert_eq!(commands[1].max_output_lines, Some(5));
-    assert_eq!(commands[1].message, None);
+    assert_eq!(collected.shell_commands[1].command, "ls -la");
+    assert!(!collected.shell_commands[1].show_stdout);
+    assert!(collected.shell_commands[1].show_stderr);
+    assert_eq!(collected.shell_commands[1].max_output_lines, Some(5));
+    assert_eq!(collected.shell_commands[1].message, None);
 }
 
 #[test]
@@ -148,7 +152,9 @@ fn test_collect_stop_commands_default_values() {
     let config = ConclaudeConfig {
         stop: crate::config::StopConfig {
             commands: vec![StopCommand {
-                run: "echo test".to_string(),
+                run: Some("echo test".to_string()),
+                rg: None,
+                action: CommandAction::Block,
                 message: None,
                 show_command: None,
                 show_stdout: None,
@@ -163,13 +169,13 @@ fn test_collect_stop_commands_default_values() {
         ..Default::default()
     };
 
-    let commands = collect_stop_commands(&config).unwrap();
-    assert_eq!(commands.len(), 1);
+    let collected = collect_stop_commands(&config).unwrap();
+    assert_eq!(collected.shell_commands.len(), 1);
 
     // Defaults should be false for show flags and None for max_output_lines
-    assert!(!commands[0].show_stdout);
-    assert!(!commands[0].show_stderr);
-    assert_eq!(commands[0].max_output_lines, None);
+    assert!(!collected.shell_commands[0].show_stdout);
+    assert!(!collected.shell_commands[0].show_stderr);
+    assert_eq!(collected.shell_commands[0].max_output_lines, None);
 }
 
 #[test]
@@ -237,7 +243,9 @@ fn test_match_subagent_patterns_prefix_glob() {
     commands.insert(
         "test*".to_string(),
         vec![SubagentStopCommand {
-            run: "echo test".to_string(),
+            run: Some("echo test".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -272,7 +280,9 @@ fn test_match_subagent_patterns_suffix_glob() {
     commands.insert(
         "*coder".to_string(),
         vec![SubagentStopCommand {
-            run: "echo coder".to_string(),
+            run: Some("echo coder".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -307,7 +317,9 @@ fn test_match_subagent_patterns_character_class() {
     commands.insert(
         "agent_[0-9]*".to_string(),
         vec![SubagentStopCommand {
-            run: "echo agent".to_string(),
+            run: Some("echo agent".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -345,7 +357,9 @@ fn test_match_subagent_patterns_multiple_matches() {
     commands.insert(
         "*".to_string(),
         vec![SubagentStopCommand {
-            run: "echo all".to_string(),
+            run: Some("echo all".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -358,7 +372,9 @@ fn test_match_subagent_patterns_multiple_matches() {
     commands.insert(
         "coder".to_string(),
         vec![SubagentStopCommand {
-            run: "echo coder".to_string(),
+            run: Some("echo coder".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -371,7 +387,9 @@ fn test_match_subagent_patterns_multiple_matches() {
     commands.insert(
         "*coder".to_string(),
         vec![SubagentStopCommand {
-            run: "echo suffix-coder".to_string(),
+            run: Some("echo suffix-coder".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -402,7 +420,9 @@ fn test_match_subagent_patterns_wildcard_first() {
     commands.insert(
         "coder".to_string(),
         vec![SubagentStopCommand {
-            run: "echo coder".to_string(),
+            run: Some("echo coder".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -415,7 +435,9 @@ fn test_match_subagent_patterns_wildcard_first() {
     commands.insert(
         "*".to_string(),
         vec![SubagentStopCommand {
-            run: "echo all".to_string(),
+            run: Some("echo all".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -442,7 +464,9 @@ fn test_match_subagent_patterns_no_match() {
     commands.insert(
         "coder".to_string(),
         vec![SubagentStopCommand {
-            run: "echo coder".to_string(),
+            run: Some("echo coder".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -455,7 +479,9 @@ fn test_match_subagent_patterns_no_match() {
     commands.insert(
         "tester".to_string(),
         vec![SubagentStopCommand {
-            run: "echo tester".to_string(),
+            run: Some("echo tester".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -594,7 +620,9 @@ fn test_collect_subagent_stop_commands_single_pattern() {
         "coder".to_string(),
         vec![
             SubagentStopCommand {
-                run: "echo first".to_string(),
+                run: Some("echo first".to_string()),
+                rg: None,
+                action: CommandAction::Block,
                 message: Some("First command".to_string()),
                 show_command: None,
                 show_stdout: Some(true),
@@ -604,7 +632,9 @@ fn test_collect_subagent_stop_commands_single_pattern() {
                 notify_per_command: None,
             },
             SubagentStopCommand {
-                run: "echo second".to_string(),
+                run: Some("echo second".to_string()),
+                rg: None,
+                action: CommandAction::Block,
                 message: None,
                 show_command: None,
                 show_stdout: None,
@@ -621,18 +651,18 @@ fn test_collect_subagent_stop_commands_single_pattern() {
 
     let collected = collect_subagent_stop_commands(&config, &matching_patterns).unwrap();
 
-    assert_eq!(collected.len(), 2);
-    assert_eq!(collected[0].command, "echo first");
-    assert!(collected[0].show_stdout);
-    assert!(!collected[0].show_stderr);
-    assert_eq!(collected[0].max_output_lines, Some(10));
-    assert_eq!(collected[0].message, Some("First command".to_string()));
+    assert_eq!(collected.shell_commands.len(), 2);
+    assert_eq!(collected.shell_commands[0].command, "echo first");
+    assert!(collected.shell_commands[0].show_stdout);
+    assert!(!collected.shell_commands[0].show_stderr);
+    assert_eq!(collected.shell_commands[0].max_output_lines, Some(10));
+    assert_eq!(collected.shell_commands[0].message, Some("First command".to_string()));
 
-    assert_eq!(collected[1].command, "echo second");
-    assert!(!collected[1].show_stdout);
-    assert!(!collected[1].show_stderr);
-    assert_eq!(collected[1].max_output_lines, None);
-    assert_eq!(collected[1].message, None);
+    assert_eq!(collected.shell_commands[1].command, "echo second");
+    assert!(!collected.shell_commands[1].show_stdout);
+    assert!(!collected.shell_commands[1].show_stderr);
+    assert_eq!(collected.shell_commands[1].max_output_lines, None);
+    assert_eq!(collected.shell_commands[1].message, None);
 }
 
 #[test]
@@ -643,7 +673,9 @@ fn test_collect_subagent_stop_commands_multiple_patterns() {
     commands.insert(
         "*".to_string(),
         vec![SubagentStopCommand {
-            run: "echo wildcard".to_string(),
+            run: Some("echo wildcard".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -656,7 +688,9 @@ fn test_collect_subagent_stop_commands_multiple_patterns() {
     commands.insert(
         "coder".to_string(),
         vec![SubagentStopCommand {
-            run: "echo coder".to_string(),
+            run: Some("echo coder".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -673,10 +707,10 @@ fn test_collect_subagent_stop_commands_multiple_patterns() {
 
     let collected = collect_subagent_stop_commands(&config, &matching_patterns).unwrap();
 
-    assert_eq!(collected.len(), 2);
+    assert_eq!(collected.shell_commands.len(), 2);
     // Commands should be in order of patterns
-    assert_eq!(collected[0].command, "echo wildcard");
-    assert_eq!(collected[1].command, "echo coder");
+    assert_eq!(collected.shell_commands[0].command, "echo wildcard");
+    assert_eq!(collected.shell_commands[1].command, "echo coder");
 }
 
 #[test]
@@ -687,7 +721,9 @@ fn test_collect_subagent_stop_commands_no_matching_patterns() {
     commands.insert(
         "coder".to_string(),
         vec![SubagentStopCommand {
-            run: "echo coder".to_string(),
+            run: Some("echo coder".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -702,7 +738,7 @@ fn test_collect_subagent_stop_commands_no_matching_patterns() {
     let matching_patterns: Vec<&str> = vec![];
 
     let collected = collect_subagent_stop_commands(&config, &matching_patterns).unwrap();
-    assert!(collected.is_empty());
+    assert!(collected.shell_commands.is_empty());
 }
 
 // ============================================================================
@@ -716,7 +752,9 @@ fn test_collect_stop_commands_with_notify_per_command_true() {
     let config = ConclaudeConfig {
         stop: crate::config::StopConfig {
             commands: vec![StopCommand {
-                run: "echo test".to_string(),
+                run: Some("echo test".to_string()),
+                rg: None,
+                action: CommandAction::Block,
                 message: Some("Test message".to_string()),
                 show_command: Some(true),
                 show_stdout: None,
@@ -731,13 +769,13 @@ fn test_collect_stop_commands_with_notify_per_command_true() {
         ..Default::default()
     };
 
-    let commands = collect_stop_commands(&config).unwrap();
-    assert_eq!(commands.len(), 1);
+    let collected = collect_stop_commands(&config).unwrap();
+    assert_eq!(collected.shell_commands.len(), 1);
 
-    assert_eq!(commands[0].command, "echo test");
-    assert!(commands[0].show_command);
-    assert!(commands[0].notify_per_command);
-    assert_eq!(commands[0].message, Some("Test message".to_string()));
+    assert_eq!(collected.shell_commands[0].command, "echo test");
+    assert!(collected.shell_commands[0].show_command);
+    assert!(collected.shell_commands[0].notify_per_command);
+    assert_eq!(collected.shell_commands[0].message, Some("Test message".to_string()));
 }
 
 #[test]
@@ -747,7 +785,9 @@ fn test_collect_stop_commands_with_notify_per_command_false() {
     let config = ConclaudeConfig {
         stop: crate::config::StopConfig {
             commands: vec![StopCommand {
-                run: "echo test".to_string(),
+                run: Some("echo test".to_string()),
+                rg: None,
+                action: CommandAction::Block,
                 message: None,
                 show_command: Some(false),
                 show_stdout: None,
@@ -762,12 +802,12 @@ fn test_collect_stop_commands_with_notify_per_command_false() {
         ..Default::default()
     };
 
-    let commands = collect_stop_commands(&config).unwrap();
-    assert_eq!(commands.len(), 1);
+    let collected = collect_stop_commands(&config).unwrap();
+    assert_eq!(collected.shell_commands.len(), 1);
 
-    assert_eq!(commands[0].command, "echo test");
-    assert!(!commands[0].show_command);
-    assert!(!commands[0].notify_per_command);
+    assert_eq!(collected.shell_commands[0].command, "echo test");
+    assert!(!collected.shell_commands[0].show_command);
+    assert!(!collected.shell_commands[0].notify_per_command);
 }
 
 #[test]
@@ -777,7 +817,9 @@ fn test_collect_stop_commands_notify_per_command_defaults_to_false() {
     let config = ConclaudeConfig {
         stop: crate::config::StopConfig {
             commands: vec![StopCommand {
-                run: "echo test".to_string(),
+                run: Some("echo test".to_string()),
+                rg: None,
+                action: CommandAction::Block,
                 message: None,
                 show_command: None,
                 show_stdout: None,
@@ -792,11 +834,11 @@ fn test_collect_stop_commands_notify_per_command_defaults_to_false() {
         ..Default::default()
     };
 
-    let commands = collect_stop_commands(&config).unwrap();
-    assert_eq!(commands.len(), 1);
+    let collected = collect_stop_commands(&config).unwrap();
+    assert_eq!(collected.shell_commands.len(), 1);
 
     // notify_per_command should default to false
-    assert!(!commands[0].notify_per_command);
+    assert!(!collected.shell_commands[0].notify_per_command);
 }
 
 #[test]
@@ -807,7 +849,9 @@ fn test_collect_stop_commands_mixed_notify_per_command_settings() {
         stop: crate::config::StopConfig {
             commands: vec![
                 StopCommand {
-                    run: "echo first".to_string(),
+                    run: Some("echo first".to_string()),
+                    rg: None,
+                    action: CommandAction::Block,
                     message: None,
                     show_command: Some(true),
                     show_stdout: None,
@@ -817,7 +861,9 @@ fn test_collect_stop_commands_mixed_notify_per_command_settings() {
                     notify_per_command: Some(true),
                 },
                 StopCommand {
-                    run: "echo second".to_string(),
+                    run: Some("echo second".to_string()),
+                    rg: None,
+                    action: CommandAction::Block,
                     message: None,
                     show_command: Some(false),
                     show_stdout: None,
@@ -827,7 +873,9 @@ fn test_collect_stop_commands_mixed_notify_per_command_settings() {
                     notify_per_command: Some(false),
                 },
                 StopCommand {
-                    run: "echo third".to_string(),
+                    run: Some("echo third".to_string()),
+                    rg: None,
+                    action: CommandAction::Block,
                     message: None,
                     show_command: None,
                     show_stdout: None,
@@ -843,22 +891,22 @@ fn test_collect_stop_commands_mixed_notify_per_command_settings() {
         ..Default::default()
     };
 
-    let commands = collect_stop_commands(&config).unwrap();
-    assert_eq!(commands.len(), 3);
+    let collected = collect_stop_commands(&config).unwrap();
+    assert_eq!(collected.shell_commands.len(), 3);
 
     // First command has notify_per_command: true
-    assert_eq!(commands[0].command, "echo first");
-    assert!(commands[0].show_command);
-    assert!(commands[0].notify_per_command);
+    assert_eq!(collected.shell_commands[0].command, "echo first");
+    assert!(collected.shell_commands[0].show_command);
+    assert!(collected.shell_commands[0].notify_per_command);
 
     // Second command has notify_per_command: false
-    assert_eq!(commands[1].command, "echo second");
-    assert!(!commands[1].show_command);
-    assert!(!commands[1].notify_per_command);
+    assert_eq!(collected.shell_commands[1].command, "echo second");
+    assert!(!collected.shell_commands[1].show_command);
+    assert!(!collected.shell_commands[1].notify_per_command);
 
     // Third command should default to notify_per_command: false
-    assert_eq!(commands[2].command, "echo third");
-    assert!(!commands[2].notify_per_command);
+    assert_eq!(collected.shell_commands[2].command, "echo third");
+    assert!(!collected.shell_commands[2].notify_per_command);
 }
 
 #[test]
@@ -870,7 +918,9 @@ fn test_collect_subagent_stop_commands_with_notify_per_command() {
         "coder".to_string(),
         vec![
             SubagentStopCommand {
-                run: "echo coder first".to_string(),
+                run: Some("echo coder first".to_string()),
+                rg: None,
+                action: CommandAction::Block,
                 message: None,
                 show_command: Some(true),
                 show_stdout: None,
@@ -880,7 +930,9 @@ fn test_collect_subagent_stop_commands_with_notify_per_command() {
                 notify_per_command: Some(true),
             },
             SubagentStopCommand {
-                run: "echo coder second".to_string(),
+                run: Some("echo coder second".to_string()),
+                rg: None,
+                action: CommandAction::Block,
                 message: None,
                 show_command: Some(false),
                 show_stdout: None,
@@ -897,17 +949,17 @@ fn test_collect_subagent_stop_commands_with_notify_per_command() {
 
     let collected = collect_subagent_stop_commands(&config, &matching_patterns).unwrap();
 
-    assert_eq!(collected.len(), 2);
+    assert_eq!(collected.shell_commands.len(), 2);
 
     // First command has notify_per_command: true
-    assert_eq!(collected[0].command, "echo coder first");
-    assert!(collected[0].show_command);
-    assert!(collected[0].notify_per_command);
+    assert_eq!(collected.shell_commands[0].command, "echo coder first");
+    assert!(collected.shell_commands[0].show_command);
+    assert!(collected.shell_commands[0].notify_per_command);
 
     // Second command has notify_per_command: false
-    assert_eq!(collected[1].command, "echo coder second");
-    assert!(!collected[1].show_command);
-    assert!(!collected[1].notify_per_command);
+    assert_eq!(collected.shell_commands[1].command, "echo coder second");
+    assert!(!collected.shell_commands[1].show_command);
+    assert!(!collected.shell_commands[1].notify_per_command);
 }
 
 #[test]
@@ -918,7 +970,9 @@ fn test_collect_subagent_stop_commands_notify_per_command_defaults_to_false() {
     commands.insert(
         "tester".to_string(),
         vec![SubagentStopCommand {
-            run: "echo test".to_string(),
+            run: Some("echo test".to_string()),
+            rg: None,
+            action: CommandAction::Block,
             message: None,
             show_command: None,
             show_stdout: None,
@@ -934,9 +988,9 @@ fn test_collect_subagent_stop_commands_notify_per_command_defaults_to_false() {
 
     let collected = collect_subagent_stop_commands(&config, &matching_patterns).unwrap();
 
-    assert_eq!(collected.len(), 1);
-    assert_eq!(collected[0].command, "echo test");
-    assert!(!collected[0].notify_per_command);
+    assert_eq!(collected.shell_commands.len(), 1);
+    assert_eq!(collected.shell_commands[0].command, "echo test");
+    assert!(!collected.shell_commands[0].notify_per_command);
 }
 
 // Tests for notification filter logic
@@ -953,7 +1007,9 @@ fn test_notify_per_command_respects_show_command_flag() {
     let config_show_command = ConclaudeConfig {
         stop: crate::config::StopConfig {
             commands: vec![StopCommand {
-                run: "echo test".to_string(),
+                run: Some("echo test".to_string()),
+                rg: None,
+                action: CommandAction::Block,
                 message: None,
                 show_command: Some(true),
                 show_stdout: None,
@@ -968,16 +1024,18 @@ fn test_notify_per_command_respects_show_command_flag() {
         ..Default::default()
     };
 
-    let commands = collect_stop_commands(&config_show_command).unwrap();
-    assert_eq!(commands.len(), 1);
-    assert!(commands[0].show_command);
-    assert!(commands[0].notify_per_command);
+    let collected = collect_stop_commands(&config_show_command).unwrap();
+    assert_eq!(collected.shell_commands.len(), 1);
+    assert!(collected.shell_commands[0].show_command);
+    assert!(collected.shell_commands[0].notify_per_command);
 
     // Test that notify_per_command works with show_command: false
     let config_hide_command = ConclaudeConfig {
         stop: crate::config::StopConfig {
             commands: vec![StopCommand {
-                run: "echo test".to_string(),
+                run: Some("echo test".to_string()),
+                rg: None,
+                action: CommandAction::Block,
                 message: None,
                 show_command: Some(false),
                 show_stdout: None,
@@ -992,10 +1050,10 @@ fn test_notify_per_command_respects_show_command_flag() {
         ..Default::default()
     };
 
-    let commands = collect_stop_commands(&config_hide_command).unwrap();
-    assert_eq!(commands.len(), 1);
-    assert!(!commands[0].show_command);
-    assert!(commands[0].notify_per_command);
+    let collected = collect_stop_commands(&config_hide_command).unwrap();
+    assert_eq!(collected.shell_commands.len(), 1);
+    assert!(!collected.shell_commands[0].show_command);
+    assert!(collected.shell_commands[0].notify_per_command);
     // The implementation will show "Running command" instead of "Running: {command}"
 }
 
@@ -1010,7 +1068,9 @@ fn test_per_command_notification_flag_propagation() {
         stop: crate::config::StopConfig {
             commands: vec![
                 StopCommand {
-                    run: "echo with-notifications".to_string(),
+                    run: Some("echo with-notifications".to_string()),
+                    rg: None,
+                    action: CommandAction::Block,
                     message: None,
                     show_command: Some(true),
                     show_stdout: None,
@@ -1020,7 +1080,9 @@ fn test_per_command_notification_flag_propagation() {
                     notify_per_command: Some(true),
                 },
                 StopCommand {
-                    run: "echo without-notifications".to_string(),
+                    run: Some("echo without-notifications".to_string()),
+                    rg: None,
+                    action: CommandAction::Block,
                     message: None,
                     show_command: Some(true),
                     show_stdout: None,
@@ -1036,16 +1098,16 @@ fn test_per_command_notification_flag_propagation() {
         ..Default::default()
     };
 
-    let commands = collect_stop_commands(&config).unwrap();
-    assert_eq!(commands.len(), 2);
+    let collected = collect_stop_commands(&config).unwrap();
+    assert_eq!(collected.shell_commands.len(), 2);
 
     // Verify first command has notifications enabled
-    assert_eq!(commands[0].command, "echo with-notifications");
-    assert!(commands[0].notify_per_command);
+    assert_eq!(collected.shell_commands[0].command, "echo with-notifications");
+    assert!(collected.shell_commands[0].notify_per_command);
 
     // Verify second command has notifications disabled
-    assert_eq!(commands[1].command, "echo without-notifications");
-    assert!(!commands[1].notify_per_command);
+    assert_eq!(collected.shell_commands[1].command, "echo without-notifications");
+    assert!(!collected.shell_commands[1].notify_per_command);
 }
 
 #[test]
@@ -1057,7 +1119,9 @@ fn test_subagent_stop_notify_per_command_with_show_command() {
         "coder".to_string(),
         vec![
             SubagentStopCommand {
-                run: "echo visible".to_string(),
+                run: Some("echo visible".to_string()),
+                rg: None,
+                action: CommandAction::Block,
                 message: None,
                 show_command: Some(true),
                 show_stdout: None,
@@ -1067,7 +1131,9 @@ fn test_subagent_stop_notify_per_command_with_show_command() {
                 notify_per_command: Some(true),
             },
             SubagentStopCommand {
-                run: "echo hidden".to_string(),
+                run: Some("echo hidden".to_string()),
+                rg: None,
+                action: CommandAction::Block,
                 message: None,
                 show_command: Some(false),
                 show_stdout: None,
@@ -1084,17 +1150,17 @@ fn test_subagent_stop_notify_per_command_with_show_command() {
 
     let collected = collect_subagent_stop_commands(&config, &matching_patterns).unwrap();
 
-    assert_eq!(collected.len(), 2);
+    assert_eq!(collected.shell_commands.len(), 2);
 
     // First command shows command name in notifications
-    assert_eq!(collected[0].command, "echo visible");
-    assert!(collected[0].show_command);
-    assert!(collected[0].notify_per_command);
+    assert_eq!(collected.shell_commands[0].command, "echo visible");
+    assert!(collected.shell_commands[0].show_command);
+    assert!(collected.shell_commands[0].notify_per_command);
 
     // Second command hides command name in notifications
-    assert_eq!(collected[1].command, "echo hidden");
-    assert!(!collected[1].show_command);
-    assert!(collected[1].notify_per_command);
+    assert_eq!(collected.shell_commands[1].command, "echo hidden");
+    assert!(!collected.shell_commands[1].show_command);
+    assert!(collected.shell_commands[1].notify_per_command);
 }
 
 #[cfg(test)]

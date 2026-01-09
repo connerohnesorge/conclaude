@@ -1,18 +1,223 @@
 // Final test - expecting both workflows to succeed
 use anyhow::{Context, Result};
 use conclaude_field_derive::FieldList;
+use grep_regex::RegexMatcherBuilder;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+/// How matches are counted
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum CountMode {
+    /// Count lines containing matches (default)
+    #[default]
+    Lines,
+    /// Count every match occurrence
+    Occurrences,
+}
+
+/// Action to take when constraint is violated
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum CommandAction {
+    /// Block the hook (default)
+    #[default]
+    Block,
+    /// Log warning but continue
+    Warn,
+}
+
+/// Configuration for ripgrep-based pattern matching in hooks
+///
+/// Provides declarative pattern matching as an alternative to shell commands.
+/// Uses ripgrep's library crates for high-performance searching.
+///
+/// # Examples
+///
+/// ```yaml
+/// stop:
+///   commands:
+///     # Block inline CSS classes in HTML
+///     - rg:
+///         pattern: "class=.*(?:bg-|text-)"
+///         files: "**/*.html"
+///       message: "Inline CSS classes found"
+///
+///     # Require at least one test
+///     - rg:
+///         pattern: "#\\[test\\]"
+///         files: "**/*.rs"
+///         min: 1
+///       message: "No test functions found"
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct RgConfig {
+    // === Required Fields ===
+
+    /// Regex pattern to search for
+    pub pattern: String,
+
+    /// Glob pattern for file matching (e.g., "**/*.rs")
+    pub files: String,
+
+    // === Constraint Fields (mutually exclusive) ===
+
+    /// Maximum allowed matches (default when none specified: 0)
+    #[serde(default)]
+    pub max: Option<u64>,
+
+    /// Minimum required matches
+    #[serde(default)]
+    pub min: Option<u64>,
+
+    /// Exact match count required
+    #[serde(default)]
+    pub equal: Option<u64>,
+
+    // === Regex Options ===
+
+    /// Case insensitive matching
+    #[serde(default, rename = "ignoreCase")]
+    pub ignore_case: bool,
+
+    /// Smart case: auto-detect from pattern (uppercase = case sensitive)
+    #[serde(default, rename = "smartCase")]
+    pub smart_case: bool,
+
+    /// Word boundary matching (like \b but smarter)
+    #[serde(default)]
+    pub word: bool,
+
+    /// Treat pattern as literal string, not regex
+    #[serde(default, rename = "fixedStrings")]
+    pub fixed_strings: bool,
+
+    /// Multi-line mode: ^ and $ match line boundaries
+    #[serde(default, rename = "multiLine")]
+    pub multi_line: bool,
+
+    /// Match entire line only
+    #[serde(default, rename = "wholeLine")]
+    pub whole_line: bool,
+
+    /// Dot matches newline characters
+    #[serde(default, rename = "dotMatchesNewLine")]
+    pub dot_matches_new_line: bool,
+
+    /// Enable Unicode character classes (default: true)
+    #[serde(default = "default_true")]
+    pub unicode: bool,
+
+    // === File Walking Options ===
+
+    /// Maximum directory depth
+    #[serde(default, rename = "maxDepth")]
+    pub max_depth: Option<usize>,
+
+    /// Include hidden files (starting with .)
+    #[serde(default)]
+    pub hidden: bool,
+
+    /// Follow symbolic links
+    #[serde(default, rename = "followLinks")]
+    pub follow_links: bool,
+
+    /// Skip files larger than N bytes
+    #[serde(default, rename = "maxFilesize")]
+    pub max_filesize: Option<u64>,
+
+    /// Respect .gitignore files (default: true)
+    #[serde(default = "default_true", rename = "gitIgnore")]
+    pub git_ignore: bool,
+
+    /// Respect .ignore files (default: true)
+    #[serde(default = "default_true", rename = "rgIgnore")]
+    pub rg_ignore: bool,
+
+    /// Read parent directory ignore files (default: true)
+    #[serde(default = "default_true")]
+    pub parents: bool,
+
+    /// Don't cross filesystem boundaries
+    #[serde(default, rename = "sameFileSystem")]
+    pub same_file_system: bool,
+
+    /// Number of parallel search threads
+    #[serde(default)]
+    pub threads: Option<usize>,
+
+    /// File type filters (e.g., ["rust", "js"])
+    #[serde(default)]
+    pub types: Vec<String>,
+
+    // === Search Options ===
+
+    /// Lines of context before and after matches
+    #[serde(default)]
+    pub context: usize,
+
+    /// How to count matches: "lines" or "occurrences"
+    #[serde(default, rename = "countMode")]
+    pub count_mode: CountMode,
+
+    /// Show non-matching lines (invert match)
+    #[serde(default, rename = "invertMatch")]
+    pub invert_match: bool,
+}
+
+impl Default for RgConfig {
+    fn default() -> Self {
+        Self {
+            pattern: String::new(),
+            files: String::new(),
+            max: None,
+            min: None,
+            equal: None,
+            ignore_case: false,
+            smart_case: false,
+            word: false,
+            fixed_strings: false,
+            multi_line: false,
+            whole_line: false,
+            dot_matches_new_line: false,
+            unicode: true,
+            max_depth: None,
+            hidden: false,
+            follow_links: false,
+            max_filesize: None,
+            git_ignore: true,
+            rg_ignore: true,
+            parents: true,
+            same_file_system: false,
+            threads: None,
+            types: Vec::new(),
+            context: 0,
+            count_mode: CountMode::Lines,
+            invert_match: false,
+        }
+    }
+}
+
 /// Configuration for individual stop commands with optional messages
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
 #[serde(deny_unknown_fields)]
 pub struct StopCommand {
-    /// The shell command to execute
-    pub run: String,
+    /// The shell command to execute (mutually exclusive with rg)
+    #[serde(default)]
+    pub run: Option<String>,
+
+    /// Ripgrep configuration for pattern matching (mutually exclusive with run)
+    #[serde(default)]
+    pub rg: Option<RgConfig>,
+
+    /// Action to take on failure: "block" (default) or "warn"
+    #[serde(default)]
+    pub action: CommandAction,
+
     /// Custom error message to display when the command fails (exits with non-zero status)
     #[serde(default)]
     pub message: Option<String>,
@@ -42,8 +247,18 @@ pub struct StopCommand {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
 #[serde(deny_unknown_fields)]
 pub struct SubagentStopCommand {
-    /// The shell command to execute. Environment variables are available: CONCLAUDE_AGENT_ID, CONCLAUDE_AGENT_TRANSCRIPT_PATH, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD
-    pub run: String,
+    /// The shell command to execute (mutually exclusive with rg). Environment variables are available: CONCLAUDE_AGENT_ID, CONCLAUDE_AGENT_TRANSCRIPT_PATH, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD
+    #[serde(default)]
+    pub run: Option<String>,
+
+    /// Ripgrep configuration for pattern matching (mutually exclusive with run)
+    #[serde(default)]
+    pub rg: Option<RgConfig>,
+
+    /// Action to take on failure: "block" (default) or "warn"
+    #[serde(default)]
+    pub action: CommandAction,
+
     /// Custom error message to display when the command fails (exits with non-zero status)
     #[serde(default)]
     pub message: Option<String>,
@@ -1074,10 +1289,125 @@ pub fn parse_and_validate_config(content: &str, config_path: &Path) -> Result<Co
     Ok(config)
 }
 
+/// Validate RgConfig at load time
+fn validate_rg_config(config: &RgConfig, path: &str) -> Result<()> {
+    // 1. Validate constraint mutual exclusivity
+    let constraint_count = [
+        config.max.is_some(),
+        config.min.is_some(),
+        config.equal.is_some(),
+    ]
+    .iter()
+    .filter(|&&b| b)
+    .count();
+
+    if constraint_count > 1 {
+        let error_msg = format!(
+            "{}: Only one of 'max', 'min', or 'equal' can be specified. Found {} constraints.",
+            path, constraint_count
+        );
+        return Err(anyhow::anyhow!(error_msg));
+    }
+
+    // 2. Validate pattern compiles (unless fixedStrings)
+    if !config.fixed_strings {
+        // Use grep_regex::RegexMatcherBuilder to validate the pattern
+        let mut builder = RegexMatcherBuilder::new();
+        builder
+            .case_insensitive(config.ignore_case)
+            .case_smart(config.smart_case)
+            .unicode(config.unicode)
+            .word(config.word)
+            .multi_line(config.multi_line)
+            .dot_matches_new_line(config.dot_matches_new_line);
+
+        if let Err(e) = builder.build(&config.pattern) {
+            let error_msg = format!(
+                "{}: Invalid regex pattern '{}': {}",
+                path, config.pattern, e
+            );
+            return Err(anyhow::anyhow!(error_msg));
+        }
+    }
+
+    // 3. Validate context range
+    if config.context > 1000 {
+        let error_msg = format!(
+            "{}: context value {} exceeds maximum of 1000",
+            path, config.context
+        );
+        return Err(anyhow::anyhow!(error_msg));
+    }
+
+    // 4. Validate threads
+    if let Some(threads) = config.threads {
+        if threads == 0 {
+            let error_msg = format!("{}: threads must be at least 1", path);
+            return Err(anyhow::anyhow!(error_msg));
+        }
+    }
+
+    Ok(())
+}
+
+/// Validate that a stop command has exactly one of run or rg
+fn validate_stop_command_mutual_exclusivity(
+    cmd: &StopCommand,
+    path: &str,
+) -> Result<()> {
+    match (&cmd.run, &cmd.rg) {
+        (Some(_), Some(_)) => {
+            Err(anyhow::anyhow!(
+                "{}: Command cannot have both 'run' and 'rg' fields - they are mutually exclusive",
+                path
+            ))
+        }
+        (None, None) => {
+            Err(anyhow::anyhow!(
+                "{}: Command must have either 'run' or 'rg' field",
+                path
+            ))
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Validate that a subagent stop command has exactly one of run or rg
+fn validate_subagent_stop_command_mutual_exclusivity(
+    cmd: &SubagentStopCommand,
+    path: &str,
+) -> Result<()> {
+    match (&cmd.run, &cmd.rg) {
+        (Some(_), Some(_)) => {
+            Err(anyhow::anyhow!(
+                "{}: Command cannot have both 'run' and 'rg' fields - they are mutually exclusive",
+                path
+            ))
+        }
+        (None, None) => {
+            Err(anyhow::anyhow!(
+                "{}: Command must have either 'run' or 'rg' field",
+                path
+            ))
+        }
+        _ => Ok(()),
+    }
+}
+
 /// Validate configuration values against constraints
 fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
-    // Validate maxOutputLines range (1-10000)
+    // Validate stop commands (mutual exclusivity and rg config)
     for (idx, command) in config.stop.commands.iter().enumerate() {
+        let path = format!("stop.commands[{}]", idx);
+
+        // Validate mutual exclusivity
+        validate_stop_command_mutual_exclusivity(command, &path)?;
+
+        // If rg config present, validate it
+        if let Some(ref rg) = command.rg {
+            validate_rg_config(rg, &format!("{}.rg", path))?;
+        }
+
         if let Some(max_lines) = command.max_output_lines {
             if !(1..=10000).contains(&max_lines) {
                 let error_msg = format!(
@@ -1280,8 +1610,18 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
             return Err(anyhow::anyhow!(error_msg));
         }
 
-        // Validate maxOutputLines range for each command
+        // Validate each command
         for (idx, command) in commands.iter().enumerate() {
+            let path = format!("subagentStop.commands[\"{}\"][{}]", pattern, idx);
+
+            // Validate mutual exclusivity
+            validate_subagent_stop_command_mutual_exclusivity(command, &path)?;
+
+            // If rg config present, validate it
+            if let Some(ref rg) = command.rg {
+                validate_rg_config(rg, &format!("{}.rg", path))?;
+            }
+
             if let Some(max_lines) = command.max_output_lines {
                 if !(1..=10000).contains(&max_lines) {
                     let error_msg = format!(

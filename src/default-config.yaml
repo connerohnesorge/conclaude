@@ -7,7 +7,7 @@
 # Stop hook - runs when Claude is about to stop
 stop:
   commands: []
-  # Example:
+  # Shell command examples:
   # - run: "npm test"
   #   showStdout: true
   #   showStderr: true
@@ -15,6 +15,104 @@ stop:
   #   message: "Tests failed"
   #   maxOutputLines: 100
   #   timeout: 300
+  #
+  # Rg (ripgrep) command examples:
+  #
+  # Block if any TODO or FIXME comments exist
+  # - rg:
+  #     pattern: "TODO|FIXME"
+  #     files: "**/*.rs"
+  #   message: "Found TODO/FIXME comments. Please address them before stopping."
+  #   action: block
+  #
+  # Require at least one test function in the codebase
+  # - rg:
+  #     pattern: "#\\[test\\]"
+  #     files: "**/*.rs"
+  #     min: 1
+  #   message: "No test functions found. Please add tests."
+  #
+  # Block inline CSS classes in HTML files
+  # - rg:
+  #     pattern: "class=.*(?:bg-|text-|p-|m-)"
+  #     files: "**/*.html"
+  #     ignoreCase: true
+  #   message: "Found inline Tailwind classes. Use CSS modules instead."
+  #   action: warn  # Just warn, don't block
+  #
+  # Ensure no console.log statements in production code
+  # - rg:
+  #     pattern: "console\\.log"
+  #     files: "**/*.{ts,tsx,js,jsx}"
+  #     types:
+  #       - js
+  #       - ts
+  #   message: "Found console.log statements. Please remove them."
+  #
+  # Check for hardcoded secrets (case-insensitive)
+  # - rg:
+  #     pattern: "(password|api[_-]?key|secret|token)\\s*=\\s*['\"][^'\"]{8,}"
+  #     files: "**/*.{ts,js,py,rs}"
+  #     ignoreCase: true
+  #     max: 0
+  #   message: "Found potential hardcoded secrets. Use environment variables."
+  #
+  # Require error handling in async functions
+  # - rg:
+  #     pattern: "async\\s+function.*\\{[^}]*await[^}]*\\}"
+  #     files: "**/*.ts"
+  #     multiLine: true
+  #     dotMatchesNewLine: true
+  #   message: "Async functions should have error handling"
+  #   action: warn
+  #
+  # Rg Options Reference:
+  #
+  # Required fields:
+  #   pattern: string    - Regex pattern to search for
+  #   files: string      - Glob pattern for files (e.g., "**/*.rs")
+  #
+  # Constraint fields (mutually exclusive):
+  #   max: number        - Maximum allowed matches (default: 0 when no constraint specified)
+  #   min: number        - Minimum required matches
+  #   equal: number      - Exact match count required
+  #
+  # Regex options:
+  #   ignoreCase: bool   - Case insensitive (default: false)
+  #   smartCase: bool    - Auto-detect case sensitivity (default: false)
+  #   word: bool         - Word boundary matching (default: false)
+  #   fixedStrings: bool - Treat pattern as literal (default: false)
+  #   multiLine: bool    - Multiline mode (default: false)
+  #   wholeLine: bool    - Match entire line only (default: false)
+  #   dotMatchesNewLine: bool - Dot matches newline (default: false)
+  #   unicode: bool      - Unicode support (default: true)
+  #
+  # File walking options:
+  #   maxDepth: number   - Max directory depth
+  #   hidden: bool       - Include hidden files (default: false)
+  #   followLinks: bool  - Follow symlinks (default: false)
+  #   maxFilesize: number - Skip files larger than N bytes
+  #   gitIgnore: bool    - Respect .gitignore (default: true)
+  #   rgIgnore: bool     - Respect .ignore files (default: true)
+  #   parents: bool      - Read parent ignore files (default: true)
+  #   sameFileSystem: bool - Don't cross filesystems (default: false)
+  #   threads: number    - Parallel search threads
+  #   types: [string]    - File type filters (e.g., ["rust", "js"])
+  #
+  # Search options:
+  #   context: number    - Lines of context (default: 0)
+  #   countMode: string  - "lines" or "occurrences" (default: "lines")
+  #   invertMatch: bool  - Invert match (default: false)
+  #
+  # Command options (shared with shell commands):
+  #   action: string     - "block" or "warn" (default: "block")
+  #   message: string    - Custom error message
+  #   showStdout: bool   - Show output (default: false)
+  #   showStderr: bool   - Show errors (default: false)
+  #   showCommand: bool  - Show "Executing command X/Y" (default: true)
+  #   maxOutputLines: number - Limit output lines (range: 1-10000)
+  #   timeout: number    - Timeout in seconds (range: 1-3600)
+  #   notifyPerCommand: bool - Per-command notifications (default: false)
 
   infinite: false
   infiniteMessage: "continue working on the task"
@@ -22,7 +120,7 @@ stop:
 # Subagent stop hook - runs when subagents finish
 subagentStop:
   commands: {}
-  # Example:
+  # Shell command examples:
   # coder:
   #   - run: "npm run lint"
   #     showStdout: true
@@ -32,6 +130,50 @@ subagentStop:
   #   - run: "npm test"
   #     showStderr: true
   #     showCommand: false  # Hide the "Executing command..." line
+  #
+  # Rg command examples:
+  #
+  # Run for all agents - check for leftover debug code
+  # "*":
+  #   - rg:
+  #       pattern: "debugger|console\\.log"
+  #       files: "**/*.{ts,tsx,js,jsx}"
+  #     action: warn
+  #     message: "Debug statements found in code"
+  #
+  # For coder agent - verify tests exist for changes
+  # coder:
+  #   - rg:
+  #       pattern: "test_|#\\[test\\]"
+  #       files: "**/*.rs"
+  #       min: 1
+  #     message: "Coder should ensure tests exist"
+  #
+  #   # Check for unwrap() calls in Rust code
+  #   - rg:
+  #       pattern: "\\.unwrap\\(\\)"
+  #       files: "**/*.rs"
+  #       max: 0
+  #     message: "Use proper error handling instead of unwrap()"
+  #     action: warn
+  #
+  # For tester agent - ensure test coverage markers exist
+  # tester:
+  #   - rg:
+  #       pattern: "#\\[cfg\\(test\\)\\]"
+  #       files: "**/*.rs"
+  #       min: 1
+  #     message: "No test modules found"
+  #
+  # Multiple patterns for different agents
+  # "doc*":
+  #   # Ensure documentation has code examples
+  #   - rg:
+  #       pattern: "```"
+  #       files: "**/*.md"
+  #       min: 1
+  #     message: "Documentation should include code examples"
+  #     action: warn
 
 # Pre-tool-use hook - file protection and tool validation
 preToolUse:

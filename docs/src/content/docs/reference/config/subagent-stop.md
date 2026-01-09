@@ -46,10 +46,12 @@ Configuration for individual subagent stop commands with optional messages
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
+| `action` | `unknown` | `"block"` | Action to take on failure: "block" (default) or "warn" |
 | `maxOutputLines` | `integer | null` | `null` | Maximum number of output lines to display (limits both stdout and stderr) |
 | `message` | `string | null` | `null` | Custom error message to display when the command fails (exits with non-zero status) |
 | `notifyPerCommand` | `boolean | null` | `null` | Whether to send individual notifications for this command (start and completion) |
-| `run` | `string` | - | The shell command to execute |
+| `rg` | `unknown` | `null` | Ripgrep configuration for pattern matching (mutually exclusive with run) |
+| `run` | `string | null` | `null` | The shell command to execute (mutually exclusive with rg) |
 | `showCommand` | `boolean | null` | `true` | Whether to show the command being executed to the user and Claude |
 | `showStderr` | `boolean | null` | `null` | Whether to show the command's standard error output to the user and Claude |
 | `showStdout` | `boolean | null` | `null` | Whether to show the command's standard output to the user and Claude |

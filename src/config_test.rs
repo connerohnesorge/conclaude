@@ -1,6 +1,4 @@
-use crate::config::{
-    parse_and_validate_config, suggest_similar_fields, ConclaudeConfig,
-};
+use crate::config::{parse_and_validate_config, suggest_similar_fields, ConclaudeConfig};
 use std::path::Path;
 
 #[test]
@@ -876,7 +874,6 @@ notifications:
     assert_eq!(config.user_prompt_submit.context_rules.len(), 0);
 }
 
-// Tests for Task 4.1: ContextInjectionRule parsing
 #[test]
 fn test_context_injection_rule_parsing_all_fields() {
     let yaml = r#"
@@ -1024,7 +1021,10 @@ notifications:
     assert_eq!(rule.pattern, "");
     assert_eq!(rule.action, "block");
     assert_eq!(rule.command_pattern, Some("rm -rf *".to_string()));
-    assert_eq!(rule.agent, None, "agent should default to None when not specified");
+    assert_eq!(
+        rule.agent, None,
+        "agent should default to None when not specified"
+    );
 }
 
 #[test]
@@ -1065,7 +1065,11 @@ notifications:
     assert_eq!(rule.pattern, "");
     assert_eq!(rule.action, "block");
     assert_eq!(rule.command_pattern, Some("rm -rf *".to_string()));
-    assert_eq!(rule.agent, Some("coder".to_string()), "agent should be 'coder'");
+    assert_eq!(
+        rule.agent,
+        Some("coder".to_string()),
+        "agent should be 'coder'"
+    );
 }
 
 #[test]
@@ -1111,8 +1115,15 @@ notifications:
     assert_eq!(rule1.tool, "Write");
     assert_eq!(rule1.pattern, "**/*.rs");
     assert_eq!(rule1.action, "block");
-    assert_eq!(rule1.agent, Some("test*".to_string()), "agent should be 'test*' glob pattern");
-    assert_eq!(rule1.message, Some("Test agents cannot modify Rust files".to_string()));
+    assert_eq!(
+        rule1.agent,
+        Some("test*".to_string()),
+        "agent should be 'test*' glob pattern"
+    );
+    assert_eq!(
+        rule1.message,
+        Some("Test agents cannot modify Rust files".to_string())
+    );
 
     // Second rule: glob pattern "code*"
     let rule2 = &config.pre_tool_use.tool_usage_validation[1];
@@ -1120,7 +1131,11 @@ notifications:
     assert_eq!(rule2.pattern, "");
     assert_eq!(rule2.action, "allow");
     assert_eq!(rule2.command_pattern, Some("cargo test".to_string()));
-    assert_eq!(rule2.agent, Some("code*".to_string()), "agent should be 'code*' glob pattern");
+    assert_eq!(
+        rule2.agent,
+        Some("code*".to_string()),
+        "agent should be 'code*' glob pattern"
+    );
 }
 
 // Tests for notifyPerCommand field parsing and validation
@@ -1403,4 +1418,407 @@ notifications:
         config.stop.commands[2].notify_per_command, None,
         "Third command should have notifyPerCommand: None (omitted)"
     );
+}
+
+// ========== RgConfig Validation Tests ==========
+
+#[test]
+fn test_rg_config_constraint_mutual_exclusivity() {
+    // Test that having multiple constraints (max, min, equal) fails validation
+    let yaml = r#"
+stop:
+  commands:
+  - rg:
+      pattern: "TODO"
+      files: "**/*.rs"
+      max: 10
+      min: 1
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_err(),
+        "Config with multiple constraints should fail validation"
+    );
+    let error = result.err().unwrap().to_string();
+    assert!(
+        error.contains("Only one of 'max', 'min', or 'equal'"),
+        "Error should mention mutual exclusivity: {}",
+        error
+    );
+}
+
+#[test]
+fn test_rg_config_default_constraint_is_max_zero() {
+    // Test that when no constraint is specified, default is max: 0
+    let yaml = r#"
+stop:
+  commands:
+  - rg:
+      pattern: "TODO"
+      files: "**/*.rs"
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config with no constraint should parse: {:?}",
+        result.err()
+    );
+
+    let config = result.unwrap();
+    let rg = config.stop.commands[0].rg.as_ref().unwrap();
+    assert_eq!(rg.max, None);
+    assert_eq!(rg.min, None);
+    assert_eq!(rg.equal, None);
+
+    // Verify constraint evaluates to Max(0)
+    use crate::rg_search::Constraint;
+    let constraint = Constraint::from_config(rg);
+    match constraint {
+        Constraint::Max(n) => assert_eq!(n, 0, "Default should be Max(0)"),
+        _ => panic!("Default constraint should be Max(0)"),
+    }
+}
+
+#[test]
+fn test_rg_config_invalid_regex_fails_validation() {
+    // Test that invalid regex pattern fails validation
+    let yaml = r#"
+stop:
+  commands:
+  - rg:
+      pattern: "[invalid"
+      files: "**/*.rs"
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_err(),
+        "Config with invalid regex should fail validation"
+    );
+    let error = result.err().unwrap().to_string();
+    assert!(
+        error.contains("Invalid regex pattern"),
+        "Error should mention invalid regex: {}",
+        error
+    );
+}
+
+#[test]
+fn test_rg_config_fixed_strings_skips_regex_validation() {
+    // Test that with fixedStrings: true, invalid regex-like patterns are allowed
+    let yaml = r#"
+stop:
+  commands:
+  - rg:
+      pattern: "[this would be invalid regex"
+      files: "**/*.rs"
+      fixedStrings: true
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config with fixedStrings should allow invalid regex: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_stop_command_run_and_rg_mutual_exclusivity() {
+    // Test that having both run and rg fails validation
+    let yaml = r#"
+stop:
+  commands:
+  - run: "echo test"
+    rg:
+      pattern: "TODO"
+      files: "**/*.rs"
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_err(),
+        "Config with both run and rg should fail validation"
+    );
+    let error = result.err().unwrap().to_string();
+    assert!(
+        error.contains("mutually exclusive"),
+        "Error should mention mutual exclusivity: {}",
+        error
+    );
+}
+
+#[test]
+fn test_stop_command_neither_run_nor_rg_fails() {
+    // Test that having neither run nor rg fails validation
+    let yaml = r#"
+stop:
+  commands:
+  - message: "No command specified"
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_err(),
+        "Config with neither run nor rg should fail validation"
+    );
+    let error = result.err().unwrap().to_string();
+    assert!(
+        error.contains("must have either 'run' or 'rg'"),
+        "Error should mention missing command: {}",
+        error
+    );
+}
+
+#[test]
+fn test_stop_command_rg_only_is_valid() {
+    // Test that having only rg field is valid
+    let yaml = r#"
+stop:
+  commands:
+  - rg:
+      pattern: "TODO"
+      files: "**/*.rs"
+      max: 5
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_ok(),
+        "Config with only rg should be valid: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_subagent_stop_command_mutual_exclusivity() {
+    // Test that subagent stop commands have same mutual exclusivity rules
+    let yaml = r#"
+subagentStop:
+  commands:
+    "*":
+      - run: "echo test"
+        rg:
+          pattern: "TODO"
+          files: "**/*.rs"
+stop:
+  commands: []
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(
+        result.is_err(),
+        "Subagent config with both run and rg should fail validation"
+    );
+}
+
+// ========== RgConfig Parsing Tests ==========
+
+#[test]
+fn test_rg_config_parses_all_fields() {
+    // Test parsing a complete RgConfig from YAML
+    let yaml = r#"
+stop:
+  commands:
+  - rg:
+      pattern: "TODO"
+      files: "**/*.rs"
+      max: 10
+      ignoreCase: true
+      smartCase: false
+      word: true
+      fixedStrings: false
+      multiLine: true
+      wholeLine: false
+      dotMatchesNewLine: true
+      unicode: true
+      maxDepth: 5
+      hidden: false
+      followLinks: true
+      maxFilesize: 1000000
+      gitIgnore: true
+      rgIgnore: true
+      parents: true
+      sameFileSystem: false
+      threads: 4
+      types:
+        - rust
+        - js
+      context: 2
+      countMode: lines
+      invertMatch: false
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(result.is_ok(), "Full RgConfig should parse: {:?}", result.err());
+
+    let config = result.unwrap();
+    let rg = config.stop.commands[0].rg.as_ref().unwrap();
+
+    // Verify all fields
+    assert_eq!(rg.pattern, "TODO");
+    assert_eq!(rg.files, "**/*.rs");
+    assert_eq!(rg.max, Some(10));
+    assert_eq!(rg.ignore_case, true);
+    assert_eq!(rg.smart_case, false);
+    assert_eq!(rg.word, true);
+    assert_eq!(rg.fixed_strings, false);
+    assert_eq!(rg.multi_line, true);
+    assert_eq!(rg.whole_line, false);
+    assert_eq!(rg.dot_matches_new_line, true);
+    assert_eq!(rg.unicode, true);
+    assert_eq!(rg.max_depth, Some(5));
+    assert_eq!(rg.hidden, false);
+    assert_eq!(rg.follow_links, true);
+    assert_eq!(rg.max_filesize, Some(1000000));
+    assert_eq!(rg.git_ignore, true);
+    assert_eq!(rg.rg_ignore, true);
+    assert_eq!(rg.parents, true);
+    assert_eq!(rg.same_file_system, false);
+    assert_eq!(rg.threads, Some(4));
+    assert_eq!(rg.types, vec!["rust", "js"]);
+    assert_eq!(rg.context, 2);
+    assert_eq!(rg.invert_match, false);
+}
+
+#[test]
+fn test_rg_config_defaults() {
+    // Test that default values are correct
+    let yaml = r#"
+stop:
+  commands:
+  - rg:
+      pattern: "TODO"
+      files: "**/*.rs"
+preToolUse:
+  preventAdditions: []
+  preventRootAdditions: true
+  uneditableFiles: []
+  toolUsageValidation: []
+notifications:
+  enabled: false
+  hooks: []
+  showErrors: false
+  showSuccess: false
+  showSystemEvents: true
+  "#;
+    let result = parse_and_validate_config(yaml, Path::new("test.yaml"));
+    assert!(result.is_ok(), "Minimal RgConfig should parse: {:?}", result.err());
+
+    let config = result.unwrap();
+    let rg = config.stop.commands[0].rg.as_ref().unwrap();
+
+    // Verify defaults
+    assert_eq!(rg.ignore_case, false);
+    assert_eq!(rg.smart_case, false);
+    assert_eq!(rg.word, false);
+    assert_eq!(rg.fixed_strings, false);
+    assert_eq!(rg.multi_line, false);
+    assert_eq!(rg.whole_line, false);
+    assert_eq!(rg.dot_matches_new_line, false);
+    assert_eq!(rg.unicode, true); // default_true
+    assert_eq!(rg.max_depth, None);
+    assert_eq!(rg.hidden, false);
+    assert_eq!(rg.follow_links, false);
+    assert_eq!(rg.max_filesize, None);
+    assert_eq!(rg.git_ignore, true); // default_true
+    assert_eq!(rg.rg_ignore, true); // default_true
+    assert_eq!(rg.parents, true); // default_true
+    assert_eq!(rg.same_file_system, false);
+    assert_eq!(rg.threads, None);
+    assert_eq!(rg.types.len(), 0);
+    assert_eq!(rg.context, 0);
+    assert_eq!(rg.invert_match, false);
 }

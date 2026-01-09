@@ -2,6 +2,7 @@
 mod config;
 mod gitignore;
 mod hooks;
+mod rg_search;
 mod schema;
 mod types;
 

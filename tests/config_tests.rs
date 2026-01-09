@@ -180,7 +180,7 @@ async fn test_config_search_within_level_limit() {
     // Should successfully find and parse config
     assert!(result.is_ok());
     let (config, _config_path) = result.unwrap();
-    assert_eq!(config.stop.commands[0].run, "found config");
+    assert_eq!(config.stop.commands[0].run, Some("found config".to_string()));
     assert!(!config.stop.infinite);
     assert!(config.pre_tool_use.prevent_root_additions);
 }
@@ -231,7 +231,7 @@ async fn test_config_search_exactly_at_12_level_boundary() {
             "Config at exactly 11 levels up should be found (at the 12-directory limit)"
         );
         let (config, found_path) = result.unwrap();
-        assert_eq!(config.stop.commands[0].run, "found at boundary");
+        assert_eq!(config.stop.commands[0].run, Some("found at boundary".to_string()));
         assert_eq!(found_path, config_at_11);
 
         // Clean up for next test
@@ -707,7 +707,7 @@ async fn test_config_search_above_package_json() {
     let (config, _config_path) = result.unwrap();
     assert_eq!(
         config.stop.commands[0].run,
-        "found config above package.json"
+        Some("found config above package.json".to_string())
     );
     assert!(config.pre_tool_use.prevent_root_additions);
 }
@@ -749,7 +749,7 @@ async fn test_config_search_monorepo_nested_package_json() {
     // Should successfully find and parse config
     assert!(result.is_ok());
     let (config, _config_path) = result.unwrap();
-    assert_eq!(config.stop.commands[0].run, "found monorepo config");
+    assert_eq!(config.stop.commands[0].run, Some("found monorepo config".to_string()));
     assert!(!config.stop.infinite);
     assert!(config.pre_tool_use.prevent_root_additions);
 }

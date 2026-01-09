@@ -2,6 +2,7 @@
 pub mod config;
 pub mod gitignore;
 pub mod hooks;
+pub mod rg_search;
 
 #[cfg(test)]
 mod config_test;

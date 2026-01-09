@@ -1,8 +1,9 @@
 use crate::config::{
-    extract_bash_commands, load_conclaude_config, ConclaudeConfig, SubagentStopConfig,
-    UserPromptSubmitCommand,
+    extract_bash_commands, load_conclaude_config, CommandAction, ConclaudeConfig, RgConfig,
+    SubagentStopConfig, UserPromptSubmitCommand,
 };
 use crate::gitignore::{find_git_root, is_path_git_ignored};
+use crate::rg_search::{execute_rg_search, Constraint, ConstraintResult};
 use crate::types::{
     validate_base_payload, validate_permission_request_payload, validate_subagent_start_payload,
     validate_subagent_stop_payload, HookResult, NotificationPayload, PermissionRequestPayload,
@@ -87,6 +88,28 @@ pub(crate) struct SubagentStopCommandConfig {
     pub(crate) max_output_lines: Option<u32>,
     pub(crate) timeout: Option<u64>,
     pub(crate) show_command: bool,
+    pub(crate) notify_per_command: bool,
+}
+
+/// Represents an rg command with its configuration
+pub(crate) struct RgCommandConfig {
+    pub(crate) rg_config: RgConfig,
+    pub(crate) action: CommandAction,
+    pub(crate) message: Option<String>,
+    pub(crate) show_stdout: bool,
+    pub(crate) show_stderr: bool,
+    pub(crate) max_output_lines: Option<u32>,
+    pub(crate) notify_per_command: bool,
+}
+
+/// Represents a subagent rg command with its configuration
+pub(crate) struct SubagentRgCommandConfig {
+    pub(crate) rg_config: RgConfig,
+    pub(crate) action: CommandAction,
+    pub(crate) message: Option<String>,
+    pub(crate) show_stdout: bool,
+    pub(crate) show_stderr: bool,
+    pub(crate) max_output_lines: Option<u32>,
     pub(crate) notify_per_command: bool,
 }
 
@@ -1440,37 +1463,61 @@ pub(crate) fn truncate_output(output: &str, max_lines: u32) -> (String, bool, us
     }
 }
 
+/// Collected stop commands (both shell and rg)
+pub(crate) struct CollectedStopCommands {
+    pub(crate) shell_commands: Vec<StopCommandConfig>,
+    pub(crate) rg_commands: Vec<RgCommandConfig>,
+}
+
 /// Collect stop commands from configuration
 ///
 /// # Errors
 ///
 /// Returns an error if bash command extraction fails.
-pub(crate) fn collect_stop_commands(config: &ConclaudeConfig) -> Result<Vec<StopCommandConfig>> {
-    let mut commands = Vec::new();
+pub(crate) fn collect_stop_commands(config: &ConclaudeConfig) -> Result<CollectedStopCommands> {
+    let mut shell_commands = Vec::new();
+    let mut rg_commands = Vec::new();
 
     // Add structured commands with messages and output control
     for cmd_config in &config.stop.commands {
-        let extracted = extract_bash_commands(&cmd_config.run)?;
-        let show_stdout = cmd_config.show_stdout.unwrap_or(false);
-        let show_stderr = cmd_config.show_stderr.unwrap_or(false);
-        let show_command = cmd_config.show_command.unwrap_or(true);
-        let max_output_lines = cmd_config.max_output_lines;
-        let notify_per_command = cmd_config.notify_per_command.unwrap_or(false);
-        for cmd in extracted {
-            commands.push(StopCommandConfig {
-                command: cmd,
+        if let Some(ref run_cmd) = cmd_config.run {
+            // Shell command
+            let extracted = extract_bash_commands(run_cmd)?;
+            let show_stdout = cmd_config.show_stdout.unwrap_or(false);
+            let show_stderr = cmd_config.show_stderr.unwrap_or(false);
+            let show_command = cmd_config.show_command.unwrap_or(true);
+            let max_output_lines = cmd_config.max_output_lines;
+            let notify_per_command = cmd_config.notify_per_command.unwrap_or(false);
+            for cmd in extracted {
+                shell_commands.push(StopCommandConfig {
+                    command: cmd,
+                    message: cmd_config.message.clone(),
+                    show_stdout,
+                    show_stderr,
+                    max_output_lines,
+                    timeout: cmd_config.timeout,
+                    show_command,
+                    notify_per_command,
+                });
+            }
+        } else if let Some(ref rg) = cmd_config.rg {
+            // Rg command
+            rg_commands.push(RgCommandConfig {
+                rg_config: rg.clone(),
+                action: cmd_config.action,
                 message: cmd_config.message.clone(),
-                show_stdout,
-                show_stderr,
-                max_output_lines,
-                timeout: cmd_config.timeout,
-                show_command,
-                notify_per_command,
+                show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                max_output_lines: cmd_config.max_output_lines,
+                notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
             });
         }
     }
 
-    Ok(commands)
+    Ok(CollectedStopCommands {
+        shell_commands,
+        rg_commands,
+    })
 }
 
 /// Execute stop hook commands
@@ -1688,6 +1735,148 @@ async fn execute_stop_commands(
     Ok(None)
 }
 
+/// Execute rg stop hook commands
+///
+/// # Errors
+///
+/// Returns an error if rg search execution fails.
+async fn execute_rg_stop_commands(
+    commands: &[RgCommandConfig],
+    config_dir: &Path,
+) -> Result<Option<HookResult>> {
+    if commands.is_empty() {
+        return Ok(None);
+    }
+
+    println!("Executing {} rg hook commands", commands.len());
+
+    for (index, cmd_config) in commands.iter().enumerate() {
+        println!(
+            "Executing rg command {}/{}: pattern='{}' files='{}'",
+            index + 1,
+            commands.len(),
+            cmd_config.rg_config.pattern,
+            cmd_config.rg_config.files
+        );
+
+        // Send start notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = format!(
+                "Running rg: pattern='{}' files='{}'",
+                cmd_config.rg_config.pattern, cmd_config.rg_config.files
+            );
+            send_notification("Stop", "running", Some(&context_msg));
+        }
+
+        // Execute the search
+        let result = execute_rg_search(
+            &cmd_config.rg_config,
+            config_dir,
+            cmd_config.max_output_lines,
+        );
+
+        match result {
+            Ok(search_result) => {
+                // Evaluate constraint
+                let constraint = Constraint::from_config(&cmd_config.rg_config);
+                let eval_result = constraint.evaluate(search_result.count);
+
+                match eval_result {
+                    ConstraintResult::Pass => {
+                        println!(
+                            "Rg command passed: found {} matches in {} files",
+                            search_result.count, search_result.files_searched
+                        );
+
+                        if cmd_config.notify_per_command {
+                            send_notification(
+                                "Stop",
+                                "success",
+                                Some(&format!("Rg command passed: {} matches", search_result.count)),
+                            );
+                        }
+                    }
+                    ConstraintResult::Fail { message: constraint_msg } => {
+                        // Build error message
+                        let error_message = if let Some(ref custom_msg) = cmd_config.message {
+                            format!(
+                                "{}\n\n{}\n\nPattern: {}\nFiles: {}\nMatches found: {}",
+                                custom_msg,
+                                constraint_msg,
+                                cmd_config.rg_config.pattern,
+                                cmd_config.rg_config.files,
+                                search_result.count
+                            )
+                        } else {
+                            format!(
+                                "{}\n\nPattern: {}\nFiles: {}\nMatches found: {}",
+                                constraint_msg,
+                                cmd_config.rg_config.pattern,
+                                cmd_config.rg_config.files,
+                                search_result.count
+                            )
+                        };
+
+                        // Show output if configured
+                        if cmd_config.show_stdout && !search_result.output_lines.is_empty() {
+                            let output = search_result.output_lines.join("\n");
+                            println!("Matches:\n{}", output);
+                            if search_result.lines_omitted > 0 {
+                                println!("... ({} lines omitted)", search_result.lines_omitted);
+                            }
+                        }
+
+                        // Report errors if any
+                        if cmd_config.show_stderr && !search_result.errors.is_empty() {
+                            eprintln!("Search errors:\n{}", search_result.errors.join("\n"));
+                        }
+
+                        // Handle based on action
+                        match cmd_config.action {
+                            CommandAction::Block => {
+                                if cmd_config.notify_per_command {
+                                    send_notification("Stop", "failure", Some(&error_message));
+                                }
+                                return Ok(Some(HookResult::blocked(error_message)));
+                            }
+                            CommandAction::Warn => {
+                                eprintln!("Warning: {}", error_message);
+                                if cmd_config.notify_per_command {
+                                    send_notification("Stop", "warning", Some(&error_message));
+                                }
+                                // Continue to next command
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                // Search execution error
+                let error_message = format!("Rg search failed: {}", e);
+                eprintln!("{}", error_message);
+
+                match cmd_config.action {
+                    CommandAction::Block => {
+                        if cmd_config.notify_per_command {
+                            send_notification("Stop", "failure", Some(&error_message));
+                        }
+                        return Ok(Some(HookResult::blocked(error_message)));
+                    }
+                    CommandAction::Warn => {
+                        if cmd_config.notify_per_command {
+                            send_notification("Stop", "warning", Some(&error_message));
+                        }
+                        // Continue to next command
+                    }
+                }
+            }
+        }
+    }
+
+    println!("All rg hook commands completed successfully");
+    Ok(None)
+}
+
 /// Handles `Stop` hook events when a Claude session is terminating.
 ///
 /// # Errors
@@ -1722,23 +1911,31 @@ pub async fn handle_stop() -> Result<HookResult> {
         None
     };
 
-    // Extract and execute commands from config.stop.commands
-    let commands_with_messages = collect_stop_commands(config)?;
+    // Collect both shell and rg commands
+    let collected = collect_stop_commands(config)?;
 
-    // Execute commands
-    if let Some(result) = execute_stop_commands(&commands_with_messages, config_dir).await? {
-        // Send notification for blocked/failed stop hook
-        send_notification(
-            "Stop",
-            "failure",
-            Some(
-                &result
-                    .message
-                    .clone()
-                    .unwrap_or_else(|| "Hook blocked".to_string()),
-            ),
-        );
-        return Ok(result);
+    // Execute shell commands first
+    if !collected.shell_commands.is_empty() {
+        if let Some(result) = execute_stop_commands(&collected.shell_commands, config_dir).await? {
+            send_notification(
+                "Stop",
+                "failure",
+                Some(&result.message.clone().unwrap_or_default()),
+            );
+            return Ok(result);
+        }
+    }
+
+    // Execute rg commands
+    if !collected.rg_commands.is_empty() {
+        if let Some(result) = execute_rg_stop_commands(&collected.rg_commands, config_dir).await? {
+            send_notification(
+                "Stop",
+                "failure",
+                Some(&result.message.clone().unwrap_or_default()),
+            );
+            return Ok(result);
+        }
     }
 
     // Check root additions if enabled
@@ -1933,6 +2130,12 @@ pub(crate) fn build_subagent_env_vars(
     env_vars
 }
 
+/// Collected subagent stop commands (both shell and rg)
+pub(crate) struct CollectedSubagentStopCommands {
+    pub(crate) shell_commands: Vec<SubagentStopCommandConfig>,
+    pub(crate) rg_commands: Vec<SubagentRgCommandConfig>,
+}
+
 /// Collect subagent stop commands from configuration for matching patterns
 ///
 /// # Errors
@@ -1941,36 +2144,54 @@ pub(crate) fn build_subagent_env_vars(
 pub(crate) fn collect_subagent_stop_commands(
     config: &SubagentStopConfig,
     matching_patterns: &[&str],
-) -> Result<Vec<SubagentStopCommandConfig>> {
-    let mut commands = Vec::new();
+) -> Result<CollectedSubagentStopCommands> {
+    let mut shell_commands = Vec::new();
+    let mut rg_commands = Vec::new();
 
     for pattern in matching_patterns {
         if let Some(cmd_list) = config.commands.get(*pattern) {
             for cmd_config in cmd_list {
-                let extracted = extract_bash_commands(&cmd_config.run)?;
-                let show_stdout = cmd_config.show_stdout.unwrap_or(false);
-                let show_stderr = cmd_config.show_stderr.unwrap_or(false);
-                let show_command = cmd_config.show_command.unwrap_or(true);
-                let max_output_lines = cmd_config.max_output_lines;
-                let notify_per_command = cmd_config.notify_per_command.unwrap_or(false);
+                if let Some(ref run_cmd) = cmd_config.run {
+                    // Shell command
+                    let extracted = extract_bash_commands(run_cmd)?;
+                    let show_stdout = cmd_config.show_stdout.unwrap_or(false);
+                    let show_stderr = cmd_config.show_stderr.unwrap_or(false);
+                    let show_command = cmd_config.show_command.unwrap_or(true);
+                    let max_output_lines = cmd_config.max_output_lines;
+                    let notify_per_command = cmd_config.notify_per_command.unwrap_or(false);
 
-                for cmd in extracted {
-                    commands.push(SubagentStopCommandConfig {
-                        command: cmd,
+                    for cmd in extracted {
+                        shell_commands.push(SubagentStopCommandConfig {
+                            command: cmd,
+                            message: cmd_config.message.clone(),
+                            show_stdout,
+                            show_stderr,
+                            max_output_lines,
+                            timeout: cmd_config.timeout,
+                            show_command,
+                            notify_per_command,
+                        });
+                    }
+                } else if let Some(ref rg) = cmd_config.rg {
+                    // Rg command
+                    rg_commands.push(SubagentRgCommandConfig {
+                        rg_config: rg.clone(),
+                        action: cmd_config.action,
                         message: cmd_config.message.clone(),
-                        show_stdout,
-                        show_stderr,
-                        max_output_lines,
-                        timeout: cmd_config.timeout,
-                        show_command,
-                        notify_per_command,
+                        show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                        show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                        max_output_lines: cmd_config.max_output_lines,
+                        notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
                     });
                 }
             }
         }
     }
 
-    Ok(commands)
+    Ok(CollectedSubagentStopCommands {
+        shell_commands,
+        rg_commands,
+    })
 }
 
 /// Execute subagent stop hook commands with environment variables
@@ -2264,6 +2485,152 @@ async fn execute_subagent_stop_commands(
     Ok(())
 }
 
+/// Execute rg subagent stop hook commands with environment variables
+///
+/// # Errors
+///
+/// Returns an error if rg search execution fails.
+async fn execute_rg_subagent_stop_commands(
+    commands: &[SubagentRgCommandConfig],
+    config_dir: &Path,
+) -> Result<()> {
+    if commands.is_empty() {
+        return Ok(());
+    }
+
+    println!("Executing {} subagent rg hook commands", commands.len());
+
+    for (index, cmd_config) in commands.iter().enumerate() {
+        println!(
+            "Executing subagent rg command {}/{}: pattern='{}' files='{}'",
+            index + 1,
+            commands.len(),
+            cmd_config.rg_config.pattern,
+            cmd_config.rg_config.files
+        );
+
+        // Send start notification if per-command notifications are enabled
+        if cmd_config.notify_per_command {
+            let context_msg = format!(
+                "Running rg: pattern='{}' files='{}'",
+                cmd_config.rg_config.pattern, cmd_config.rg_config.files
+            );
+            send_notification("SubagentStop", "running", Some(&context_msg));
+        }
+
+        // Execute the search
+        let result = execute_rg_search(
+            &cmd_config.rg_config,
+            config_dir,
+            cmd_config.max_output_lines,
+        );
+
+        match result {
+            Ok(search_result) => {
+                // Evaluate constraint
+                let constraint = Constraint::from_config(&cmd_config.rg_config);
+                let eval_result = constraint.evaluate(search_result.count);
+
+                match eval_result {
+                    ConstraintResult::Pass => {
+                        println!(
+                            "Subagent rg command passed: found {} matches in {} files",
+                            search_result.count, search_result.files_searched
+                        );
+
+                        if cmd_config.notify_per_command {
+                            send_notification(
+                                "SubagentStop",
+                                "success",
+                                Some(&format!(
+                                    "Rg command passed: {} matches",
+                                    search_result.count
+                                )),
+                            );
+                        }
+                    }
+                    ConstraintResult::Fail { message: constraint_msg } => {
+                        // Build error message
+                        let error_message = if let Some(ref custom_msg) = cmd_config.message {
+                            format!(
+                                "{}\n\n{}\n\nPattern: {}\nFiles: {}\nMatches found: {}",
+                                custom_msg,
+                                constraint_msg,
+                                cmd_config.rg_config.pattern,
+                                cmd_config.rg_config.files,
+                                search_result.count
+                            )
+                        } else {
+                            format!(
+                                "{}\n\nPattern: {}\nFiles: {}\nMatches found: {}",
+                                constraint_msg,
+                                cmd_config.rg_config.pattern,
+                                cmd_config.rg_config.files,
+                                search_result.count
+                            )
+                        };
+
+                        // Show output if configured
+                        if cmd_config.show_stdout && !search_result.output_lines.is_empty() {
+                            let output = search_result.output_lines.join("\n");
+                            println!("Matches:\n{}", output);
+                            if search_result.lines_omitted > 0 {
+                                println!("... ({} lines omitted)", search_result.lines_omitted);
+                            }
+                        }
+
+                        // Report errors if any
+                        if cmd_config.show_stderr && !search_result.errors.is_empty() {
+                            eprintln!("Search errors:\n{}", search_result.errors.join("\n"));
+                        }
+
+                        // Handle based on action
+                        match cmd_config.action {
+                            CommandAction::Block => {
+                                eprintln!("{}", error_message);
+                                if cmd_config.notify_per_command {
+                                    send_notification("SubagentStop", "failure", Some(&error_message));
+                                }
+                                // SubagentStop commands are observational, continue to next
+                            }
+                            CommandAction::Warn => {
+                                eprintln!("Warning: {}", error_message);
+                                if cmd_config.notify_per_command {
+                                    send_notification("SubagentStop", "warning", Some(&error_message));
+                                }
+                                // Continue to next command
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                // Search execution error
+                let error_message = format!("Subagent rg search failed: {}", e);
+                eprintln!("{}", error_message);
+
+                match cmd_config.action {
+                    CommandAction::Block => {
+                        if cmd_config.notify_per_command {
+                            send_notification("SubagentStop", "failure", Some(&error_message));
+                        }
+                        // SubagentStop commands are observational, continue to next
+                    }
+                    CommandAction::Warn => {
+                        if cmd_config.notify_per_command {
+                            send_notification("SubagentStop", "warning", Some(&error_message));
+                        }
+                        // Continue to next command
+                    }
+                }
+            }
+        }
+    }
+
+    println!("All subagent rg hook commands completed");
+    Ok(())
+}
+
 /// Handles `SubagentStop` hook events when Claude subagents complete their tasks.
 ///
 /// This function processes subagent stop events by:
@@ -2329,15 +2696,23 @@ pub async fn handle_subagent_stop() -> Result<HookResult> {
             );
 
             // Collect commands for matching patterns
-            let commands =
+            let collected =
                 collect_subagent_stop_commands(&config.subagent_stop, &matching_patterns)?;
 
-            if !commands.is_empty() {
+            // Execute shell commands
+            if !collected.shell_commands.is_empty() {
                 // Build environment variables
                 let env_vars = build_subagent_env_vars(&payload, config_dir, agent_name.as_deref());
 
                 // Execute commands (graceful failure handling)
-                execute_subagent_stop_commands(&commands, &env_vars, config_dir).await?;
+                execute_subagent_stop_commands(&collected.shell_commands, &env_vars, config_dir)
+                    .await?;
+            }
+
+            // Execute rg commands
+            if !collected.rg_commands.is_empty() {
+                // Execute rg commands (graceful failure handling)
+                execute_rg_subagent_stop_commands(&collected.rg_commands, config_dir).await?;
             }
         } else {
             println!(
@@ -2596,158 +2971,4 @@ fn check_root_additions(snapshot: &HashSet<String>) -> Result<Option<HookResult>
     }
 
     Ok(None)
-}
-
-#[cfg(test)]
-mod prompt_context_tests {
-    use super::*;
-    use crate::config::ContextInjectionRule;
-    use std::fs;
-    use tempfile::TempDir;
-
-    // Tests for Task 4.2: Regex pattern matching
-
-    #[test]
-    fn test_regex_pattern_matching() {
-        // Test 1: Simple string pattern matching
-        let simple_rule = ContextInjectionRule {
-            pattern: "sidebar".to_string(),
-            prompt: "Test".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-        let simple_regex = compile_rule_pattern(&simple_rule).unwrap();
-        assert!(simple_regex.is_match("update the sidebar"), "Should match 'sidebar' in phrase");
-        assert!(simple_regex.is_match("sidebar component"), "Should match 'sidebar' at start");
-        assert!(!simple_regex.is_match("side bar"), "Should not match 'side bar' (two words)");
-        assert!(!simple_regex.is_match("update the navigation"), "Should not match unrelated text");
-
-        // Test 2: Alternation pattern matching
-        let alt_rule = ContextInjectionRule {
-            pattern: "auth|login|authentication".to_string(),
-            prompt: "Test".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-        let alt_regex = compile_rule_pattern(&alt_rule).unwrap();
-        assert!(alt_regex.is_match("fix auth bug"), "Should match 'auth' alternative");
-        assert!(alt_regex.is_match("update login page"), "Should match 'login' alternative");
-        assert!(alt_regex.is_match("add authentication"), "Should match 'authentication' alternative");
-        assert!(!alt_regex.is_match("update the navbar"), "Should not match unrelated text");
-
-        // Test 3: Multiple patterns - both match
-        let sidebar_regex = compile_rule_pattern(&simple_rule).unwrap();
-        let auth_rule = ContextInjectionRule {
-            pattern: "auth".to_string(),
-            prompt: "Test".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-        let auth_regex = compile_rule_pattern(&auth_rule).unwrap();
-        assert!(sidebar_regex.is_match("update the auth sidebar"), "Sidebar pattern should match");
-        assert!(auth_regex.is_match("update the auth sidebar"), "Auth pattern should match");
-
-        // Test 4: Multiple patterns - only one matches
-        assert!(sidebar_regex.is_match("update the sidebar"), "Sidebar should match");
-        assert!(!auth_regex.is_match("update the sidebar"), "Auth should not match");
-
-        // Test 5: Multiple patterns - none match
-        assert!(!sidebar_regex.is_match("update the navigation"), "Sidebar should not match");
-        assert!(!auth_regex.is_match("update the navigation"), "Auth should not match");
-
-        // Test 6: Invalid regex patterns return None
-        let invalid_bracket = ContextInjectionRule {
-            pattern: "[invalid".to_string(),
-            prompt: "Test".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-        assert!(compile_rule_pattern(&invalid_bracket).is_none(), "Invalid bracket should return None");
-
-        let invalid_paren = ContextInjectionRule {
-            pattern: "(unclosed".to_string(),
-            prompt: "Test".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-        assert!(compile_rule_pattern(&invalid_paren).is_none(), "Unclosed paren should return None");
-    }
-
-    #[test]
-    fn test_regex_case_insensitive_with_flag_in_pattern() {
-        let rule = ContextInjectionRule {
-            pattern: "(?i)database".to_string(),
-            prompt: "Test".to_string(),
-            enabled: Some(true),
-            case_insensitive: None,
-        };
-
-        let regex = compile_rule_pattern(&rule).unwrap();
-        assert!(regex.is_match("DATABASE connection"));
-        assert!(regex.is_match("database query"));
-        assert!(regex.is_match("Database setup"));
-    }
-
-    #[test]
-    fn test_regex_case_insensitive_with_config_field() {
-        let rule = ContextInjectionRule {
-            pattern: "database".to_string(),
-            prompt: "Test".to_string(),
-            enabled: Some(true),
-            case_insensitive: Some(true),
-        };
-
-        let regex = compile_rule_pattern(&rule).unwrap();
-        assert!(regex.is_match("DATABASE connection"));
-        assert!(regex.is_match("database query"));
-        assert!(regex.is_match("Database setup"));
-    }
-
-    #[test]
-    fn test_expand_file_references_valid_file() {
-        // Create temporary directory and file
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.md");
-        fs::write(&file_path, "This is test content").unwrap();
-
-        let prompt = format!("Read @{}", file_path.file_name().unwrap().to_str().unwrap());
-        let expanded = expand_file_references(&prompt, temp_dir.path());
-
-        assert_eq!(expanded, "Read This is test content");
-    }
-
-    #[test]
-    fn test_expand_file_references_missing_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let prompt = "Read @missing-file.md";
-        let expanded = expand_file_references(prompt, temp_dir.path());
-
-        // Missing file reference should be left as-is
-        assert_eq!(expanded, "Read @missing-file.md");
-    }
-
-    #[test]
-    fn test_expand_file_references_multiple_files() {
-        let temp_dir = TempDir::new().unwrap();
-        let file1 = temp_dir.path().join("file1.md");
-        let file2 = temp_dir.path().join("file2.md");
-        fs::write(&file1, "Content 1").unwrap();
-        fs::write(&file2, "Content 2").unwrap();
-
-        let prompt = "Read @file1.md and @file2.md";
-        let expanded = expand_file_references(prompt, temp_dir.path());
-
-        assert_eq!(expanded, "Read Content 1 and Content 2");
-    }
-
-    #[test]
-    fn test_expand_file_references_no_references() {
-        let temp_dir = TempDir::new().unwrap();
-        let prompt = "This is a normal prompt without file references";
-        let expanded = expand_file_references(prompt, temp_dir.path());
-
-        // Prompt should be unchanged
-        assert_eq!(expanded, "This is a normal prompt without file references");
-    }
-
 }
