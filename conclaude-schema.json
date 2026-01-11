@@ -3,25 +3,6 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
-    "CommandAction": {
-      "description": "Action to take when constraint is violated",
-      "oneOf": [
-        {
-          "description": "Block the hook (default)",
-          "enum": [
-            "block"
-          ],
-          "type": "string"
-        },
-        {
-          "description": "Log warning but continue",
-          "enum": [
-            "warn"
-          ],
-          "type": "string"
-        }
-      ]
-    },
     "ContextInjectionRule": {
       "additionalProperties": false,
       "description": "Configuration for a single context injection rule\n\nRules define patterns to match against user prompts and context to inject when matches occur.",
@@ -56,25 +37,6 @@
         "prompt"
       ],
       "type": "object"
-    },
-    "CountMode": {
-      "description": "How matches are counted",
-      "oneOf": [
-        {
-          "description": "Count lines containing matches (default)",
-          "enum": [
-            "lines"
-          ],
-          "type": "string"
-        },
-        {
-          "description": "Count every match occurrence",
-          "enum": [
-            "occurrences"
-          ],
-          "type": "string"
-        }
-      ]
     },
     "NotificationsConfig": {
       "additionalProperties": false,
@@ -196,197 +158,10 @@
       },
       "type": "object"
     },
-    "RgConfig": {
-      "additionalProperties": false,
-      "description": "Configuration for ripgrep-based pattern matching in hooks\n\nProvides declarative pattern matching as an alternative to shell commands. Uses ripgrep's library crates for high-performance searching.\n\n# Examples\n\n```yaml stop: commands: # Block inline CSS classes in HTML - rg: pattern: \"class=.*(?:bg-|text-)\" files: \"**/*.html\" message: \"Inline CSS classes found\"\n\n# Require at least one test - rg: pattern: \"#\\\\[test\\\\]\" files: \"**/*.rs\" min: 1 message: \"No test functions found\" ```",
-      "properties": {
-        "context": {
-          "default": 0,
-          "description": "Lines of context before and after matches",
-          "format": "uint",
-          "minimum": 0.0,
-          "type": "integer"
-        },
-        "countMode": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/CountMode"
-            }
-          ],
-          "default": "lines",
-          "description": "How to count matches: \"lines\" or \"occurrences\""
-        },
-        "dotMatchesNewLine": {
-          "default": false,
-          "description": "Dot matches newline characters",
-          "type": "boolean"
-        },
-        "equal": {
-          "default": null,
-          "description": "Exact match count required",
-          "format": "uint64",
-          "minimum": 0.0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "files": {
-          "description": "Glob pattern for file matching (e.g., \"**/*.rs\")",
-          "type": "string"
-        },
-        "fixedStrings": {
-          "default": false,
-          "description": "Treat pattern as literal string, not regex",
-          "type": "boolean"
-        },
-        "followLinks": {
-          "default": false,
-          "description": "Follow symbolic links",
-          "type": "boolean"
-        },
-        "gitIgnore": {
-          "default": true,
-          "description": "Respect .gitignore files (default: true)",
-          "type": "boolean"
-        },
-        "hidden": {
-          "default": false,
-          "description": "Include hidden files (starting with .)",
-          "type": "boolean"
-        },
-        "ignoreCase": {
-          "default": false,
-          "description": "Case insensitive matching",
-          "type": "boolean"
-        },
-        "invertMatch": {
-          "default": false,
-          "description": "Show non-matching lines (invert match)",
-          "type": "boolean"
-        },
-        "max": {
-          "default": null,
-          "description": "Maximum allowed matches (default when none specified: 0)",
-          "format": "uint64",
-          "minimum": 0.0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "maxDepth": {
-          "default": null,
-          "description": "Maximum directory depth",
-          "format": "uint",
-          "minimum": 0.0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "maxFilesize": {
-          "default": null,
-          "description": "Skip files larger than N bytes",
-          "format": "uint64",
-          "minimum": 0.0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "min": {
-          "default": null,
-          "description": "Minimum required matches",
-          "format": "uint64",
-          "minimum": 0.0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "multiLine": {
-          "default": false,
-          "description": "Multi-line mode: ^ and $ match line boundaries",
-          "type": "boolean"
-        },
-        "parents": {
-          "default": true,
-          "description": "Read parent directory ignore files (default: true)",
-          "type": "boolean"
-        },
-        "pattern": {
-          "description": "Regex pattern to search for",
-          "type": "string"
-        },
-        "rgIgnore": {
-          "default": true,
-          "description": "Respect .ignore files (default: true)",
-          "type": "boolean"
-        },
-        "sameFileSystem": {
-          "default": false,
-          "description": "Don't cross filesystem boundaries",
-          "type": "boolean"
-        },
-        "smartCase": {
-          "default": false,
-          "description": "Smart case: auto-detect from pattern (uppercase = case sensitive)",
-          "type": "boolean"
-        },
-        "threads": {
-          "default": null,
-          "description": "Number of parallel search threads",
-          "format": "uint",
-          "minimum": 0.0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "types": {
-          "default": [],
-          "description": "File type filters (e.g., [\"rust\", \"js\"])",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "unicode": {
-          "default": true,
-          "description": "Enable Unicode character classes (default: true)",
-          "type": "boolean"
-        },
-        "wholeLine": {
-          "default": false,
-          "description": "Match entire line only",
-          "type": "boolean"
-        },
-        "word": {
-          "default": false,
-          "description": "Word boundary matching (like \\b but smarter)",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "files",
-        "pattern"
-      ],
-      "type": "object"
-    },
     "StopCommand": {
       "additionalProperties": false,
       "description": "Configuration for individual stop commands with optional messages",
       "properties": {
-        "action": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/CommandAction"
-            }
-          ],
-          "default": "block",
-          "description": "Action to take on failure: \"block\" (default) or \"warn\""
-        },
         "maxOutputLines": {
           "default": null,
           "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
@@ -414,25 +189,9 @@
             "null"
           ]
         },
-        "rg": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/RgConfig"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Ripgrep configuration for pattern matching (mutually exclusive with run)"
-        },
         "run": {
-          "default": null,
-          "description": "The shell command to execute (mutually exclusive with rg)",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "The shell command to execute",
+          "type": "string"
         },
         "showCommand": {
           "default": true,
@@ -470,6 +229,9 @@
           ]
         }
       },
+      "required": [
+        "run"
+      ],
       "type": "object"
     },
     "StopConfig": {
@@ -504,15 +266,6 @@
       "additionalProperties": false,
       "description": "Configuration for individual subagent stop commands with optional messages",
       "properties": {
-        "action": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/CommandAction"
-            }
-          ],
-          "default": "block",
-          "description": "Action to take on failure: \"block\" (default) or \"warn\""
-        },
         "maxOutputLines": {
           "default": null,
           "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
@@ -540,25 +293,9 @@
             "null"
           ]
         },
-        "rg": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/RgConfig"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Ripgrep configuration for pattern matching (mutually exclusive with run)"
-        },
         "run": {
-          "default": null,
-          "description": "The shell command to execute (mutually exclusive with rg). Environment variables are available: CONCLAUDE_AGENT_ID, CONCLAUDE_AGENT_TRANSCRIPT_PATH, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_AGENT_ID, CONCLAUDE_AGENT_TRANSCRIPT_PATH, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD",
+          "type": "string"
         },
         "showCommand": {
           "default": true,
@@ -596,6 +333,9 @@
           ]
         }
       },
+      "required": [
+        "run"
+      ],
       "type": "object"
     },
     "SubagentStopConfig": {
