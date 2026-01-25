@@ -879,8 +879,9 @@ pub(crate) fn build_user_prompt_submit_env_vars(
 ) -> HashMap<String, String> {
     let mut env_vars = HashMap::new();
 
-    // User prompt environment variable
-    env_vars.insert("CONCLAUDE_USER_PROMPT".to_string(), payload.prompt.clone());
+    // User prompt environment variable (empty string if nil)
+    let prompt_text = payload.prompt.as_deref().unwrap_or("");
+    env_vars.insert("CONCLAUDE_USER_PROMPT".to_string(), prompt_text.to_string());
 
     // Session-level environment variables
     env_vars.insert(
@@ -1253,10 +1254,6 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
 
     validate_base_payload(&payload.base).map_err(|e| anyhow::anyhow!(e))?;
 
-    if payload.prompt.is_empty() {
-        return Err(anyhow::anyhow!("Missing required field: prompt"));
-    }
-
     // Read agent name from environment variable (set by CLI --agent flag)
     let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
@@ -1278,23 +1275,28 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
     let mut matching_contexts = Vec::new();
     let mut matched_patterns = Vec::new();
 
-    for rule in &config.user_prompt_submit.context_rules {
-        // Skip disabled rules
-        if rule.enabled == Some(false) {
-            continue;
-        }
+    // Only evaluate context rules if prompt is present and non-empty
+    if let Some(ref prompt) = payload.prompt {
+        if !prompt.is_empty() {
+            for rule in &config.user_prompt_submit.context_rules {
+                // Skip disabled rules
+                if rule.enabled == Some(false) {
+                    continue;
+                }
 
-        // Compile the pattern
-        let Some(regex) = compile_rule_pattern(rule) else {
-            continue;
-        };
+                // Compile the pattern
+                let Some(regex) = compile_rule_pattern(rule) else {
+                    continue;
+                };
 
-        // Check if the pattern matches the user prompt
-        if regex.is_match(&payload.prompt) {
-            // Expand any @file references in the prompt
-            let expanded_prompt = expand_file_references(&rule.prompt, config_dir);
-            matching_contexts.push(expanded_prompt);
-            matched_patterns.push(rule.pattern.clone());
+                // Check if the pattern matches the user prompt
+                if regex.is_match(prompt) {
+                    // Expand any @file references in the prompt
+                    let expanded_prompt = expand_file_references(&rule.prompt, config_dir);
+                    matching_contexts.push(expanded_prompt);
+                    matched_patterns.push(rule.pattern.clone());
+                }
+            }
         }
     }
 
@@ -1314,22 +1316,27 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
     // Execute commands after contextRules processing
     // Commands are observational and cannot block prompt processing
     if !config.user_prompt_submit.commands.is_empty() {
-        // Collect commands that match the prompt
-        let commands = collect_user_prompt_submit_commands(
-            &config.user_prompt_submit.commands,
-            &payload.prompt,
-        )?;
+        // Only execute commands if prompt is present and non-empty
+        if let Some(ref prompt) = payload.prompt {
+            if !prompt.is_empty() {
+                // Collect commands that match the prompt
+                let commands = collect_user_prompt_submit_commands(
+                    &config.user_prompt_submit.commands,
+                    prompt,
+                )?;
 
-        if !commands.is_empty() {
-            // Build environment variables
-            let env_vars = build_user_prompt_submit_env_vars(&payload, config_dir);
+                if !commands.is_empty() {
+                    // Build environment variables
+                    let env_vars = build_user_prompt_submit_env_vars(&payload, config_dir);
 
-            // Execute commands (graceful failure handling)
-            if let Err(e) =
-                execute_user_prompt_submit_commands(&commands, &env_vars, config_dir).await
-            {
-                // Log error but don't block the hook result
-                eprintln!("Error executing user prompt submit commands: {}", e);
+                    // Execute commands (graceful failure handling)
+                    if let Err(e) =
+                        execute_user_prompt_submit_commands(&commands, &env_vars, config_dir).await
+                    {
+                        // Log error but don't block the hook result
+                        eprintln!("Error executing user prompt submit commands: {}", e);
+                    }
+                }
             }
         }
     }
