@@ -102,7 +102,7 @@ fn test_user_prompt_submit_payload_deserialization() {
 
     let payload: UserPromptSubmitPayload = serde_json::from_str(json).unwrap();
     assert_eq!(payload.base.session_id, "test_session");
-    assert_eq!(payload.prompt, "Hello Claude");
+    assert_eq!(payload.prompt, Some("Hello Claude".to_string()));
 }
 
 #[test]

@@ -183,8 +183,8 @@ pub struct SubagentStopPayload {
 pub struct UserPromptSubmitPayload {
     #[serde(flatten)]
     pub base: BasePayload,
-    /// The user's input prompt text
-    pub prompt: String,
+    /// The user's input prompt text (can be null if Claude Code sends no prompt)
+    pub prompt: Option<String>,
 }
 
 /// Payload for `PreCompact` hook - fired before transcript compaction occurs.
@@ -437,7 +437,7 @@ mod tests {
                 cwd: "/current/dir".to_string(),
                 permission_mode: Some("default".to_string()),
             },
-            prompt: "test user prompt".to_string(),
+            prompt: Some("test user prompt".to_string()),
         };
 
         let json = serde_json::to_string(&payload).unwrap();
@@ -457,8 +457,60 @@ mod tests {
         }"#;
 
         let payload: UserPromptSubmitPayload = serde_json::from_str(json).unwrap();
-        assert_eq!(payload.prompt, "test prompt");
+        assert_eq!(payload.prompt, Some("test prompt".to_string()));
         assert_eq!(payload.base.session_id, "test_session");
+    }
+
+    #[test]
+    fn test_user_prompt_submit_payload_with_nil_prompt() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "UserPromptSubmit",
+            "cwd": "/current/dir",
+            "permission_mode": "default",
+            "prompt": null
+        }"#;
+
+        let payload: UserPromptSubmitPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.prompt, None);
+        assert_eq!(payload.base.session_id, "test_session");
+    }
+
+    #[test]
+    fn test_user_prompt_submit_payload_with_empty_string_prompt() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "UserPromptSubmit",
+            "cwd": "/current/dir",
+            "permission_mode": "default",
+            "prompt": ""
+        }"#;
+
+        let payload: UserPromptSubmitPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.prompt, Some("".to_string()));
+        assert_eq!(payload.base.session_id, "test_session");
+    }
+
+    #[test]
+    fn test_user_prompt_submit_payload_nil_prompt_round_trip() {
+        let payload = UserPromptSubmitPayload {
+            base: BasePayload {
+                session_id: "test_session".to_string(),
+                transcript_path: "/path/to/transcript".to_string(),
+                hook_event_name: "UserPromptSubmit".to_string(),
+                cwd: "/current/dir".to_string(),
+                permission_mode: Some("default".to_string()),
+            },
+            prompt: None,
+        };
+
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("\"prompt\":null"));
+        
+        let deserialized: UserPromptSubmitPayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.prompt, None);
     }
 
     // Tests for new HookResult fields: updated_input and decision

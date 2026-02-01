@@ -1398,7 +1398,7 @@ mod user_prompt_submit_command_tests {
                 hook_event_name: "UserPromptSubmit".to_string(),
                 permission_mode: Some("default".to_string()),
             },
-            prompt: "update the sidebar component".to_string(),
+            prompt: Some("update the sidebar component".to_string()),
         };
 
         let env_vars = build_user_prompt_submit_env_vars(&payload, temp_dir.path());
@@ -1582,6 +1582,59 @@ mod user_prompt_submit_command_tests {
         assert!(
             !result[2].notify_per_command,
             "Third command should have notify_per_command: false (default)"
+        );
+    }
+
+    // Test: Nil prompt handling in environment variables
+    #[test]
+    fn test_build_env_vars_with_nil_prompt() {
+        let temp_dir = TempDir::new().unwrap();
+        let payload = UserPromptSubmitPayload {
+            base: BasePayload {
+                session_id: "test-session-nil".to_string(),
+                cwd: "/home/user/project".to_string(),
+                transcript_path: "/tmp/transcript.jsonl".to_string(),
+                hook_event_name: "UserPromptSubmit".to_string(),
+                permission_mode: Some("default".to_string()),
+            },
+            prompt: None,
+        };
+
+        let env_vars = build_user_prompt_submit_env_vars(&payload, temp_dir.path());
+
+        // Nil prompt should result in empty string in env var
+        assert_eq!(
+            env_vars.get("CONCLAUDE_USER_PROMPT"),
+            Some(&"".to_string())
+        );
+        // Other env vars should still be set
+        assert_eq!(
+            env_vars.get("CONCLAUDE_SESSION_ID"),
+            Some(&"test-session-nil".to_string())
+        );
+    }
+
+    // Test: Empty string prompt handling in environment variables
+    #[test]
+    fn test_build_env_vars_with_empty_string_prompt() {
+        let temp_dir = TempDir::new().unwrap();
+        let payload = UserPromptSubmitPayload {
+            base: BasePayload {
+                session_id: "test-session-empty".to_string(),
+                cwd: "/home/user/project".to_string(),
+                transcript_path: "/tmp/transcript.jsonl".to_string(),
+                hook_event_name: "UserPromptSubmit".to_string(),
+                permission_mode: Some("default".to_string()),
+            },
+            prompt: Some("".to_string()),
+        };
+
+        let env_vars = build_user_prompt_submit_env_vars(&payload, temp_dir.path());
+
+        // Empty string prompt should result in empty string in env var
+        assert_eq!(
+            env_vars.get("CONCLAUDE_USER_PROMPT"),
+            Some(&"".to_string())
         );
     }
 }
