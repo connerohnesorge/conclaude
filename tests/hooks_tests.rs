@@ -117,142 +117,161 @@ fn test_matches_uneditable_pattern_comprehensive() {
 
     // Test Case 1: Pattern matches file_path only
     // resolved_path contains absolute path, relative_path has subdir prefix, but file_path matches
-    assert!(matches_uneditable_pattern(
-        "config.json",           // file_path - matches pattern
-        "project/config.json",   // relative_path - does NOT match pattern
-        "/home/user/project/config.json", // resolved_path - does NOT match pattern
-        "config.json"            // pattern
-    )
-    .unwrap(), "Should match via file_path");
+    assert!(
+        matches_uneditable_pattern(
+            "config.json",                    // file_path - matches pattern
+            "project/config.json",            // relative_path - does NOT match pattern
+            "/home/user/project/config.json", // resolved_path - does NOT match pattern
+            "config.json"                     // pattern
+        )
+        .unwrap(),
+        "Should match via file_path"
+    );
 
     // Test Case 2: Pattern matches relative_path only
     // Use different paths to ensure relative_path is the one being matched
-    assert!(matches_uneditable_pattern(
-        "other.json",            // file_path - does NOT match pattern
-        "src/index.ts",          // relative_path - matches pattern
-        "/home/user/project/src/index.ts", // resolved_path - may also match
-        "src/**/*.ts"            // pattern
-    )
-    .unwrap(), "Should match via relative_path");
+    assert!(
+        matches_uneditable_pattern(
+            "other.json",                      // file_path - does NOT match pattern
+            "src/index.ts",                    // relative_path - matches pattern
+            "/home/user/project/src/index.ts", // resolved_path - may also match
+            "src/**/*.ts"                      // pattern
+        )
+        .unwrap(),
+        "Should match via relative_path"
+    );
 
     // Test Case 3: Pattern matches resolved_path only
     // Absolute path pattern matching
-    assert!(matches_uneditable_pattern(
-        "file.txt",              // file_path - does NOT match pattern
-        "subdir/file.txt",       // relative_path - does NOT match pattern
-        "/restricted/file.txt",  // resolved_path - matches pattern
-        "/restricted/*"          // pattern for absolute paths
-    )
-    .unwrap(), "Should match via resolved_path");
+    assert!(
+        matches_uneditable_pattern(
+            "file.txt",             // file_path - does NOT match pattern
+            "subdir/file.txt",      // relative_path - does NOT match pattern
+            "/restricted/file.txt", // resolved_path - matches pattern
+            "/restricted/*"         // pattern for absolute paths
+        )
+        .unwrap(),
+        "Should match via resolved_path"
+    );
 
     // Test Case 4: Multiple patterns matching - environment files
     // All three inputs have .env prefix, testing with different suffixes
-    assert!(matches_uneditable_pattern(
-        ".env",
-        ".env",
-        "/path/.env",
-        ".env*"
-    )
-    .unwrap(), ".env should match .env* pattern");
+    assert!(
+        matches_uneditable_pattern(".env", ".env", "/path/.env", ".env*").unwrap(),
+        ".env should match .env* pattern"
+    );
 
-    assert!(matches_uneditable_pattern(
-        ".env.local",
-        ".env.local",
-        "/path/.env.local",
-        ".env*"
-    )
-    .unwrap(), ".env.local should match .env* pattern");
+    assert!(
+        matches_uneditable_pattern(".env.local", ".env.local", "/path/.env.local", ".env*")
+            .unwrap(),
+        ".env.local should match .env* pattern"
+    );
 
-    assert!(matches_uneditable_pattern(
-        ".env.production",
-        ".env.production",
-        "/path/.env.production",
-        ".env*"
-    )
-    .unwrap(), ".env.production should match .env* pattern");
+    assert!(
+        matches_uneditable_pattern(
+            ".env.production",
+            ".env.production",
+            "/path/.env.production",
+            ".env*"
+        )
+        .unwrap(),
+        ".env.production should match .env* pattern"
+    );
 
-    assert!(!matches_uneditable_pattern(
-        "environment.txt",
-        "environment.txt",
-        "/path/environment.txt",
-        ".env*"
-    )
-    .unwrap(), "environment.txt should NOT match .env* pattern");
+    assert!(
+        !matches_uneditable_pattern(
+            "environment.txt",
+            "environment.txt",
+            "/path/environment.txt",
+            ".env*"
+        )
+        .unwrap(),
+        "environment.txt should NOT match .env* pattern"
+    );
 
     // Test Case 5: Multiple config file patterns
-    assert!(matches_uneditable_pattern(
-        "package.json",
-        "package.json",
-        "/path/package.json",
-        "package.json"
-    )
-    .unwrap(), "package.json should match exact pattern");
+    assert!(
+        matches_uneditable_pattern(
+            "package.json",
+            "package.json",
+            "/path/package.json",
+            "package.json"
+        )
+        .unwrap(),
+        "package.json should match exact pattern"
+    );
 
-    assert!(matches_uneditable_pattern(
-        "tsconfig.json",
-        "tsconfig.json",
-        "/path/tsconfig.json",
-        "tsconfig.json"
-    )
-    .unwrap(), "tsconfig.json should match exact pattern");
+    assert!(
+        matches_uneditable_pattern(
+            "tsconfig.json",
+            "tsconfig.json",
+            "/path/tsconfig.json",
+            "tsconfig.json"
+        )
+        .unwrap(),
+        "tsconfig.json should match exact pattern"
+    );
 
-    assert!(!matches_uneditable_pattern(
-        "other.json",
-        "other.json",
-        "/path/other.json",
-        "package.json"
-    )
-    .unwrap(), "other.json should NOT match package.json pattern");
+    assert!(
+        !matches_uneditable_pattern(
+            "other.json",
+            "other.json",
+            "/path/other.json",
+            "package.json"
+        )
+        .unwrap(),
+        "other.json should NOT match package.json pattern"
+    );
 
     // Test Case 6: Wildcard extension matching
-    assert!(matches_uneditable_pattern(
-        "test.md",
-        "test.md",
-        "/path/test.md",
-        "*.md"
-    )
-    .unwrap(), "test.md should match *.md pattern");
+    assert!(
+        matches_uneditable_pattern("test.md", "test.md", "/path/test.md", "*.md").unwrap(),
+        "test.md should match *.md pattern"
+    );
 
-    assert!(matches_uneditable_pattern(
-        "README.md",
-        "README.md",
-        "/path/README.md",
-        "*.md"
-    )
-    .unwrap(), "README.md should match *.md pattern");
+    assert!(
+        matches_uneditable_pattern("README.md", "README.md", "/path/README.md", "*.md").unwrap(),
+        "README.md should match *.md pattern"
+    );
 
-    assert!(!matches_uneditable_pattern(
-        "other.txt",
-        "other.txt",
-        "/path/other.txt",
-        "*.md"
-    )
-    .unwrap(), "other.txt should NOT match *.md pattern");
+    assert!(
+        !matches_uneditable_pattern("other.txt", "other.txt", "/path/other.txt", "*.md").unwrap(),
+        "other.txt should NOT match *.md pattern"
+    );
 
     // Test Case 7: Directory pattern matching with different depths
-    assert!(matches_uneditable_pattern(
-        "src/index.ts",
-        "src/index.ts",
-        "/path/src/index.ts",
-        "src/**/*.ts"
-    )
-    .unwrap(), "src/index.ts should match src/**/*.ts pattern");
+    assert!(
+        matches_uneditable_pattern(
+            "src/index.ts",
+            "src/index.ts",
+            "/path/src/index.ts",
+            "src/**/*.ts"
+        )
+        .unwrap(),
+        "src/index.ts should match src/**/*.ts pattern"
+    );
 
-    assert!(matches_uneditable_pattern(
-        "src/lib/utils.ts",
-        "src/lib/utils.ts",
-        "/path/src/lib/utils.ts",
-        "src/**/*.ts"
-    )
-    .unwrap(), "src/lib/utils.ts should match src/**/*.ts pattern");
+    assert!(
+        matches_uneditable_pattern(
+            "src/lib/utils.ts",
+            "src/lib/utils.ts",
+            "/path/src/lib/utils.ts",
+            "src/**/*.ts"
+        )
+        .unwrap(),
+        "src/lib/utils.ts should match src/**/*.ts pattern"
+    );
 
-    assert!(!matches_uneditable_pattern(
-        "lib/index.ts",
-        "lib/index.ts",
-        "/path/lib/index.ts",
-        "src/**/*.ts"
-    )
-    .unwrap(), "lib/index.ts should NOT match src/**/*.ts pattern");
+    assert!(
+        !matches_uneditable_pattern(
+            "lib/index.ts",
+            "lib/index.ts",
+            "/path/lib/index.ts",
+            "src/**/*.ts"
+        )
+        .unwrap(),
+        "lib/index.ts should NOT match src/**/*.ts pattern"
+    );
 }
 
 #[test]
@@ -334,7 +353,6 @@ fn test_validate_base_payload_integration() {
     assert!(validate_base_payload(&invalid_base).is_err());
 }
 
-
 // ============================================================================
 // Integration Tests for Bash Command Validation
 // ============================================================================
@@ -354,6 +372,8 @@ async fn test_bash_validation_block_exact_command() -> anyhow::Result<()> {
                 command_pattern: Some("rm -rf /".to_string()),
                 match_mode: Some("full".to_string()),
                 agent: None,
+
+                skill: None,
             }],
             ..Default::default()
         },
@@ -412,6 +432,8 @@ async fn test_bash_validation_block_command_family() -> anyhow::Result<()> {
                 command_pattern: Some("git push --force*".to_string()),
                 match_mode: Some("prefix".to_string()),
                 agent: None,
+
+                skill: None,
             }],
             ..Default::default()
         },
@@ -475,6 +497,8 @@ async fn test_bash_validation_allow_whitelist() -> anyhow::Result<()> {
                 command_pattern: Some("echo *".to_string()),
                 match_mode: Some("full".to_string()),
                 agent: None,
+
+                skill: None,
             }],
             ..Default::default()
         },
@@ -556,6 +580,8 @@ async fn test_bash_validation_custom_message() -> anyhow::Result<()> {
                 command_pattern: Some("rm -rf*".to_string()),
                 match_mode: Some("full".to_string()),
                 agent: None,
+
+                skill: None,
             }],
             ..Default::default()
         },
@@ -606,6 +632,8 @@ async fn test_bash_validation_default_match_mode() -> anyhow::Result<()> {
                 command_pattern: Some("curl *".to_string()),
                 match_mode: None, // No explicit mode - should default to "full"
                 agent: None,
+
+                skill: None,
             }],
             ..Default::default()
         },
@@ -658,6 +686,8 @@ async fn test_bash_validation_backward_compatible() -> anyhow::Result<()> {
                 command_pattern: None, // No command pattern - uses file path pattern
                 match_mode: None,
                 agent: None,
+
+                skill: None,
             }],
             ..Default::default()
         },
@@ -709,6 +739,8 @@ async fn test_bash_validation_wildcard_tool() -> anyhow::Result<()> {
                 command_pattern: Some("sudo *".to_string()),
                 match_mode: Some("full".to_string()),
                 agent: None,
+
+                skill: None,
             }],
             ..Default::default()
         },
@@ -764,6 +796,8 @@ async fn test_bash_validation_prefix_mode_no_match_in_middle() -> anyhow::Result
                 command_pattern: Some("curl *".to_string()),
                 match_mode: Some("prefix".to_string()),
                 agent: None,
+
+                skill: None,
             }],
             ..Default::default()
         },
@@ -829,6 +863,8 @@ async fn test_bash_validation_multiple_rules() -> anyhow::Result<()> {
                     command_pattern: Some("rm *".to_string()),
                     match_mode: Some("full".to_string()),
                     agent: None,
+
+                    skill: None,
                 },
                 ToolUsageRule {
                     tool: "Bash".to_string(),
@@ -838,6 +874,8 @@ async fn test_bash_validation_multiple_rules() -> anyhow::Result<()> {
                     command_pattern: Some("curl *".to_string()),
                     match_mode: Some("full".to_string()),
                     agent: None,
+
+                    skill: None,
                 },
             ],
             ..Default::default()
@@ -950,7 +988,6 @@ fn test_subagent_stop_payload_with_empty_permission_mode() {
 // 1. Creating NEW files at root (should be BLOCKED)
 // 2. Modifying EXISTING files at root (should be ALLOWED)
 
-
 #[test]
 fn test_prevent_root_additions_semantic_correctness() {
     // This test documents the expected semantic behavior:
@@ -989,8 +1026,6 @@ fn test_prevent_root_additions_semantic_correctness() {
     assert!(!is_root, "src/main.rs should NOT be at root level");
     // Doesn't matter if it exists, it's not at root so it's allowed
 }
-
-
 
 #[test]
 fn test_prevent_root_additions_path_resolution() {
@@ -1099,8 +1134,6 @@ fn test_prevent_additions_basic_glob_matching() {
         "Pattern 'build/**' should NOT match 'build.rs' (file, not in directory)"
     );
 }
-
-
 
 #[test]
 fn test_prevent_additions_multiple_patterns() {
@@ -1266,7 +1299,6 @@ fn test_prevent_additions_and_uneditable_files_both_checked() {
     // then checks uneditableFiles (for all file operations)
 }
 
-
 #[test]
 fn test_prevent_additions_glob_pattern_variations() {
     // Test various glob pattern formats that should work with preventAdditions
@@ -1327,7 +1359,6 @@ fn test_prevent_additions_glob_pattern_variations() {
     );
 }
 
-
 #[test]
 fn test_prevent_additions_pattern_matching_edge_cases() {
     // Test edge cases in pattern matching
@@ -1374,7 +1405,6 @@ fn test_prevent_additions_pattern_matching_edge_cases() {
         "Path without leading ./ should still match"
     );
 }
-
 
 #[test]
 fn test_prevent_additions_combined_with_prevent_root_additions() {
@@ -1509,6 +1539,42 @@ fn test_agent_pattern_no_match() {
     assert!(!matches_agent_pattern("test", "testing"));
 }
 
+#[test]
+fn test_skill_pattern_exact_match() {
+    use conclaude::hooks::matches_skill_pattern;
+
+    assert!(matches_skill_pattern("tester", "tester"));
+    assert!(!matches_skill_pattern("documenter", "tester"));
+    assert!(matches_skill_pattern("commit", "commit"));
+    assert!(!matches_skill_pattern("commit", "tester"));
+}
+
+#[test]
+fn test_skill_pattern_wildcard() {
+    use conclaude::hooks::matches_skill_pattern;
+
+    // "*" should match all skills
+    assert!(matches_skill_pattern("tester", "*"));
+    assert!(matches_skill_pattern("documenter", "*"));
+    assert!(matches_skill_pattern("any_skill_name", "*"));
+    assert!(matches_skill_pattern("", "*"));
+}
+
+#[test]
+fn test_skill_pattern_glob() {
+    use conclaude::hooks::matches_skill_pattern;
+
+    // Test "test*" glob pattern
+    assert!(matches_skill_pattern("tester", "test*"));
+    assert!(matches_skill_pattern("test-runner", "test*"));
+    assert!(!matches_skill_pattern("documenter", "test*"));
+
+    // Test "doc*" glob pattern
+    assert!(matches_skill_pattern("documenter", "doc*"));
+    assert!(matches_skill_pattern("doc-gen", "doc*"));
+    assert!(!matches_skill_pattern("tester", "doc*"));
+}
+
 #[tokio::test]
 async fn test_tool_usage_rule_with_agent_filter() -> anyhow::Result<()> {
     use conclaude::config::{ConclaudeConfig, PreToolUseConfig, ToolUsageRule};
@@ -1525,6 +1591,8 @@ async fn test_tool_usage_rule_with_agent_filter() -> anyhow::Result<()> {
                     command_pattern: Some("rm -rf /".to_string()),
                     match_mode: Some("full".to_string()),
                     agent: Some("coder".to_string()),
+
+                    skill: None,
                 },
                 ToolUsageRule {
                     tool: "Bash".to_string(),
@@ -1534,6 +1602,8 @@ async fn test_tool_usage_rule_with_agent_filter() -> anyhow::Result<()> {
                     command_pattern: Some("drop database".to_string()),
                     match_mode: Some("full".to_string()),
                     agent: Some("test*".to_string()),
+
+                    skill: None,
                 },
             ],
             ..Default::default()
@@ -1575,6 +1645,75 @@ async fn test_tool_usage_rule_with_agent_filter() -> anyhow::Result<()> {
     assert!(
         !conclaude::hooks::matches_agent_pattern("coder", agent_pattern2),
         "Rule should not match 'coder' agent"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_tool_usage_rule_with_skill_filter() -> anyhow::Result<()> {
+    use conclaude::config::{ConclaudeConfig, PreToolUseConfig, ToolUsageRule};
+
+    // Create test configuration with a rule that only applies to "tester" skill
+    let config = ConclaudeConfig {
+        pre_tool_use: PreToolUseConfig {
+            tool_usage_validation: vec![
+                ToolUsageRule {
+                    tool: "Bash".to_string(),
+                    pattern: String::new(),
+                    action: "block".to_string(),
+                    message: Some("Command blocked for tester skill!".to_string()),
+                    command_pattern: Some("rm -rf /".to_string()),
+                    match_mode: Some("full".to_string()),
+                    agent: None,
+                    skill: Some("tester".to_string()),
+                },
+                ToolUsageRule {
+                    tool: "Bash".to_string(),
+                    pattern: String::new(),
+                    action: "block".to_string(),
+                    message: Some("Command blocked for doc* skills!".to_string()),
+                    command_pattern: Some("rm -rf /".to_string()),
+                    match_mode: Some("full".to_string()),
+                    agent: None,
+                    skill: Some("doc*".to_string()),
+                },
+            ],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    // Test that the first rule matches "tester" skill
+    let rule1 = &config.pre_tool_use.tool_usage_validation[0];
+    assert!(rule1.skill.is_some());
+    let skill_pattern1 = rule1.skill.as_deref().unwrap();
+
+    assert!(
+        conclaude::hooks::matches_skill_pattern("tester", skill_pattern1),
+        "Rule should match 'tester' skill"
+    );
+    assert!(
+        !conclaude::hooks::matches_skill_pattern("documenter", skill_pattern1),
+        "Rule should not match 'documenter' skill"
+    );
+
+    // Test that the second rule matches "doc*" skills
+    let rule2 = &config.pre_tool_use.tool_usage_validation[1];
+    assert!(rule2.skill.is_some());
+    let skill_pattern2 = rule2.skill.as_deref().unwrap();
+
+    assert!(
+        conclaude::hooks::matches_skill_pattern("documenter", skill_pattern2),
+        "Rule should match 'documenter' skill"
+    );
+    assert!(
+        conclaude::hooks::matches_skill_pattern("doc-gen", skill_pattern2),
+        "Rule should match 'doc-gen' skill"
+    );
+    assert!(
+        !conclaude::hooks::matches_skill_pattern("tester", skill_pattern2),
+        "Rule should not match 'tester' skill"
     );
 
     Ok(())

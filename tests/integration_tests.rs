@@ -727,7 +727,9 @@ notifications:
             .expect("Failed to write to stdin");
     }
 
-    let result = child.wait_with_output().expect("Failed to wait for command");
+    let result = child
+        .wait_with_output()
+        .expect("Failed to wait for command");
 
     // The hook should succeed
     let stdout = String::from_utf8_lossy(&result.stdout);
@@ -736,7 +738,8 @@ notifications:
     assert!(
         result.status.success(),
         "Stop hook should execute successfully. stdout: {}, stderr: {}",
-        stdout, stderr
+        stdout,
+        stderr
     );
 
     // Verify output shows command execution (output might be in stdout or stderr)
@@ -744,7 +747,8 @@ notifications:
     assert!(
         combined_output.contains("Executing") || combined_output.contains("echo"),
         "Output should show command execution. stdout: {}, stderr: {}",
-        stdout, stderr
+        stdout,
+        stderr
     );
 
     // Note: We can't easily verify that notifications were actually sent without
@@ -885,7 +889,9 @@ notifications:
             .expect("Failed to write to stdin");
     }
 
-    let result = child.wait_with_output().expect("Failed to wait for command");
+    let result = child
+        .wait_with_output()
+        .expect("Failed to wait for command");
 
     // The hook should succeed (even if agent name extraction fails, commands should run)
     assert!(

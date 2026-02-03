@@ -20,10 +20,20 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Environment variable name for passing agent context to hook handlers
 pub const AGENT_ENV_VAR: &str = "CONCLAUDE_AGENT";
 
+/// Environment variable name for passing skill context to hook handlers
+pub const SKILL_ENV_VAR: &str = "CONCLAUDE_SKILL";
+
 /// Sets the agent name in an environment variable for hook handlers to access
 fn set_agent_env(agent: Option<&str>) {
     if let Some(name) = agent {
         std::env::set_var(AGENT_ENV_VAR, name);
+    }
+}
+
+/// Sets the skill name in an environment variable for hook handlers to access
+fn set_skill_env(skill: Option<&str>) {
+    if let Some(name) = skill {
+        std::env::set_var(SKILL_ENV_VAR, name);
     }
 }
 
@@ -92,6 +102,9 @@ enum HooksCommands {
         /// Optional agent name for context-aware hook execution
         #[clap(long)]
         agent: Option<String>,
+        /// Optional skill name for context-aware hook execution
+        #[clap(long)]
+        skill: Option<String>,
     },
     /// Process `PostToolUse` hook - fired after tool execution
     #[clap(name = "PostToolUse")]
@@ -99,6 +112,9 @@ enum HooksCommands {
         /// Optional agent name for context-aware hook execution
         #[clap(long)]
         agent: Option<String>,
+        /// Optional skill name for context-aware hook execution
+        #[clap(long)]
+        skill: Option<String>,
     },
     /// Process `PermissionRequest` hook - fired when tool requests permission
     #[clap(name = "PermissionRequest")]
@@ -106,6 +122,9 @@ enum HooksCommands {
         /// Optional agent name for context-aware hook execution
         #[clap(long)]
         agent: Option<String>,
+        /// Optional skill name for context-aware hook execution
+        #[clap(long)]
+        skill: Option<String>,
     },
     /// Process Notification hook - fired for system notifications
     #[clap(name = "Notification")]
@@ -113,6 +132,9 @@ enum HooksCommands {
         /// Optional agent name for context-aware hook execution
         #[clap(long)]
         agent: Option<String>,
+        /// Optional skill name for context-aware hook execution
+        #[clap(long)]
+        skill: Option<String>,
     },
     /// Process `UserPromptSubmit` hook - fired when user submits input
     #[clap(name = "UserPromptSubmit")]
@@ -120,6 +142,9 @@ enum HooksCommands {
         /// Optional agent name for context-aware hook execution
         #[clap(long)]
         agent: Option<String>,
+        /// Optional skill name for context-aware hook execution
+        #[clap(long)]
+        skill: Option<String>,
     },
     /// Process `SessionStart` hook - fired when session begins
     #[clap(name = "SessionStart")]
@@ -127,6 +152,9 @@ enum HooksCommands {
         /// Optional agent name for context-aware hook execution
         #[clap(long)]
         agent: Option<String>,
+        /// Optional skill name for context-aware hook execution
+        #[clap(long)]
+        skill: Option<String>,
     },
     /// Process `SessionEnd` hook - fired when session terminates
     #[clap(name = "SessionEnd")]
@@ -134,6 +162,9 @@ enum HooksCommands {
         /// Optional agent name for context-aware hook execution
         #[clap(long)]
         agent: Option<String>,
+        /// Optional skill name for context-aware hook execution
+        #[clap(long)]
+        skill: Option<String>,
     },
     /// Process Stop hook - fired when session terminates
     #[clap(name = "Stop")]
@@ -141,6 +172,9 @@ enum HooksCommands {
         /// Optional agent name for context-aware hook execution
         #[clap(long)]
         agent: Option<String>,
+        /// Optional skill name for context-aware hook execution
+        #[clap(long)]
+        skill: Option<String>,
     },
     /// Process `SubagentStart` hook - fired when subagent begins
     #[clap(name = "SubagentStart")]
@@ -148,6 +182,9 @@ enum HooksCommands {
         /// Optional agent name for context-aware hook execution
         #[clap(long)]
         agent: Option<String>,
+        /// Optional skill name for context-aware hook execution
+        #[clap(long)]
+        skill: Option<String>,
     },
     /// Process `SubagentStop` hook - fired when subagent completes
     #[clap(name = "SubagentStop")]
@@ -155,6 +192,9 @@ enum HooksCommands {
         /// Optional agent name for context-aware hook execution
         #[clap(long)]
         agent: Option<String>,
+        /// Optional skill name for context-aware hook execution
+        #[clap(long)]
+        skill: Option<String>,
     },
     /// Process `PreCompact` hook - fired before transcript compaction
     #[clap(name = "PreCompact")]
@@ -162,6 +202,9 @@ enum HooksCommands {
         /// Optional agent name for context-aware hook execution
         #[clap(long)]
         agent: Option<String>,
+        /// Optional skill name for context-aware hook execution
+        #[clap(long)]
+        skill: Option<String>,
     },
 }
 
@@ -177,48 +220,59 @@ async fn main() -> Result<()> {
             schema_url,
         } => handle_init(config_path, claude_path, force, schema_url).await,
         Commands::Hooks { command } => match command {
-            HooksCommands::PreToolUse { agent } => {
+            HooksCommands::PreToolUse { agent, skill } => {
                 set_agent_env(agent.as_deref());
+                set_skill_env(skill.as_deref());
                 handle_hook_result(handle_pre_tool_use).await
             }
-            HooksCommands::PostToolUse { agent } => {
+            HooksCommands::PostToolUse { agent, skill } => {
                 set_agent_env(agent.as_deref());
+                set_skill_env(skill.as_deref());
                 handle_hook_result(handle_post_tool_use).await
             }
-            HooksCommands::PermissionRequest { agent } => {
+            HooksCommands::PermissionRequest { agent, skill } => {
                 set_agent_env(agent.as_deref());
+                set_skill_env(skill.as_deref());
                 handle_hook_result(handle_permission_request).await
             }
-            HooksCommands::Notification { agent } => {
+            HooksCommands::Notification { agent, skill } => {
                 set_agent_env(agent.as_deref());
+                set_skill_env(skill.as_deref());
                 handle_hook_result(handle_notification).await
             }
-            HooksCommands::UserPromptSubmit { agent } => {
+            HooksCommands::UserPromptSubmit { agent, skill } => {
                 set_agent_env(agent.as_deref());
+                set_skill_env(skill.as_deref());
                 handle_hook_result(handle_user_prompt_submit).await
             }
-            HooksCommands::SessionStart { agent } => {
+            HooksCommands::SessionStart { agent, skill } => {
                 set_agent_env(agent.as_deref());
+                set_skill_env(skill.as_deref());
                 handle_hook_result(handle_session_start).await
             }
-            HooksCommands::SessionEnd { agent } => {
+            HooksCommands::SessionEnd { agent, skill } => {
                 set_agent_env(agent.as_deref());
+                set_skill_env(skill.as_deref());
                 handle_hook_result(handle_session_end).await
             }
-            HooksCommands::Stop { agent } => {
+            HooksCommands::Stop { agent, skill } => {
                 set_agent_env(agent.as_deref());
+                set_skill_env(skill.as_deref());
                 handle_hook_result(handle_stop).await
             }
-            HooksCommands::SubagentStart { agent } => {
+            HooksCommands::SubagentStart { agent, skill } => {
                 set_agent_env(agent.as_deref());
+                set_skill_env(skill.as_deref());
                 handle_hook_result(handle_subagent_start).await
             }
-            HooksCommands::SubagentStop { agent } => {
+            HooksCommands::SubagentStop { agent, skill } => {
                 set_agent_env(agent.as_deref());
+                set_skill_env(skill.as_deref());
                 handle_hook_result(handle_subagent_stop).await
             }
-            HooksCommands::PreCompact { agent } => {
+            HooksCommands::PreCompact { agent, skill } => {
                 set_agent_env(agent.as_deref());
+                set_skill_env(skill.as_deref());
                 handle_hook_result(handle_pre_compact).await
             }
         },
@@ -451,6 +505,16 @@ async fn handle_init(
         println!("No agents directory found, skipping agent hook injection.");
     }
 
+    // Inject hooks into command and skill files
+    println!("\nSearching for command and skill files...");
+    let commands_path = claude_path.join("commands");
+    let skills_path = claude_path.join("skills");
+    if commands_path.exists() || skills_path.exists() {
+        inject_skill_hooks(&skills_path, &commands_path, force)?;
+    } else {
+        println!("No commands or skills directory found, skipping skill hook injection.");
+    }
+
     Ok(())
 }
 
@@ -474,6 +538,42 @@ fn discover_agent_files(agents_dir: &Path) -> Result<Vec<PathBuf>> {
     }
 
     Ok(agent_files)
+}
+
+/// Discover command markdown files in the .claude/commands directory
+fn discover_command_files(commands_dir: &Path) -> Result<Vec<PathBuf>> {
+    let pattern = commands_dir.join("**/*.md");
+    let pattern_str = pattern
+        .to_str()
+        .context("Failed to convert path to string")?;
+
+    let mut command_files = Vec::new();
+    for entry in glob::glob(pattern_str).context("Failed to create glob pattern")? {
+        match entry {
+            Ok(path) => command_files.push(path),
+            Err(e) => eprintln!("Warning: Failed to read path: {e}"),
+        }
+    }
+
+    Ok(command_files)
+}
+
+/// Discover skill markdown files in the .claude/skills directory
+fn discover_skill_files(skills_dir: &Path) -> Result<Vec<PathBuf>> {
+    let pattern = skills_dir.join("**/*.md");
+    let pattern_str = pattern
+        .to_str()
+        .context("Failed to convert path to string")?;
+
+    let mut skill_files = Vec::new();
+    for entry in glob::glob(pattern_str).context("Failed to create glob pattern")? {
+        match entry {
+            Ok(path) => skill_files.push(path),
+            Err(e) => eprintln!("Warning: Failed to read path: {e}"),
+        }
+    }
+
+    Ok(skill_files)
 }
 
 /// Parse agent frontmatter from markdown content
@@ -514,7 +614,10 @@ fn parse_agent_frontmatter(content: &str) -> Result<Option<(serde_yaml::Value, S
             Ok(yaml_value) => Ok(Some((yaml_value, body.to_string()))),
             Err(e) => {
                 // Return error with context
-                Err(anyhow::anyhow!("Failed to parse agent frontmatter YAML: {}", e))
+                Err(anyhow::anyhow!(
+                    "Failed to parse agent frontmatter YAML: {}",
+                    e
+                ))
             }
         }
     } else {
@@ -527,12 +630,12 @@ fn generate_agent_hooks(agent_name: &str) -> serde_yaml::Value {
     use serde_yaml::{Mapping, Value};
 
     let hook_types = [
-        ("PreToolUse", true),      // needs matcher
-        ("PostToolUse", true),     // needs matcher
+        ("PreToolUse", true),  // needs matcher
+        ("PostToolUse", true), // needs matcher
         ("Stop", false),
         ("SessionStart", false),
         ("SessionEnd", false),
-        ("Notification", true),    // needs matcher
+        ("Notification", true), // needs matcher
         ("PreCompact", false),
         ("PermissionRequest", true), // needs matcher
         ("UserPromptSubmit", true),  // needs matcher
@@ -558,6 +661,63 @@ fn generate_agent_hooks(agent_name: &str) -> serde_yaml::Value {
         hook_config.insert(
             Value::String("command".to_string()),
             Value::String(format!("conclaude Hooks {hook_type} --agent {agent_name}")),
+        );
+        hook_config.insert(
+            Value::String("timeout".to_string()),
+            Value::Number(serde_yaml::Number::from(600)),
+        );
+
+        let hooks_array = vec![Value::Mapping(hook_config)];
+        hook_entry.insert(
+            Value::String("hooks".to_string()),
+            Value::Sequence(hooks_array),
+        );
+
+        hooks_map.insert(
+            Value::String(hook_type.to_string()),
+            Value::Sequence(vec![Value::Mapping(hook_entry)]),
+        );
+    }
+
+    Value::Mapping(hooks_map)
+}
+
+/// Generate hooks configuration for a skill or command
+fn generate_skill_hooks(skill_name: &str) -> serde_yaml::Value {
+    use serde_yaml::{Mapping, Value};
+
+    let hook_types = [
+        ("PreToolUse", true),  // needs matcher
+        ("PostToolUse", true), // needs matcher
+        ("Stop", false),
+        ("SessionStart", false),
+        ("SessionEnd", false),
+        ("Notification", true), // needs matcher
+        ("PreCompact", false),
+        ("PermissionRequest", true), // needs matcher
+        ("UserPromptSubmit", true),  // needs matcher
+    ];
+
+    let mut hooks_map = Mapping::new();
+
+    for (hook_type, needs_matcher) in &hook_types {
+        let mut hook_entry = Mapping::new();
+
+        if *needs_matcher {
+            hook_entry.insert(
+                Value::String("matcher".to_string()),
+                Value::String(String::new()),
+            );
+        }
+
+        let mut hook_config = Mapping::new();
+        hook_config.insert(
+            Value::String("type".to_string()),
+            Value::String("command".to_string()),
+        );
+        hook_config.insert(
+            Value::String("command".to_string()),
+            Value::String(format!("conclaude Hooks {hook_type} --skill {skill_name}")),
         );
         hook_config.insert(
             Value::String("timeout".to_string()),
@@ -708,15 +868,12 @@ fn inject_agent_hooks_into_file(agent_path: &Path, force: bool) -> Result<()> {
     let merged_hooks = merge_agent_hooks_yaml(existing_hooks, conclaude_hooks);
 
     if let serde_yaml::Value::Mapping(ref mut map) = frontmatter {
-        map.insert(
-            serde_yaml::Value::String("hooks".to_string()),
-            merged_hooks,
-        );
+        map.insert(serde_yaml::Value::String("hooks".to_string()), merged_hooks);
     }
 
     // Serialize frontmatter back to YAML
-    let yaml_str = serde_yaml::to_string(&frontmatter)
-        .context("Failed to serialize agent frontmatter")?;
+    let yaml_str =
+        serde_yaml::to_string(&frontmatter).context("Failed to serialize agent frontmatter")?;
 
     // Reconstruct the file
     let new_content = format!("---\n{}---\n{}", yaml_str, body);
@@ -726,6 +883,75 @@ fn inject_agent_hooks_into_file(agent_path: &Path, force: bool) -> Result<()> {
         .with_context(|| format!("Failed to write agent file: {}", agent_path.display()))?;
 
     println!("   [OK] Injected hooks into agent: {}", agent_name);
+
+    Ok(())
+}
+
+/// Inject hooks into a single skill or command file
+fn inject_skill_hooks_into_file(skill_path: &Path, force: bool) -> Result<()> {
+    // Read the file
+    let content = fs::read_to_string(skill_path)
+        .with_context(|| format!("Failed to read skill file: {}", skill_path.display()))?;
+
+    // Parse frontmatter
+    let (mut frontmatter, body) = match parse_agent_frontmatter(&content)? {
+        Some((fm, b)) => (fm, b),
+        None => {
+            eprintln!(
+                "Warning: Skill/Command file has no frontmatter, skipping: {}",
+                skill_path.display()
+            );
+            return Ok(());
+        }
+    };
+
+    // Get skill name from frontmatter or filename
+    let skill_name = if let Some(name) = frontmatter.get("name").and_then(|v| v.as_str()) {
+        name.to_string()
+    } else {
+        // Derive from filename
+        let name = skill_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .context("Failed to extract skill name from filename")?
+            .to_string();
+        eprintln!(
+            "Warning: Skill/Command file has no 'name' field, using filename: {}",
+            name
+        );
+        name
+    };
+
+    // Check if hooks already exist
+    let existing_hooks = frontmatter.get("hooks");
+    if existing_hooks.is_some() && !force {
+        println!("   Skill '{}' already has hooks, skipping.", skill_name);
+        return Ok(());
+    }
+
+    // Generate conclaude hooks
+    let conclaude_hooks = generate_skill_hooks(&skill_name);
+
+    // Merge with existing hooks, preserving user-defined hooks
+    // Reusing merge_agent_hooks_yaml as it's generic enough
+    let merged_hooks = merge_agent_hooks_yaml(existing_hooks, conclaude_hooks);
+
+    if let serde_yaml::Value::Mapping(ref mut map) = frontmatter {
+        map.insert(serde_yaml::Value::String("hooks".to_string()), merged_hooks);
+    }
+
+    // Serialize frontmatter back to YAML
+    let yaml_str =
+        serde_yaml::to_string(&frontmatter).context("Failed to serialize skill frontmatter")?;
+
+    // Reconstruct the file
+    let new_content = format!("---\n{}---\n{}", yaml_str, body);
+
+    // Write back to file
+    fs::write(skill_path, new_content)
+        .with_context(|| format!("Failed to write skill file: {}", skill_path.display()))?;
+
+    println!("   [OK] Injected hooks into skill/command: {}", skill_name);
 
     Ok(())
 }
@@ -756,13 +982,64 @@ fn inject_agent_hooks(agents_dir: &Path, force: bool) -> Result<()> {
         match inject_agent_hooks_into_file(agent_file, force) {
             Ok(()) => success_count += 1,
             Err(e) => {
-                eprintln!("   [ERROR] Failed to inject hooks into {}: {}", agent_file.display(), e);
+                eprintln!(
+                    "   [ERROR] Failed to inject hooks into {}: {}",
+                    agent_file.display(),
+                    e
+                );
                 error_count += 1;
             }
         }
     }
 
     println!("\nAgent hook injection complete!");
+    println!("   Success: {}", success_count);
+    if error_count > 0 {
+        println!("   Errors: {} (see warnings above)", error_count);
+    }
+
+    Ok(())
+}
+
+/// Inject hooks into all skill and command files
+fn inject_skill_hooks(skills_dir: &Path, commands_dir: &Path, force: bool) -> Result<()> {
+    let mut skill_files = Vec::new();
+    if skills_dir.exists() {
+        skill_files.extend(discover_skill_files(skills_dir)?);
+    }
+    if commands_dir.exists() {
+        skill_files.extend(discover_command_files(commands_dir)?);
+    }
+
+    if skill_files.is_empty() {
+        println!("No skill or command files found.");
+        return Ok(());
+    }
+
+    println!("Found {} skill/command file(s):", skill_files.len());
+    for file in &skill_files {
+        println!("   - {}", file.display());
+    }
+
+    println!("\nInjecting hooks into skill/command files...");
+    let mut success_count = 0;
+    let mut error_count = 0;
+
+    for skill_file in &skill_files {
+        match inject_skill_hooks_into_file(skill_file, force) {
+            Ok(()) => success_count += 1,
+            Err(e) => {
+                eprintln!(
+                    "   [ERROR] Failed to inject hooks into {}: {}",
+                    skill_file.display(),
+                    e
+                );
+                error_count += 1;
+            }
+        }
+    }
+
+    println!("\nSkill/command hook injection complete!");
     println!("   Success: {}", success_count);
     if error_count > 0 {
         println!("   Errors: {} (see warnings above)", error_count);

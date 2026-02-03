@@ -61,6 +61,15 @@ preToolUse:
   #
   # - pattern: "docs/**"
   #   agent: "*"  # Blocks all agents (same as omitting agent field)
+  #
+  # Skill-specific protection examples (blocks specific skills/commands):
+  # - pattern: "tests/**"
+  #   message: "Test files managed by testing skills"
+  #   skill: "test*"  # Blocks any skill starting with "test"
+  #
+  # - pattern: "src/main.rs"
+  #   message: "Main file should not be modified by documentation skills"
+  #   skill: "doc*"
 
   # Prevent editing git-ignored files
   preventUpdateGitIgnored: false
@@ -83,21 +92,23 @@ preToolUse:
   #   action: "block"
   #   agent: "coder"
   #   message: "Coder agent cannot run destructive rm commands"
+  #
+  # Skill-scoped rules (only apply to specific skills):
   # - tool: "Write"
-  #   pattern: "**/*.test.ts"
+  #   pattern: "src/**/*.rs"
   #   action: "block"
-  #   agent: "coder"
-  #   message: "Coder agent should not modify test files"
-  # - tool: "*"
-  #   pattern: "src/**"
-  #   action: "block"
-  #   agent: "test*"
-  #   message: "Test agents cannot modify source files"
+  #   skill: "doc*"
+  #   message: "Documentation skills should not modify source code"
   #
   # Agent pattern examples:
   #   - agent: "coder"    # Exact match - only "coder" subagent
   #   - agent: "test*"    # Glob pattern - matches "tester", "test-runner"
   #   - agent: "*"        # Wildcard - matches all agents (default if omitted)
+  #
+  # Skill pattern examples:
+  #   - skill: "tester"   # Exact match
+  #   - skill: "doc*"     # Glob pattern - matches "documenter", "doc-gen"
+  #   - skill: "*"        # Wildcard - matches all skills (default if omitted)
 
   # Directories where additions are prevented
   preventAdditions: []
@@ -181,3 +192,5 @@ notifications:
 #   # - CONCLAUDE_CWD: Current working directory
 #   # - CONCLAUDE_CONFIG_DIR: Directory containing .conclaude.yaml
 #   # - CONCLAUDE_HOOK_EVENT: Always "UserPromptSubmit"
+#   # - CONCLAUDE_AGENT: Current agent name (if applicable)
+#   # - CONCLAUDE_SKILL: Current skill/command name (if applicable)

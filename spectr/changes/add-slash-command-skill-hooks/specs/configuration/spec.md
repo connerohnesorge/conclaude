@@ -1,206 +1,234 @@
-# Configuration Delta: Slash Command and Skill Hooks
+# Slash Commands and Skills Hooks - Delta Specs
+
+This change adds support for injecting conclaude hooks into `.claude/commands/*.md` and `.claude/skills/*.md` files, similar to the existing agent hook injection. It also adds skill context support via `--skill` flag and `CONCLAUDE_SKILL` environment variable.
+
+## Affected Capabilities
+
+- `initialization` - Extend init command to handle commands and skills
+- `cli-structure` - Add `--skill` flag to hook commands
+- `configuration` - Add `skill` field to rule types for skill-specific rules
+- `hooks-system` - Add skill context to hook processing
+
+---
 
 ## ADDED Requirements
 
-### Requirement: Slash Command Hook Configuration
+### Requirement: Command File Hook Injection
 
-The system SHALL support configuring hooks that trigger when slash commands are detected in user prompts.
+The `conclaude init` command SHALL discover Slash Command files and inject conclaude hooks into their frontmatter.
 
-#### Scenario: Basic slash command configuration
+#### Scenario: Command files discovered and updated
 
-- **GIVEN** a `.conclaude.yaml` configuration with:
+- **GIVEN** a project with `.claude/commands/` directory containing markdown files
+- **WHEN** a user runs `conclaude init`
+- **THEN** each command file SHALL be discovered and processed
+- **AND** the hooks section SHALL be injected into frontmatter
+- **AND** each hook SHALL call `conclaude Hooks <type> --skill <name>`
+
+#### Scenario: Skill name extracted from frontmatter
+
+- **GIVEN** a command file with a `name` field in frontmatter
+- **WHEN** hooks are injected
+- **THEN** the hooks SHALL use that name value with `--skill` flag
+- **AND** the command format SHALL be `conclaude Hooks <type> --skill <name>`
+
+#### Scenario: Skill name derived from filename
+
+- **GIVEN** a command file without a `name` field in frontmatter
+- **WHEN** hooks are injected
+- **THEN** the name SHALL be derived from the filename (without .md extension)
+- **AND** a warning SHALL be logged suggesting adding a name field
+
+#### Scenario: Existing hooks preserved in commands
+
+- **GIVEN** a command file already has a `hooks` section
+- **WHEN** conclaude injects hooks
+- **THEN** conclaude-generated hooks SHALL be merged
+- **AND** user-defined hooks SHALL NOT be overwritten
+
+---
+
+### Requirement: Skill File Hook Injection
+
+The `conclaude init` command SHALL discover Skill files and inject conclaude hooks into their frontmatter.
+
+#### Scenario: Skill files discovered and updated
+
+- **GIVEN** a project with `.claude/skills/` directory containing markdown files
+- **WHEN** a user runs `conclaude init`
+- **THEN** each skill file SHALL be discovered and processed
+- **AND** the hooks section SHALL be injected into frontmatter
+- **AND** each hook SHALL call `conclaude Hooks <type> --skill <name>`
+
+#### Scenario: Skill name extracted from frontmatter
+
+- **GIVEN** a skill file with a `name` field in frontmatter
+- **WHEN** hooks are injected
+- **THEN** the hooks SHALL use that name value with `--skill` flag
+
+#### Scenario: Skill name derived from filename
+
+- **GIVEN** a skill file without a `name` field in frontmatter
+- **WHEN** hooks are injected
+- **THEN** the name SHALL be derived from the filename (without .md extension)
+
+---
+
+### Requirement: CLI Skill Flag Support
+
+All hook commands SHALL support a `--skill` flag for skill context.
+
+#### Scenario: PreToolUse with --skill flag
+
+- **GIVEN** the PreToolUse hook command
+- **WHEN** invoked with `--skill my-skill`
+- **THEN** the `CONCLAUDE_SKILL` environment variable SHALL be set to "my-skill"
+
+#### Scenario: Stop hook with --skill flag
+
+- **GIVEN** the Stop hook command
+- **WHEN** invoked with `--skill tester`
+- **THEN** the skill context SHALL be available in hook processing
+
+#### Scenario: All hooks support --skill
+
+- **GIVEN** all hook commands (PreToolUse, PostToolUse, Stop, SessionStart, SessionEnd, Notification, PreCompact, PermissionRequest, UserPromptSubmit, SubagentStart, SubagentStop)
+- **WHEN** checking CLI arguments
+- **THEN** each SHALL accept an optional `--skill <name>` argument
+
+---
+
+### Requirement: Skill Environment Variable
+
+The system SHALL provide skill context to hook handlers via environment variable.
+
+#### Scenario: CONCLAUDE_SKILL set during execution
+
+- **GIVEN** a hook command invoked with `--skill my-skill`
+- **WHEN** the hook handler executes
+- **THEN** `CONCLAUDE_SKILL` environment variable SHALL be set to "my-skill"
+
+#### Scenario: CONCLAUDE_SKILL absent when not specified
+
+- **GIVEN** a hook command invoked without `--skill` flag
+- **WHEN** the hook handler executes
+- **THEN** `CONCLAUDE_SKILL` environment variable SHALL NOT be set
+
+---
+
+### Requirement: Skill Field in Configuration Rules
+
+Rule types SHALL support a `skill` field for skill-specific rule scoping.
+
+#### Scenario: Uneditable file rule with skill
+
+- **GIVEN** a `.conclaude.yaml` configuration:
   ```yaml
-  userPromptSubmit:
-    slashCommands:
-      commands:
-        "/commit":
-          - run: ".claude/scripts/pre-commit.sh"
+  preToolUse:
+    uneditableFiles:
+      - pattern: "tests/**"
+        skill: "test*"
+        message: "Test files managed by testing skills"
   ```
-- **WHEN** a user submits a prompt containing `/commit`
-- **THEN** the configured command SHALL execute
-- **AND** the `CONCLAUDE_SLASH_COMMAND` environment variable SHALL be set to "commit"
+- **WHEN** a tool attempts to edit a test file
+- **AND** `CONCLAUDE_SKILL` matches "test*" pattern
+- **THEN** the rule SHALL apply and block the edit
 
-#### Scenario: Slash command with arguments
+#### Scenario: Tool usage rule with skill
 
-- **GIVEN** a slash command configuration for `/deploy`
-- **WHEN** a user submits `/deploy production --force`
-- **THEN** `CONCLAUDE_SLASH_COMMAND` SHALL be "deploy"
-- **AND** `CONCLAUDE_SLASH_COMMAND_ARGS` SHALL be "production --force"
-
-#### Scenario: Glob pattern matching for slash commands
-
-- **GIVEN** a configuration with pattern `/test*`
-- **WHEN** a user submits `/test-unit` or `/testing`
-- **THEN** the configured commands SHALL execute for both
-- **AND** commands configured for `/commit` SHALL NOT execute
-
-#### Scenario: Wildcard slash command configuration
-
-- **GIVEN** a configuration with pattern `"*"`
-- **WHEN** any slash command is detected
-- **THEN** the wildcard commands SHALL execute
-- **AND** more specific patterns SHALL take precedence when both match
-
-### Requirement: Skill Start Hook Configuration
-
-The system SHALL support configuring hooks that trigger when skills (subagents) are started.
-
-#### Scenario: Basic skill start configuration
-
-- **GIVEN** a `.conclaude.yaml` configuration with:
+- **GIVEN** a `.conclaude.yaml` configuration:
   ```yaml
-  skillStart:
+  preToolUse:
+    toolUsageValidation:
+      - tool: "Write"
+        pattern: "docs/**"
+        skill: "doc*"
+        action: "block"
+  ```
+- **WHEN** a documentation skill attempts to write outside docs/
+- **THEN** the rule SHALL apply and block the operation
+
+#### Scenario: Stop command with skill
+
+- **GIVEN** a `.conclaude.yaml` configuration:
+  ```yaml
+  stop:
     commands:
-      "coder":
-        - run: ".claude/scripts/coder-init.sh"
+      - run: "cargo test --lib"
+        skill: "tester"
+        message: "Library tests must pass"
   ```
-- **WHEN** a SubagentStart event occurs with `agent_type` = "coder"
-- **THEN** the configured command SHALL execute
-- **AND** the `CONCLAUDE_SKILL_NAME` environment variable SHALL be set to "coder"
+- **WHEN** the tester skill completes work
+- **THEN** only skill-specific commands SHALL execute
 
-#### Scenario: Skill start with agent ID
+---
 
-- **GIVEN** a skill start configuration
-- **WHEN** a SubagentStart event occurs with `agent_id` = "abc123"
-- **THEN** `CONCLAUDE_AGENT_ID` environment variable SHALL be set to "abc123"
+### Requirement: Skill Pattern Matching
 
-#### Scenario: Glob pattern matching for skills
+The system SHALL support glob pattern matching for skill names.
 
-- **GIVEN** a configuration with pattern `test*`
-- **WHEN** a SubagentStart event occurs with `agent_type` = "tester" or "test-runner"
-- **THEN** the configured commands SHALL execute for both
+#### Scenario: Exact skill match
 
-#### Scenario: Wildcard skill configuration
+- **GIVEN** a rule with `skill: "tester"`
+- **WHEN** `CONCLAUDE_SKILL` is "tester"
+- **THEN** the rule SHALL match
 
-- **GIVEN** a configuration with pattern `"*"`
-- **WHEN** any skill starts
-- **THEN** the wildcard commands SHALL execute
+#### Scenario: Prefix glob pattern
 
-### Requirement: Slash Command Detection from Prompts
+- **GIVEN** a rule with `skill: "test*"`
+- **WHEN** `CONCLAUDE_SKILL` is "tester" or "test-runner"
+- **THEN** the rule SHALL match both
 
-The system SHALL detect slash commands from user prompt text using pattern matching.
+#### Scenario: Wildcard pattern
 
-#### Scenario: Slash command at prompt start
+- **GIVEN** a rule with `skill: "*"`
+- **WHEN** any skill is active
+- **THEN** the rule SHALL match
 
-- **GIVEN** a prompt text `/commit fix typo in README`
-- **WHEN** the prompt is analyzed for slash commands
-- **THEN** a slash command SHALL be detected with name "commit"
-- **AND** arguments SHALL be "fix typo in README"
+#### Scenario: No match
 
-#### Scenario: Slash command after newline
+- **GIVEN** a rule with `skill: "doc*"`
+- **WHEN** `CONCLAUDE_SKILL` is "tester"
+- **THEN** the rule SHALL NOT match
 
-- **GIVEN** a prompt text with multiple lines where line 2 is `/deploy prod`
-- **WHEN** the prompt is analyzed
-- **THEN** the slash command SHALL be detected on that line
+---
 
-#### Scenario: No slash command in normal text
+## MODIFIED Requirements
 
-- **GIVEN** a prompt text "Please fix the /path/to/file.txt issue"
-- **WHEN** the prompt is analyzed for slash commands
-- **THEN** no slash command SHALL be detected
-- **AND** the path SHALL NOT be misinterpreted as a command
+### Requirement: Agent Frontmatter Hook Injection (Extended)
 
-#### Scenario: Multiple slash commands (first wins)
+The existing agent hook injection SHALL remain unchanged while command/skill injection is added.
 
-- **GIVEN** a prompt with `/commit` on line 1 and `/deploy` on line 2
-- **WHEN** the prompt is analyzed
-- **THEN** only the first slash command ("commit") SHALL be processed
+#### Scenario: Agents still work independently
 
-### Requirement: Slash Command Hook Blocking
+- **GIVEN** agent files with existing hooks using `--agent` flag
+- **WHEN** `conclaude init` runs
+- **THEN** agent hooks SHALL NOT be affected by skill injection
+- **AND** agent-specific rules SHALL use `CONCLAUDE_AGENT` env var
+- **AND** skill-specific rules SHALL use `CONCLAUDE_SKILL` env var
 
-The system SHALL support blocking slash command execution based on hook command exit codes.
+---
 
-#### Scenario: Blocking a slash command
+### Requirement: Configuration Field Lists (Extended)
 
-- **GIVEN** a slash command hook configured for `/deploy`
-- **WHEN** the hook command exits with code 2
-- **THEN** the slash command SHALL be blocked
-- **AND** the configured message SHALL be returned to Claude
+The auto-generated field lists SHALL include the new `skill` field.
 
-#### Scenario: Non-blocking hook failure
+#### Scenario: skill field in suggestions
 
-- **GIVEN** a slash command hook configured for `/commit`
-- **WHEN** the hook command exits with a non-zero, non-2 code
-- **THEN** the slash command SHALL NOT be blocked
-- **AND** the error SHALL be logged to stderr
+- **WHEN** a user misconfigures a skill field (e.g., `skills` instead of `skill`)
+- **THEN** error suggestions SHALL include "skill" as a valid field
+- **AND** the suggestion SHALL apply to relevant rule types
 
-### Requirement: Environment Variables for Slash Commands
+---
 
-The system SHALL provide environment variables with slash command metadata to hook commands.
+## REMOVED Requirements
 
-#### Scenario: Standard environment variables
+### Requirement: No Removed Requirements
 
-- **WHEN** a slash command hook executes
-- **THEN** the following environment variables SHALL be available:
-  - `CONCLAUDE_SLASH_COMMAND` - Command name without leading slash
-  - `CONCLAUDE_SLASH_COMMAND_ARGS` - Arguments after the command
-  - `CONCLAUDE_USER_PROMPT` - Full prompt text
-  - `CONCLAUDE_SESSION_ID` - Current session ID
-  - `CONCLAUDE_CWD` - Current working directory
-  - `CONCLAUDE_HOOK_EVENT` - "UserPromptSubmit"
+No existing requirements are removed by this change. All functionality is additive.
 
-### Requirement: Environment Variables for Skill Start
+#### Scenario: Backward compatibility maintained
 
-The system SHALL provide environment variables with skill metadata to hook commands.
-
-#### Scenario: Skill start environment variables
-
-- **WHEN** a skill start hook executes
-- **THEN** the following environment variables SHALL be available:
-  - `CONCLAUDE_SKILL_NAME` - The skill/agent type name
-  - `CONCLAUDE_AGENT_ID` - Unique agent identifier
-  - `CONCLAUDE_SESSION_ID` - Current session ID
-  - `CONCLAUDE_TRANSCRIPT_PATH` - Path to session transcript
-  - `CONCLAUDE_HOOK_EVENT` - "SubagentStart"
-
-### Requirement: Command Execution Options
-
-Slash command and skill start hooks SHALL support the same command options as other hooks.
-
-#### Scenario: Command with all options
-
-- **GIVEN** a command configuration with:
-  ```yaml
-  - run: ".claude/scripts/check.sh"
-    message: "Check failed"
-    showCommand: true
-    showStdout: true
-    showStderr: false
-    maxOutputLines: 100
-    timeout: 30
-  ```
-- **WHEN** the command executes
-- **THEN** all options SHALL be respected
-- **AND** behavior SHALL match existing hook command execution
-
-#### Scenario: Default command options
-
-- **GIVEN** a command configuration with only `run` specified
-- **THEN** `showCommand` SHALL default to true
-- **AND** `showStdout` and `showStderr` SHALL default to false
-- **AND** `maxOutputLines` SHALL have no limit by default
-- **AND** `timeout` SHALL use the default hook timeout
-
-### Requirement: Pattern Precedence
-
-When multiple patterns match a slash command or skill, the system SHALL use consistent precedence rules.
-
-#### Scenario: Exact match takes precedence
-
-- **GIVEN** configurations for patterns `/commit` and `/comm*`
-- **WHEN** `/commit` is invoked
-- **THEN** only the exact match commands SHALL execute
-
-#### Scenario: More specific pattern wins
-
-- **GIVEN** configurations for patterns `/test*` and `*`
-- **WHEN** `/testing` is invoked
-- **THEN** only `/test*` commands SHALL execute
-- **AND** wildcard `*` SHALL NOT execute
-
-#### Scenario: First matching pattern in order
-
-- **GIVEN** multiple patterns that match equally (e.g., two glob patterns)
-- **WHEN** a matching command is invoked
-- **THEN** patterns SHALL be matched in configuration order
-- **AND** the first matching pattern's commands SHALL execute
+- **GIVEN** existing configurations without skill support
+- **WHEN** this change is deployed
+- **THEN** all existing functionality SHALL continue to work unchanged

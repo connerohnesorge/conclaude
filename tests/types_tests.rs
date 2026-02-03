@@ -679,4 +679,3 @@ fn test_subagent_start_payload_serialization_round_trip() {
         payload.agent_transcript_path
     );
 }
-

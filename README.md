@@ -267,8 +267,11 @@ stop:
       message: "Linting with warnings as errors"
     - run: cargo test
       message: "All tests must pass"
-    - run: cargo build
-      message: "Successful compilation required"
+    
+    # Skill-specific validation
+    - run: cargo test --lib
+      skill: "tester"
+      message: "Library tests must pass for tester skill"
 
 # File protection rules
 preToolUse:
@@ -277,7 +280,11 @@ preToolUse:
     - "Cargo.toml"              # Don't modify package manifest
     - "Cargo.lock"              # Lock file is sacred
     - ".env*"                   # Secrets stay secret
-    - "target/**"               # Build artifacts
+    
+    # Skill-specific protection
+    - pattern: "src/**/*.rs"
+      skill: "doc*"
+      message: "Documentation skills should not modify source code"
 ```
 
 **What this accomplishes:**
@@ -426,6 +433,17 @@ conclaude taps into Claude Code's lifecycle through strategic intervention point
 - **Optional infinite mode** for continuous validation during long sessions
 
 **Real example:** Claude finishes implementing a feature. Stop hook runs your tests, finds 3 failures, blocks completion. Claude sees the errors and fixes them automatically. Only then does the session complete successfully.
+
+### Slash Commands and Skills Support
+
+Claude Code supports organizing reusable capabilities as **Slash Commands** (in `.claude/commands/*.md`) and **Skills** (in `.claude/skills/*.md`). conclaude can inject hooks directly into these files, allowing you to enforce guardrails specific to particular commands or skills.
+
+By using the `--skill` flag, conclaude handlers can distinguish between different skills and apply targeted rules.
+
+#### Key Features:
+- **Automatic Injection**: `conclaude init` discovers and injects hooks into all command and skill files.
+- **Skill Scoping**: Target rules to specific skills or skill patterns (e.g., `skill: "test*"`).
+- **Environment Variable**: Hook handlers receive the current skill name via `CONCLAUDE_SKILL`.
 
 ### Supporting Cast of Hooks
 
@@ -1245,6 +1263,8 @@ preToolUse:
 - `CONCLAUDE_TRANSCRIPT_PATH`: Path to the main session transcript file
 - `CONCLAUDE_CWD`: Current working directory where the session is running
 - `CONCLAUDE_HOOK_EVENT`: Name of the currently executing hook
+- `CONCLAUDE_AGENT`: Current agent name (if applicable, via `--agent`)
+- `CONCLAUDE_SKILL`: Current skill/command name (if applicable, via `--skill`)
 
 **SubagentStart Hook Variables** (Available when SubagentStart hook executes):
 - `CONCLAUDE_AGENT_ID`: Identifier for the subagent starting (e.g., "coder", "tester", "stuck")
