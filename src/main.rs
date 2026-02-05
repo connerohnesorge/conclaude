@@ -388,29 +388,28 @@ async fn handle_init(
 
     println!("Initializing conclaude configuration...");
 
-    // Check if config file exists
+    // Handle .conclaude.yaml - skip if exists (unless --force)
     if config_path.exists() && !force {
-        eprintln!(
-            "WARNING: Configuration file already exists: {}",
+        println!(
+            "Configuration file already exists: {}",
             config_path.display()
         );
-        eprintln!("Use --force to overwrite existing configuration.");
-        std::process::exit(1);
+        println!("Skipping config creation. Use --force to overwrite.");
+    } else {
+        // Create .conclaude.yaml with YAML language server header
+        let yaml_header = schema::generate_yaml_language_server_header(schema_url.as_deref());
+        let config_content = format!("{}{}", yaml_header, config::generate_default_config());
+        fs::write(&config_path, config_content)
+            .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
+
+        println!(
+            "[OK] Created configuration file with YAML language server support: {}",
+            config_path.display()
+        );
+        let default_schema_url = schema::get_schema_url();
+        let used_schema_url = schema_url.as_deref().unwrap_or(&default_schema_url);
+        println!("   Schema URL: {used_schema_url}");
     }
-
-    // Create .conclaude.yaml with YAML language server header
-    let yaml_header = schema::generate_yaml_language_server_header(schema_url.as_deref());
-    let config_content = format!("{}{}", yaml_header, config::generate_default_config());
-    fs::write(&config_path, config_content)
-        .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
-
-    println!(
-        "[OK] Created configuration file with YAML language server support: {}",
-        config_path.display()
-    );
-    let default_schema_url = schema::get_schema_url();
-    let used_schema_url = schema_url.as_deref().unwrap_or(&default_schema_url);
-    println!("   Schema URL: {used_schema_url}");
 
     // Create .claude directory if it doesn't exist
     fs::create_dir_all(&claude_path).with_context(|| {

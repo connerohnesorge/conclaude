@@ -217,14 +217,6 @@
             "null"
           ]
         },
-        "skill": {
-          "default": null,
-          "description": "Optional skill pattern to scope this command to specific skills (e.g., \"tester\", \"commit\", or glob patterns like \"test*\")",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "timeout": {
           "default": null,
           "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated and the hook is blocked.",
@@ -329,14 +321,6 @@
             "null"
           ]
         },
-        "skill": {
-          "default": null,
-          "description": "Optional skill pattern to scope this command to specific skills (e.g., \"tester\", \"commit\", or glob patterns like \"test*\")",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "timeout": {
           "default": null,
           "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated and the hook is blocked.",
@@ -413,14 +397,6 @@
           "description": "File path pattern to match. Uses glob syntax (e.g., \"**/*.js\", \".env*\")",
           "type": "string"
         },
-        "skill": {
-          "default": null,
-          "description": "Optional skill pattern to scope this rule to specific skills (e.g., \"tester\", \"commit\", or glob patterns like \"test*\")",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "tool": {
           "description": "The tool name to match against. Supports glob patterns (e.g., \"*\" for all tools, \"Write\", \"Bash\")",
           "type": "string"
@@ -457,14 +433,6 @@
             "pattern": {
               "description": "Glob pattern matching files to protect (e.g., \"*.lock\", \".env*\", \"src/**/*.ts\")",
               "type": "string"
-            },
-            "skill": {
-              "default": null,
-              "description": "Optional skill pattern to scope this rule to specific skills (e.g., \"tester\", \"commit\", or glob patterns like \"test*\")",
-              "type": [
-                "string",
-                "null"
-              ]
             }
           },
           "required": [
@@ -477,7 +445,7 @@
           "type": "string"
         }
       ],
-      "description": "Configuration for an uneditable file rule.\n\nFiles that Claude cannot edit, using glob patterns. Supports various glob patterns for flexible file protection.\n\n# Formats\n\nTwo formats are supported for backward compatibility:\n\n1. **Simple string patterns**: `\"*.lock\"` - Just the glob pattern as a string - Uses a generic error message when blocking\n\n2. **Detailed objects with custom messages**: `{pattern: \"*.lock\", message: \"...\"}` - Allows specifying a custom error message - More descriptive feedback when files are blocked\n\n# Examples\n\n```yaml uneditableFiles: # Simple patterns (backward compatible) - \"./package.json\"      # specific file - \"*.md\"                # file extension - \"src/**/*.ts\"         # nested patterns - \"docs/**\"             # entire directories\n\n# Detailed patterns with custom error messages - pattern: \"*.lock\" message: \"Lock files are automatically created. Run 'npm install' to update.\" - pattern: \".env*\" message: \"Environment files contain secrets. Use .env.example instead.\" - pattern: \"{package,tsconfig}.json\" message: \"Configuration files require team review before changes.\"\n\n# Agent-scoped patterns (only applied to specific agents) - pattern: \"src/**/*.test.ts\" agent: \"coder\" message: \"The coder agent should not modify test files.\" - pattern: \"dist/**\" agent: \"test*\" message: \"Test agents should not modify build output.\"\n\n# Skill-scoped patterns (only applied to specific skills) - pattern: \"tests/**\" skill: \"test*\" message: \"Test files managed by testing skills\" ```\n\nThe `#[serde(untagged)]` attribute allows serde to automatically handle both plain string patterns and detailed object configurations."
+      "description": "Configuration for an uneditable file rule.\n\nFiles that Claude cannot edit, using glob patterns. Supports various glob patterns for flexible file protection.\n\n# Formats\n\nTwo formats are supported for backward compatibility:\n\n1. **Simple string patterns**: `\"*.lock\"` - Just the glob pattern as a string - Uses a generic error message when blocking\n\n2. **Detailed objects with custom messages**: `{pattern: \"*.lock\", message: \"...\"}` - Allows specifying a custom error message - More descriptive feedback when files are blocked\n\n# Examples\n\n```yaml uneditableFiles: # Simple patterns (backward compatible) - \"./package.json\"      # specific file - \"*.md\"                # file extension - \"src/**/*.ts\"         # nested patterns - \"docs/**\"             # entire directories\n\n# Detailed patterns with custom error messages - pattern: \"*.lock\" message: \"Lock files are automatically created. Run 'npm install' to update.\" - pattern: \".env*\" message: \"Environment files contain secrets. Use .env.example instead.\" - pattern: \"{package,tsconfig}.json\" message: \"Configuration files require team review before changes.\"\n\n# Agent-scoped patterns (only applied to specific agents) - pattern: \"src/**/*.test.ts\" agent: \"coder\" message: \"The coder agent should not modify test files.\" - pattern: \"dist/**\" agent: \"test*\" message: \"Test agents should not modify build output.\" ```\n\nThe `#[serde(untagged)]` attribute allows serde to automatically handle both plain string patterns and detailed object configurations."
     },
     "UserPromptSubmitCommand": {
       "additionalProperties": false,

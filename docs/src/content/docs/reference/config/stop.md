@@ -55,6 +55,7 @@ Configuration for individual stop commands with optional messages
 | `showCommand` | `boolean | null` | `true` | Whether to show the command being executed to the user and Claude |
 | `showStderr` | `boolean | null` | `null` | Whether to show the command's standard error output to the user and Claude |
 | `showStdout` | `boolean | null` | `null` | Whether to show the command's standard output to the user and Claude |
+| `skill` | `string | null` | `null` | Optional skill pattern to scope this command to specific skills (e |
 | `timeout` | `integer | null` | `null` | Optional command timeout in seconds |
 
 ## See Also

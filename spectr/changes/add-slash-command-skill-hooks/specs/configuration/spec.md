@@ -195,21 +195,7 @@ The system SHALL support glob pattern matching for skill names.
 
 ## MODIFIED Requirements
 
-### Requirement: Agent Frontmatter Hook Injection (Extended)
-
-The existing agent hook injection SHALL remain unchanged while command/skill injection is added.
-
-#### Scenario: Agents still work independently
-
-- **GIVEN** agent files with existing hooks using `--agent` flag
-- **WHEN** `conclaude init` runs
-- **THEN** agent hooks SHALL NOT be affected by skill injection
-- **AND** agent-specific rules SHALL use `CONCLAUDE_AGENT` env var
-- **AND** skill-specific rules SHALL use `CONCLAUDE_SKILL` env var
-
----
-
-### Requirement: Configuration Field Lists (Extended)
+### Requirement: Auto-Generated Field Lists for Error Suggestions
 
 The auto-generated field lists SHALL include the new `skill` field.
 
@@ -219,16 +205,3 @@ The auto-generated field lists SHALL include the new `skill` field.
 - **THEN** error suggestions SHALL include "skill" as a valid field
 - **AND** the suggestion SHALL apply to relevant rule types
 
----
-
-## REMOVED Requirements
-
-### Requirement: No Removed Requirements
-
-No existing requirements are removed by this change. All functionality is additive.
-
-#### Scenario: Backward compatibility maintained
-
-- **GIVEN** existing configurations without skill support
-- **WHEN** this change is deployed
-- **THEN** all existing functionality SHALL continue to work unchanged

@@ -137,6 +137,7 @@ Allows controlling which tools can be used on which files or with which command 
 | `matchMode` | `string | null` | - | Optional match mode for pattern matching (reserved for future use) |
 | `message` | `string | null` | - | Optional custom message to display when the rule blocks an action |
 | `pattern` | `string` | - | File path pattern to match |
+| `skill` | `string | null` | `null` | Optional skill pattern to scope this rule to specific skills (e |
 | `tool` | `string` | - | The tool name to match against |
 
 ### `UnEditableFileRule` Type
@@ -163,6 +164,7 @@ Allows providing a custom error message that will be shown when Claude attempts 
    - `agent` (string | null): Optional agent pattern to scope this rule to specific agents (e.g., "coder", "tester", "main", or glob patterns like "code*")
    - `message` (string | null): Optional custom message to display when blocking edits to matching files
    - `pattern` (string): Glob pattern matching files to protect (e.g., "*.lock", ".env*", "src/**/*.ts")
+   - `skill` (string | null): Optional skill pattern to scope this rule to specific skills (e.g., "tester", "commit", or glob patterns like "test*")
 
 2. **string**: Simple format: just a glob pattern string.
 
