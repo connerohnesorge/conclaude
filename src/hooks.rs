@@ -25,6 +25,8 @@ use tokio::time::{timeout, Duration};
 
 /// Environment variable name for passing agent context to hook handlers
 const AGENT_ENV_VAR: &str = "CONCLAUDE_AGENT";
+/// Environment variable name for passing skill context to hook handlers
+pub const SKILL_ENV_VAR: &str = "CONCLAUDE_SKILL";
 /// Get the path to the agent session file for a given session.
 #[allow(dead_code)]
 pub fn get_agent_session_file_path(session_id: &str) -> PathBuf {
@@ -214,7 +216,23 @@ fn send_notification(hook_name: &str, status: &str, context: Option<&str>) {
     }
 
     // Format notification title and body
-    let title = format!("Conclaude - {}", hook_name);
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    let skill_name = std::env::var(SKILL_ENV_VAR).ok();
+
+    let mut context_info = Vec::new();
+    if let Some(ref name) = agent_name {
+        context_info.push(format!("agent: {}", name));
+    }
+    if let Some(ref name) = skill_name {
+        context_info.push(format!("skill: {}", name));
+    }
+
+    let title = if context_info.is_empty() {
+        format!("Conclaude - {}", hook_name)
+    } else {
+        format!("Conclaude - {} ({})", hook_name, context_info.join(", "))
+    };
+
     let body = match context {
         Some(ctx) => format!("{}: {}", status, ctx),
         None => match status {
@@ -328,14 +346,22 @@ pub async fn handle_pre_tool_use() -> Result<HookResult> {
     // Read agent name from environment variable (set by CLI --agent flag)
     let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
+    // Read skill name from environment variable (set by CLI --skill flag)
+    let skill_name = std::env::var(SKILL_ENV_VAR).ok();
+
     // Export CONCLAUDE_AGENT_NAME for any commands that are executed
     if let Some(ref name) = agent_name {
         std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
+    // Export CONCLAUDE_SKILL_NAME for any commands that are executed
+    if let Some(ref name) = skill_name {
+        std::env::set_var("CONCLAUDE_SKILL_NAME", name);
+    }
+
     println!(
-        "Processing PreToolUse hook: session_id={}, tool_name={}",
-        payload.base.session_id, payload.tool_name
+        "Processing PreToolUse hook: session_id={}, tool_name={}, agent={:?}, skill={:?}",
+        payload.base.session_id, payload.tool_name, agent_name, skill_name
     );
 
     // Check tool usage validation rules
@@ -402,14 +428,22 @@ pub async fn handle_permission_request() -> Result<HookResult> {
     // Read agent name from environment variable (set by CLI --agent flag)
     let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
+    // Read skill name from environment variable (set by CLI --skill flag)
+    let skill_name = std::env::var(SKILL_ENV_VAR).ok();
+
     // Export CONCLAUDE_AGENT_NAME for any commands that are executed
     if let Some(ref name) = agent_name {
         std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
+    // Export CONCLAUDE_SKILL_NAME for any commands that are executed
+    if let Some(ref name) = skill_name {
+        std::env::set_var("CONCLAUDE_SKILL_NAME", name);
+    }
+
     println!(
-        "Processing PermissionRequest hook: session_id={}, tool_name={}",
-        payload.base.session_id, payload.tool_name
+        "Processing PermissionRequest hook: session_id={}, tool_name={}, agent={:?}, skill={:?}",
+        payload.base.session_id, payload.tool_name, agent_name, skill_name
     );
 
     let (config, _config_path) = get_config().await?;
@@ -547,12 +581,21 @@ async fn check_file_validation_rules(payload: &PreToolUsePayload) -> Result<Opti
     // Detect current agent context from environment variable (set by CLI --agent flag)
     let current_agent = std::env::var(AGENT_ENV_VAR).unwrap_or_else(|_| "main".to_string());
 
+    // Detect current skill context from environment variable (set by CLI --skill flag)
+    let current_skill = std::env::var(SKILL_ENV_VAR).unwrap_or_else(|_| "main".to_string());
+
     // Check uneditableFiles rule
     for rule in &config.pre_tool_use.uneditable_files {
         // Check agent match first - skip rule if it doesn't apply to current agent
         let agent_pattern = rule.agent().unwrap_or("*");
         if !matches_agent_pattern(&current_agent, agent_pattern) {
             continue; // Rule doesn't apply to this agent
+        }
+
+        // Check skill match - skip rule if it doesn't apply to current skill
+        let skill_pattern = rule.skill().unwrap_or("*");
+        if !matches_skill_pattern(&current_skill, skill_pattern) {
+            continue; // Rule doesn't apply to this skill
         }
 
         let pattern = rule.pattern();
@@ -562,25 +605,33 @@ async fn check_file_validation_rules(payload: &PreToolUsePayload) -> Result<Opti
             &resolved_path.to_string_lossy(),
             pattern,
         )? {
-            // Include agent context in error message when agent-specific rule triggered
-            let agent_suffix = if agent_pattern != "*" {
-                format!(" (agent: {})", current_agent)
-            } else {
+            // Include context in error message when specific rule triggered
+            let mut context_suffixes = Vec::new();
+            if agent_pattern != "*" {
+                context_suffixes.push(format!("agent: {}", current_agent));
+            }
+            if skill_pattern != "*" {
+                context_suffixes.push(format!("skill: {}", current_skill));
+            }
+
+            let context_suffix = if context_suffixes.is_empty() {
                 String::new()
+            } else {
+                format!(" ({})", context_suffixes.join(", "))
             };
 
             let error_message = if let Some(custom_msg) = rule.message() {
-                format!("{}{}", custom_msg, agent_suffix)
+                format!("{}{}", custom_msg, context_suffix)
             } else {
                 format!(
                     "Blocked {} operation: file matches preToolUse.uneditableFiles pattern '{}'{} File: {}",
-                    payload.tool_name, pattern, agent_suffix, file_path
+                    payload.tool_name, pattern, context_suffix, file_path
                 )
             };
 
             eprintln!(
-                "PreToolUse blocked by preToolUse.uneditableFiles pattern: tool_name={}, file_path={}, pattern={}, agent={}",
-                payload.tool_name, file_path, pattern, current_agent
+                "PreToolUse blocked by preToolUse.uneditableFiles pattern: tool_name={}, file_path={}, pattern={}, agent={}, skill={}",
+                payload.tool_name, file_path, pattern, current_agent, current_skill
             );
 
             return Ok(Some(HookResult::blocked(error_message)));
@@ -712,6 +763,23 @@ pub fn matches_agent_pattern(agent_name: &str, pattern: &str) -> bool {
     }
 }
 
+/// Check if a skill name matches a pattern.
+/// Supports "*" wildcard and glob patterns.
+#[must_use]
+pub fn matches_skill_pattern(skill_name: &str, pattern: &str) -> bool {
+    if pattern == "*" {
+        return true;
+    }
+
+    match Pattern::new(pattern) {
+        Ok(glob_pattern) => glob_pattern.matches(skill_name),
+        Err(e) => {
+            eprintln!("Invalid skill pattern '{}': {}", pattern, e);
+            false // Invalid pattern = no match (safe default)
+        }
+    }
+}
+
 /// Handles `PostToolUse` hook events fired after Claude executes a tool.
 ///
 /// # Errors
@@ -730,14 +798,22 @@ pub async fn handle_post_tool_use() -> Result<HookResult> {
     // Read agent name from environment variable (set by CLI --agent flag)
     let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
+    // Read skill name from environment variable (set by CLI --skill flag)
+    let skill_name = std::env::var(SKILL_ENV_VAR).ok();
+
     // Export CONCLAUDE_AGENT_NAME for any commands that are executed
     if let Some(ref name) = agent_name {
         std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
+    // Export CONCLAUDE_SKILL_NAME for any commands that are executed
+    if let Some(ref name) = skill_name {
+        std::env::set_var("CONCLAUDE_SKILL_NAME", name);
+    }
+
     println!(
-        "Processing PostToolUse hook: session_id={}, tool_name={}",
-        payload.base.session_id, payload.tool_name
+        "Processing PostToolUse hook: session_id={}, tool_name={}, agent={:?}, skill={:?}",
+        payload.base.session_id, payload.tool_name, agent_name, skill_name
     );
 
     // Send notification for post tool use completion
@@ -767,14 +843,22 @@ pub async fn handle_notification() -> Result<HookResult> {
     // Read agent name from environment variable (set by CLI --agent flag)
     let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
+    // Read skill name from environment variable (set by CLI --skill flag)
+    let skill_name = std::env::var(SKILL_ENV_VAR).ok();
+
     // Export CONCLAUDE_AGENT_NAME for any commands that are executed
     if let Some(ref name) = agent_name {
         std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
+    // Export CONCLAUDE_SKILL_NAME for any commands that are executed
+    if let Some(ref name) = skill_name {
+        std::env::set_var("CONCLAUDE_SKILL_NAME", name);
+    }
+
     println!(
-        "Processing Notification hook: session_id={}, message={}",
-        payload.base.session_id, payload.message
+        "Processing Notification hook: session_id={}, message={}, agent={:?}, skill={:?}",
+        payload.base.session_id, payload.message, agent_name, skill_name
     );
 
     // Send notification for notification hook processing
@@ -1257,14 +1341,22 @@ pub async fn handle_user_prompt_submit() -> Result<HookResult> {
     // Read agent name from environment variable (set by CLI --agent flag)
     let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
+    // Read skill name from environment variable (set by CLI --skill flag)
+    let skill_name = std::env::var(SKILL_ENV_VAR).ok();
+
     // Export CONCLAUDE_AGENT_NAME for any commands that are executed
     if let Some(ref name) = agent_name {
         std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
+    // Export CONCLAUDE_SKILL_NAME for any commands that are executed
+    if let Some(ref name) = skill_name {
+        std::env::set_var("CONCLAUDE_SKILL_NAME", name);
+    }
+
     println!(
-        "Processing UserPromptSubmit hook: session_id={}",
-        payload.base.session_id
+        "Processing UserPromptSubmit hook: session_id={}, agent={:?}, skill={:?}",
+        payload.base.session_id, agent_name, skill_name
     );
 
     // Load configuration for context injection rules and commands
@@ -1377,14 +1469,22 @@ pub async fn handle_session_start() -> Result<HookResult> {
     // Read agent name from environment variable (set by CLI --agent flag)
     let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
+    // Read skill name from environment variable (set by CLI --skill flag)
+    let skill_name = std::env::var(SKILL_ENV_VAR).ok();
+
     // Export CONCLAUDE_AGENT_NAME for any commands that are executed
     if let Some(ref name) = agent_name {
         std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
+    // Export CONCLAUDE_SKILL_NAME for any commands that are executed
+    if let Some(ref name) = skill_name {
+        std::env::set_var("CONCLAUDE_SKILL_NAME", name);
+    }
+
     println!(
-        "Processing SessionStart hook: session_id={}, source={}",
-        payload.base.session_id, payload.source
+        "Processing SessionStart hook: session_id={}, source={}, agent={:?}, skill={:?}",
+        payload.base.session_id, payload.source, agent_name, skill_name
     );
 
     // Send notification for session start
@@ -1414,14 +1514,22 @@ pub async fn handle_session_end() -> Result<HookResult> {
     // Read agent name from environment variable (set by CLI --agent flag)
     let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
+    // Read skill name from environment variable (set by CLI --skill flag)
+    let skill_name = std::env::var(SKILL_ENV_VAR).ok();
+
     // Export CONCLAUDE_AGENT_NAME for any commands that are executed
     if let Some(ref name) = agent_name {
         std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
+    // Export CONCLAUDE_SKILL_NAME for any commands that are executed
+    if let Some(ref name) = skill_name {
+        std::env::set_var("CONCLAUDE_SKILL_NAME", name);
+    }
+
     println!(
-        "Processing SessionEnd hook: session_id={}, reason={}",
-        payload.base.session_id, payload.reason
+        "Processing SessionEnd hook: session_id={}, reason={}, agent={:?}, skill={:?}",
+        payload.base.session_id, payload.reason, agent_name, skill_name
     );
 
     Ok(HookResult::success())
@@ -1455,8 +1563,17 @@ pub(crate) fn truncate_output(output: &str, max_lines: u32) -> (String, bool, us
 pub(crate) fn collect_stop_commands(config: &ConclaudeConfig) -> Result<Vec<StopCommandConfig>> {
     let mut commands = Vec::new();
 
+    // Detect current skill context from environment variable (set by CLI --skill flag)
+    let current_skill = std::env::var(SKILL_ENV_VAR).unwrap_or_else(|_| "main".to_string());
+
     // Add structured commands with messages and output control
     for cmd_config in &config.stop.commands {
+        // Check skill match - skip command if it doesn't apply to current skill
+        let skill_pattern = cmd_config.skill.as_deref().unwrap_or("*");
+        if !matches_skill_pattern(&current_skill, skill_pattern) {
+            continue;
+        }
+
         let extracted = extract_bash_commands(&cmd_config.run)?;
         let show_stdout = cmd_config.show_stdout.unwrap_or(false);
         let show_stderr = cmd_config.show_stderr.unwrap_or(false);
@@ -1709,14 +1826,22 @@ pub async fn handle_stop() -> Result<HookResult> {
     // Read agent name from environment variable (set by CLI --agent flag)
     let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
+    // Read skill name from environment variable (set by CLI --skill flag)
+    let skill_name = std::env::var(SKILL_ENV_VAR).ok();
+
     // Export CONCLAUDE_AGENT_NAME for any commands that are executed
     if let Some(ref name) = agent_name {
         std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
+    // Export CONCLAUDE_SKILL_NAME for any commands that are executed
+    if let Some(ref name) = skill_name {
+        std::env::set_var("CONCLAUDE_SKILL_NAME", name);
+    }
+
     println!(
-        "Processing Stop hook: session_id={}",
-        payload.base.session_id
+        "Processing Stop hook: session_id={}, agent={:?}, skill={:?}",
+        payload.base.session_id, agent_name, skill_name
     );
 
     let (config, config_path) = get_config().await?;
@@ -1804,14 +1929,22 @@ pub async fn handle_subagent_start() -> Result<HookResult> {
     // Read agent name from environment variable (set by CLI --agent flag)
     let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
+    // Read skill name from environment variable (set by CLI --skill flag)
+    let skill_name = std::env::var(SKILL_ENV_VAR).ok();
+
     // Export CONCLAUDE_AGENT_NAME for any commands that are executed
     if let Some(ref name) = agent_name {
         std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
+    // Export CONCLAUDE_SKILL_NAME for any commands that are executed
+    if let Some(ref name) = skill_name {
+        std::env::set_var("CONCLAUDE_SKILL_NAME", name);
+    }
+
     println!(
-        "Processing SubagentStart hook: session_id={}, agent_id={}",
-        payload.base.session_id, payload.agent_id
+        "Processing SubagentStart hook: session_id={}, agent_id={}, agent={:?}, skill={:?}",
+        payload.base.session_id, payload.agent_id, agent_name, skill_name
     );
 
     // Set environment variables for the subagent's information
@@ -1951,9 +2084,18 @@ pub(crate) fn collect_subagent_stop_commands(
 ) -> Result<Vec<SubagentStopCommandConfig>> {
     let mut commands = Vec::new();
 
+    // Detect current skill context from environment variable (set by CLI --skill flag)
+    let current_skill = std::env::var(SKILL_ENV_VAR).unwrap_or_else(|_| "main".to_string());
+
     for pattern in matching_patterns {
         if let Some(cmd_list) = config.commands.get(*pattern) {
             for cmd_config in cmd_list {
+                // Check skill match - skip command if it doesn't apply to current skill
+                let skill_pattern = cmd_config.skill.as_deref().unwrap_or("*");
+                if !matches_skill_pattern(&current_skill, skill_pattern) {
+                    continue;
+                }
+
                 let extracted = extract_bash_commands(&cmd_config.run)?;
                 let show_stdout = cmd_config.show_stdout.unwrap_or(false);
                 let show_stderr = cmd_config.show_stderr.unwrap_or(false);
@@ -2289,13 +2431,21 @@ pub async fn handle_subagent_stop() -> Result<HookResult> {
     // Validate the payload including agent_id and agent_transcript_path fields
     validate_subagent_stop_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
 
-    println!(
-        "Processing SubagentStop hook: session_id={}, agent_id={}",
-        payload.base.session_id, payload.agent_id
-    );
-
     // Read agent name from environment variable (set by CLI --agent flag)
     let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Read skill name from environment variable (set by CLI --skill flag)
+    let skill_name = std::env::var(SKILL_ENV_VAR).ok();
+
+    // Set CONCLAUDE_SKILL_NAME for any commands that are executed
+    if let Some(ref name) = skill_name {
+        std::env::set_var("CONCLAUDE_SKILL_NAME", name);
+    }
+
+    println!(
+        "Processing SubagentStop hook: session_id={}, agent_id={}, agent={:?}, skill={:?}",
+        payload.base.session_id, payload.agent_id, agent_name, skill_name
+    );
 
     // Set environment variables for the subagent's information
     std::env::set_var("CONCLAUDE_AGENT_ID", &payload.agent_id);
@@ -2378,14 +2528,22 @@ pub async fn handle_pre_compact() -> Result<HookResult> {
     // Read agent name from environment variable (set by CLI --agent flag)
     let agent_name = std::env::var(AGENT_ENV_VAR).ok();
 
+    // Read skill name from environment variable (set by CLI --skill flag)
+    let skill_name = std::env::var(SKILL_ENV_VAR).ok();
+
     // Export CONCLAUDE_AGENT_NAME for any commands that are executed
     if let Some(ref name) = agent_name {
         std::env::set_var("CONCLAUDE_AGENT_NAME", name);
     }
 
+    // Export CONCLAUDE_SKILL_NAME for any commands that are executed
+    if let Some(ref name) = skill_name {
+        std::env::set_var("CONCLAUDE_SKILL_NAME", name);
+    }
+
     println!(
-        "Processing PreCompact hook: session_id={}, trigger={:?}",
-        payload.base.session_id, payload.trigger
+        "Processing PreCompact hook: session_id={}, agent={:?}, skill={:?}",
+        payload.base.session_id, agent_name, skill_name
     );
 
     // Send notification for pre-compact hook
@@ -2408,11 +2566,20 @@ async fn check_tool_usage_rules(payload: &PreToolUsePayload) -> Result<Option<Ho
     // Detect current agent context from environment variable (set by CLI --agent flag)
     let current_agent = std::env::var(AGENT_ENV_VAR).unwrap_or_else(|_| "main".to_string());
 
+    // Detect current skill context from environment variable (set by CLI --skill flag)
+    let current_skill = std::env::var(SKILL_ENV_VAR).unwrap_or_else(|_| "main".to_string());
+
     for rule in &config.pre_tool_use.tool_usage_validation {
         if rule.tool == payload.tool_name || rule.tool == "*" {
             // Check agent match - skip rule if it doesn't apply to current agent
             let agent_pattern = rule.agent.as_deref().unwrap_or("*");
             if !matches_agent_pattern(&current_agent, agent_pattern) {
+                continue;
+            }
+
+            // Check skill match - skip rule if it doesn't apply to current skill
+            let skill_pattern = rule.skill.as_deref().unwrap_or("*");
+            if !matches_skill_pattern(&current_skill, skill_pattern) {
                 continue;
             }
             // Check if this is a Bash command with a commandPattern rule
@@ -2624,10 +2791,22 @@ mod prompt_context_tests {
             case_insensitive: None,
         };
         let simple_regex = compile_rule_pattern(&simple_rule).unwrap();
-        assert!(simple_regex.is_match("update the sidebar"), "Should match 'sidebar' in phrase");
-        assert!(simple_regex.is_match("sidebar component"), "Should match 'sidebar' at start");
-        assert!(!simple_regex.is_match("side bar"), "Should not match 'side bar' (two words)");
-        assert!(!simple_regex.is_match("update the navigation"), "Should not match unrelated text");
+        assert!(
+            simple_regex.is_match("update the sidebar"),
+            "Should match 'sidebar' in phrase"
+        );
+        assert!(
+            simple_regex.is_match("sidebar component"),
+            "Should match 'sidebar' at start"
+        );
+        assert!(
+            !simple_regex.is_match("side bar"),
+            "Should not match 'side bar' (two words)"
+        );
+        assert!(
+            !simple_regex.is_match("update the navigation"),
+            "Should not match unrelated text"
+        );
 
         // Test 2: Alternation pattern matching
         let alt_rule = ContextInjectionRule {
@@ -2637,10 +2816,22 @@ mod prompt_context_tests {
             case_insensitive: None,
         };
         let alt_regex = compile_rule_pattern(&alt_rule).unwrap();
-        assert!(alt_regex.is_match("fix auth bug"), "Should match 'auth' alternative");
-        assert!(alt_regex.is_match("update login page"), "Should match 'login' alternative");
-        assert!(alt_regex.is_match("add authentication"), "Should match 'authentication' alternative");
-        assert!(!alt_regex.is_match("update the navbar"), "Should not match unrelated text");
+        assert!(
+            alt_regex.is_match("fix auth bug"),
+            "Should match 'auth' alternative"
+        );
+        assert!(
+            alt_regex.is_match("update login page"),
+            "Should match 'login' alternative"
+        );
+        assert!(
+            alt_regex.is_match("add authentication"),
+            "Should match 'authentication' alternative"
+        );
+        assert!(
+            !alt_regex.is_match("update the navbar"),
+            "Should not match unrelated text"
+        );
 
         // Test 3: Multiple patterns - both match
         let sidebar_regex = compile_rule_pattern(&simple_rule).unwrap();
@@ -2651,16 +2842,34 @@ mod prompt_context_tests {
             case_insensitive: None,
         };
         let auth_regex = compile_rule_pattern(&auth_rule).unwrap();
-        assert!(sidebar_regex.is_match("update the auth sidebar"), "Sidebar pattern should match");
-        assert!(auth_regex.is_match("update the auth sidebar"), "Auth pattern should match");
+        assert!(
+            sidebar_regex.is_match("update the auth sidebar"),
+            "Sidebar pattern should match"
+        );
+        assert!(
+            auth_regex.is_match("update the auth sidebar"),
+            "Auth pattern should match"
+        );
 
         // Test 4: Multiple patterns - only one matches
-        assert!(sidebar_regex.is_match("update the sidebar"), "Sidebar should match");
-        assert!(!auth_regex.is_match("update the sidebar"), "Auth should not match");
+        assert!(
+            sidebar_regex.is_match("update the sidebar"),
+            "Sidebar should match"
+        );
+        assert!(
+            !auth_regex.is_match("update the sidebar"),
+            "Auth should not match"
+        );
 
         // Test 5: Multiple patterns - none match
-        assert!(!sidebar_regex.is_match("update the navigation"), "Sidebar should not match");
-        assert!(!auth_regex.is_match("update the navigation"), "Auth should not match");
+        assert!(
+            !sidebar_regex.is_match("update the navigation"),
+            "Sidebar should not match"
+        );
+        assert!(
+            !auth_regex.is_match("update the navigation"),
+            "Auth should not match"
+        );
 
         // Test 6: Invalid regex patterns return None
         let invalid_bracket = ContextInjectionRule {
@@ -2669,7 +2878,10 @@ mod prompt_context_tests {
             enabled: Some(true),
             case_insensitive: None,
         };
-        assert!(compile_rule_pattern(&invalid_bracket).is_none(), "Invalid bracket should return None");
+        assert!(
+            compile_rule_pattern(&invalid_bracket).is_none(),
+            "Invalid bracket should return None"
+        );
 
         let invalid_paren = ContextInjectionRule {
             pattern: "(unclosed".to_string(),
@@ -2677,7 +2889,10 @@ mod prompt_context_tests {
             enabled: Some(true),
             case_insensitive: None,
         };
-        assert!(compile_rule_pattern(&invalid_paren).is_none(), "Unclosed paren should return None");
+        assert!(
+            compile_rule_pattern(&invalid_paren).is_none(),
+            "Unclosed paren should return None"
+        );
     }
 
     #[test]
@@ -2756,5 +2971,4 @@ mod prompt_context_tests {
         // Prompt should be unchanged
         assert_eq!(expanded, "This is a normal prompt without file references");
     }
-
 }

@@ -36,6 +36,9 @@ pub struct StopCommand {
     /// Whether to send individual notifications for this command (start and completion). Default: false
     #[serde(default, rename = "notifyPerCommand")]
     pub notify_per_command: Option<bool>,
+    /// Optional skill pattern to scope this command to specific skills (e.g., "tester", "commit", or glob patterns like "test*")
+    #[serde(default)]
+    pub skill: Option<String>,
 }
 
 /// Configuration for individual subagent stop commands with optional messages
@@ -67,6 +70,9 @@ pub struct SubagentStopCommand {
     /// Whether to send individual notifications for this command (start and completion). Default: false
     #[serde(default, rename = "notifyPerCommand")]
     pub notify_per_command: Option<bool>,
+    /// Optional skill pattern to scope this command to specific skills (e.g., "tester", "commit", or glob patterns like "test*")
+    #[serde(default)]
+    pub skill: Option<String>,
 }
 
 /// Configuration for subagent stop hooks with pattern-based command execution.
@@ -176,6 +182,9 @@ pub struct ToolUsageRule {
     /// Optional agent pattern to scope this rule to specific agents (e.g., "coder", "tester", "main", or glob patterns like "code*")
     #[serde(default)]
     pub agent: Option<String>,
+    /// Optional skill pattern to scope this rule to specific skills (e.g., "tester", "commit", or glob patterns like "test*")
+    #[serde(default)]
+    pub skill: Option<String>,
 }
 
 /// Configuration for an uneditable file rule.
@@ -220,6 +229,11 @@ pub struct ToolUsageRule {
 ///   - pattern: "dist/**"
 ///     agent: "test*"
 ///     message: "Test agents should not modify build output."
+///
+///   # Skill-scoped patterns (only applied to specific skills)
+///   - pattern: "tests/**"
+///     skill: "test*"
+///     message: "Test files managed by testing skills"
 /// ```
 ///
 /// The `#[serde(untagged)]` attribute allows serde to automatically handle both
@@ -241,6 +255,9 @@ pub enum UnEditableFileRule {
         /// Optional agent pattern to scope this rule to specific agents (e.g., "coder", "tester", "main", or glob patterns like "code*")
         #[serde(default)]
         agent: Option<String>,
+        /// Optional skill pattern to scope this rule to specific skills (e.g., "tester", "commit", or glob patterns like "test*")
+        #[serde(default)]
+        skill: Option<String>,
     },
     /// Simple format: just a glob pattern string.
     ///
@@ -275,6 +292,15 @@ impl UnEditableFileRule {
     pub fn agent(&self) -> Option<&str> {
         match self {
             UnEditableFileRule::Detailed { agent: Some(a), .. } => Some(a),
+            _ => None,
+        }
+    }
+
+    /// Get the skill pattern if present (only from Detailed variant)
+    #[must_use]
+    pub fn skill(&self) -> Option<&str> {
+        match self {
+            UnEditableFileRule::Detailed { skill: Some(s), .. } => Some(s),
             _ => None,
         }
     }
@@ -1005,10 +1031,10 @@ fn format_parse_error(error: &serde_yaml::Error, config_path: &Path) -> String {
         );
         parts.push("  permissionRequest: default, allow, deny".to_string());
         parts.push(
-            "  commands (stop): run, message, showStdout, showStderr, maxOutputLines, timeout"
+            "  commands (stop): run, message, showStdout, showStderr, maxOutputLines, timeout, skill"
                 .to_string(),
         );
-        parts.push("  commands (subagentStop): run, message, showStdout, showStderr, maxOutputLines, timeout".to_string());
+        parts.push("  commands (subagentStop): run, message, showStdout, showStderr, maxOutputLines, timeout, skill".to_string());
     } else if base_error.contains("invalid type") {
         parts.push(String::new());
         parts.push("Type mismatch detected. Common causes:".to_string());

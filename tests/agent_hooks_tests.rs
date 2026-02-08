@@ -895,8 +895,8 @@ fn test_merge_preserves_user_hooks_in_settings_json() {
     assert!(output.status.success(), "Init should succeed");
 
     // Read updated settings.json
-    let updated_content = fs::read_to_string(claude_dir.join("settings.json"))
-        .expect("Failed to read settings.json");
+    let updated_content =
+        fs::read_to_string(claude_dir.join("settings.json")).expect("Failed to read settings.json");
 
     // Verify user hook is preserved
     assert!(
@@ -952,8 +952,8 @@ fn test_merge_updates_old_conclaude_hooks() {
     assert!(output.status.success(), "Init should succeed");
 
     // Read updated settings.json
-    let updated_content = fs::read_to_string(claude_dir.join("settings.json"))
-        .expect("Failed to read settings.json");
+    let updated_content =
+        fs::read_to_string(claude_dir.join("settings.json")).expect("Failed to read settings.json");
 
     // Verify timeout was added (new format)
     assert!(
@@ -962,7 +962,9 @@ fn test_merge_updates_old_conclaude_hooks() {
     );
 
     // Verify only one conclaude hook (old one removed, new one added)
-    let conclaude_hook_count = updated_content.matches("conclaude Hooks PreToolUse").count();
+    let conclaude_hook_count = updated_content
+        .matches("conclaude Hooks PreToolUse")
+        .count();
     assert_eq!(
         conclaude_hook_count, 1,
         "Should have exactly one conclaude PreToolUse hook"
@@ -1073,7 +1075,9 @@ hooks:
     );
 
     // Verify only one conclaude hook per type
-    let pre_tool_use_count = updated_content.matches("conclaude Hooks PreToolUse").count();
+    let pre_tool_use_count = updated_content
+        .matches("conclaude Hooks PreToolUse")
+        .count();
     assert_eq!(
         pre_tool_use_count, 1,
         "Should have exactly one conclaude PreToolUse hook"
@@ -1121,8 +1125,8 @@ fn test_user_hooks_come_before_conclaude_hooks() {
     assert!(output.status.success(), "Init should succeed");
 
     // Read updated settings.json
-    let updated_content = fs::read_to_string(claude_dir.join("settings.json"))
-        .expect("Failed to read settings.json");
+    let updated_content =
+        fs::read_to_string(claude_dir.join("settings.json")).expect("Failed to read settings.json");
 
     // Find positions of user hook and conclaude hook
     let user_hook_pos = updated_content
@@ -1188,8 +1192,8 @@ fn test_multiple_user_hooks_preserved() {
     assert!(output.status.success(), "Init should succeed");
 
     // Read updated settings.json
-    let updated_content = fs::read_to_string(claude_dir.join("settings.json"))
-        .expect("Failed to read settings.json");
+    let updated_content =
+        fs::read_to_string(claude_dir.join("settings.json")).expect("Failed to read settings.json");
 
     // Verify both user hooks are preserved
     assert!(

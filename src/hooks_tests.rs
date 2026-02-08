@@ -107,6 +107,7 @@ fn test_collect_stop_commands_with_output_config() {
                     max_output_lines: Some(10),
                     timeout: None,
                     notify_per_command: None,
+                    skill: None,
                 },
                 StopCommand {
                     run: "ls -la".to_string(),
@@ -117,6 +118,7 @@ fn test_collect_stop_commands_with_output_config() {
                     max_output_lines: Some(5),
                     timeout: None,
                     notify_per_command: None,
+                    skill: None,
                 },
             ],
             infinite: false,
@@ -156,6 +158,7 @@ fn test_collect_stop_commands_default_values() {
                 max_output_lines: None,
                 timeout: None,
                 notify_per_command: None,
+                skill: None,
             }],
             infinite: false,
             infinite_message: None,
@@ -245,6 +248,7 @@ fn test_match_subagent_patterns_prefix_glob() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
 
@@ -280,6 +284,7 @@ fn test_match_subagent_patterns_suffix_glob() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
 
@@ -315,6 +320,7 @@ fn test_match_subagent_patterns_character_class() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
 
@@ -353,6 +359,7 @@ fn test_match_subagent_patterns_multiple_matches() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
     commands.insert(
@@ -366,6 +373,7 @@ fn test_match_subagent_patterns_multiple_matches() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
     commands.insert(
@@ -379,6 +387,7 @@ fn test_match_subagent_patterns_multiple_matches() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
 
@@ -410,6 +419,7 @@ fn test_match_subagent_patterns_wildcard_first() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
     commands.insert(
@@ -423,6 +433,7 @@ fn test_match_subagent_patterns_wildcard_first() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
 
@@ -450,6 +461,7 @@ fn test_match_subagent_patterns_no_match() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
     commands.insert(
@@ -463,6 +475,7 @@ fn test_match_subagent_patterns_no_match() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
 
@@ -602,6 +615,7 @@ fn test_collect_subagent_stop_commands_single_pattern() {
                 max_output_lines: Some(10),
                 timeout: None,
                 notify_per_command: None,
+                skill: None,
             },
             SubagentStopCommand {
                 run: "echo second".to_string(),
@@ -612,6 +626,7 @@ fn test_collect_subagent_stop_commands_single_pattern() {
                 max_output_lines: None,
                 timeout: None,
                 notify_per_command: None,
+                skill: None,
             },
         ],
     );
@@ -651,6 +666,7 @@ fn test_collect_subagent_stop_commands_multiple_patterns() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
     commands.insert(
@@ -664,6 +680,7 @@ fn test_collect_subagent_stop_commands_multiple_patterns() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
 
@@ -695,6 +712,7 @@ fn test_collect_subagent_stop_commands_no_matching_patterns() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None,
+            skill: None,
         }],
     );
 
@@ -724,6 +742,7 @@ fn test_collect_stop_commands_with_notify_per_command_true() {
                 max_output_lines: None,
                 timeout: None,
                 notify_per_command: Some(true),
+                skill: None,
             }],
             infinite: false,
             infinite_message: None,
@@ -748,14 +767,16 @@ fn test_collect_stop_commands_with_notify_per_command_false() {
         stop: crate::config::StopConfig {
             commands: vec![StopCommand {
                 run: "echo test".to_string(),
-                message: None,
+                message: Some("Test message".to_string()),
                 show_command: Some(false),
                 show_stdout: None,
                 show_stderr: None,
                 max_output_lines: None,
                 timeout: None,
                 notify_per_command: Some(false),
+                skill: None,
             }],
+
             infinite: false,
             infinite_message: None,
         },
@@ -785,6 +806,7 @@ fn test_collect_stop_commands_notify_per_command_defaults_to_false() {
                 max_output_lines: None,
                 timeout: None,
                 notify_per_command: None, // Not specified - should default to false
+                skill: None,
             }],
             infinite: false,
             infinite_message: None,
@@ -815,6 +837,7 @@ fn test_collect_stop_commands_mixed_notify_per_command_settings() {
                     max_output_lines: None,
                     timeout: None,
                     notify_per_command: Some(true),
+                    skill: None,
                 },
                 StopCommand {
                     run: "echo second".to_string(),
@@ -825,6 +848,7 @@ fn test_collect_stop_commands_mixed_notify_per_command_settings() {
                     max_output_lines: None,
                     timeout: None,
                     notify_per_command: Some(false),
+                    skill: None,
                 },
                 StopCommand {
                     run: "echo third".to_string(),
@@ -835,6 +859,7 @@ fn test_collect_stop_commands_mixed_notify_per_command_settings() {
                     max_output_lines: None,
                     timeout: None,
                     notify_per_command: None, // Should default to false
+                    skill: None,
                 },
             ],
             infinite: false,
@@ -878,6 +903,7 @@ fn test_collect_subagent_stop_commands_with_notify_per_command() {
                 max_output_lines: None,
                 timeout: None,
                 notify_per_command: Some(true),
+                skill: None,
             },
             SubagentStopCommand {
                 run: "echo coder second".to_string(),
@@ -888,6 +914,7 @@ fn test_collect_subagent_stop_commands_with_notify_per_command() {
                 max_output_lines: None,
                 timeout: None,
                 notify_per_command: Some(false),
+                skill: None,
             },
         ],
     );
@@ -926,6 +953,7 @@ fn test_collect_subagent_stop_commands_notify_per_command_defaults_to_false() {
             max_output_lines: None,
             timeout: None,
             notify_per_command: None, // Not specified - should default to false
+            skill: None,
         }],
     );
 
@@ -961,6 +989,7 @@ fn test_notify_per_command_respects_show_command_flag() {
                 max_output_lines: None,
                 timeout: None,
                 notify_per_command: Some(true),
+                skill: None,
             }],
             infinite: false,
             infinite_message: None,
@@ -985,6 +1014,7 @@ fn test_notify_per_command_respects_show_command_flag() {
                 max_output_lines: None,
                 timeout: None,
                 notify_per_command: Some(true),
+                skill: None,
             }],
             infinite: false,
             infinite_message: None,
@@ -1018,6 +1048,7 @@ fn test_per_command_notification_flag_propagation() {
                     max_output_lines: None,
                     timeout: None,
                     notify_per_command: Some(true),
+                    skill: None,
                 },
                 StopCommand {
                     run: "echo without-notifications".to_string(),
@@ -1028,6 +1059,7 @@ fn test_per_command_notification_flag_propagation() {
                     max_output_lines: None,
                     timeout: None,
                     notify_per_command: Some(false),
+                    skill: None,
                 },
             ],
             infinite: false,
@@ -1065,6 +1097,7 @@ fn test_subagent_stop_notify_per_command_with_show_command() {
                 max_output_lines: None,
                 timeout: None,
                 notify_per_command: Some(true),
+                skill: None,
             },
             SubagentStopCommand {
                 run: "echo hidden".to_string(),
@@ -1075,6 +1108,7 @@ fn test_subagent_stop_notify_per_command_with_show_command() {
                 max_output_lines: None,
                 timeout: None,
                 notify_per_command: Some(true),
+                skill: None,
             },
         ],
     );

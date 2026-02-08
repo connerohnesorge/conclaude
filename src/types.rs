@@ -508,7 +508,7 @@ mod tests {
 
         let json = serde_json::to_string(&payload).unwrap();
         assert!(json.contains("\"prompt\":null"));
-        
+
         let deserialized: UserPromptSubmitPayload = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.prompt, None);
     }
@@ -573,15 +573,18 @@ mod tests {
 
     #[test]
     fn test_hook_result_decision_deserialization() {
-        let json_ask = r#"{"message": null, "blocked": null, "system_prompt": null, "decision": "ask"}"#;
+        let json_ask =
+            r#"{"message": null, "blocked": null, "system_prompt": null, "decision": "ask"}"#;
         let result_ask: HookResult = serde_json::from_str(json_ask).unwrap();
         assert_eq!(result_ask.decision, Some("ask".to_string()));
 
-        let json_allow = r#"{"message": null, "blocked": null, "system_prompt": null, "decision": "allow"}"#;
+        let json_allow =
+            r#"{"message": null, "blocked": null, "system_prompt": null, "decision": "allow"}"#;
         let result_allow: HookResult = serde_json::from_str(json_allow).unwrap();
         assert_eq!(result_allow.decision, Some("allow".to_string()));
 
-        let json_deny = r#"{"message": null, "blocked": null, "system_prompt": null, "decision": "deny"}"#;
+        let json_deny =
+            r#"{"message": null, "blocked": null, "system_prompt": null, "decision": "deny"}"#;
         let result_deny: HookResult = serde_json::from_str(json_deny).unwrap();
         assert_eq!(result_deny.decision, Some("deny".to_string()));
     }

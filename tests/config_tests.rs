@@ -114,7 +114,11 @@ fn test_default_config_parsing() {
     assert!(
         result.is_ok(),
         "YAML-only content should be parseable, but failed with: {}\n\nYAML content:\n{}",
-        result.as_ref().err().map(|e| e.to_string()).unwrap_or_default(),
+        result
+            .as_ref()
+            .err()
+            .map(|e| e.to_string())
+            .unwrap_or_default(),
         yaml_only
     );
     assert!(result.unwrap().pre_tool_use.prevent_root_additions);

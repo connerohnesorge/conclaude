@@ -56,7 +56,7 @@ fn test_cli_init_command_force_overwrite() {
     file.write_all(b"existing content")
         .expect("Failed to write existing content");
 
-    // First init without force should fail (exit code 1)
+    // First init without force should succeed but skip config creation
     let output = Command::new("cargo")
         .args([
             "run",
@@ -70,13 +70,26 @@ fn test_cli_init_command_force_overwrite() {
         .output()
         .expect("Failed to run CLI init command");
 
-    // Should fail because config already exists
+    // Should succeed but skip config creation (continues with other files)
     assert!(
-        !output.status.success(),
-        "Init without force should fail when config exists"
+        output.status.success(),
+        "Init without force should succeed (skipping config creation)"
     );
 
-    // Second init with force should succeed
+    // Verify the config was NOT overwritten
+    let config_content = fs::read_to_string(&config_path).expect("Failed to read config file");
+    assert!(
+        config_content.contains("existing content"),
+        "Config should not be overwritten without --force"
+    );
+
+    // Verify that other files were still created
+    assert!(
+        temp_path.join(".claude/settings.json").exists(),
+        "settings.json should still be created"
+    );
+
+    // Second init with force should succeed and overwrite config
     let output = Command::new("cargo")
         .args([
             "run",
@@ -727,7 +740,9 @@ notifications:
             .expect("Failed to write to stdin");
     }
 
-    let result = child.wait_with_output().expect("Failed to wait for command");
+    let result = child
+        .wait_with_output()
+        .expect("Failed to wait for command");
 
     // The hook should succeed
     let stdout = String::from_utf8_lossy(&result.stdout);
@@ -736,7 +751,8 @@ notifications:
     assert!(
         result.status.success(),
         "Stop hook should execute successfully. stdout: {}, stderr: {}",
-        stdout, stderr
+        stdout,
+        stderr
     );
 
     // Verify output shows command execution (output might be in stdout or stderr)
@@ -744,7 +760,8 @@ notifications:
     assert!(
         combined_output.contains("Executing") || combined_output.contains("echo"),
         "Output should show command execution. stdout: {}, stderr: {}",
-        stdout, stderr
+        stdout,
+        stderr
     );
 
     // Note: We can't easily verify that notifications were actually sent without
@@ -885,7 +902,9 @@ notifications:
             .expect("Failed to write to stdin");
     }
 
-    let result = child.wait_with_output().expect("Failed to wait for command");
+    let result = child
+        .wait_with_output()
+        .expect("Failed to wait for command");
 
     // The hook should succeed (even if agent name extraction fails, commands should run)
     assert!(
