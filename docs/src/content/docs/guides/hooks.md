@@ -43,6 +43,40 @@ preToolUse:
 
 Claude wants to create `debug.log` in your project root. With `preventRootAdditions: true`, conclaude blocks the operation. Claude adapts and creates `logs/debug.log` instead.
 
+**Real-World Example: Protecting Test Integrity**
+
+During a CSS migration, visual regression tests start failing because pixel measurements have shifted. Claude analyzes the failures and suggests adding tolerance (±10px) to the test assertions to make them pass. This would weaken your test suite—instead of fixing the root cause (CSS layout issues), it would mask them.
+
+**Configuration:**
+
+```yaml
+preToolUse:
+  uneditableFiles:
+    - "visual-regression/**"
+```
+
+**Error Output:**
+
+When Claude attempts to modify a protected test file, conclaude blocks the operation:
+
+```
+Blocked Edit operation: file matches preToolUse.uneditableFiles pattern 'visual-regression/**' File: /home/user/project/visual-regression/tests/header-layout.spec.ts
+```
+
+**Explanation:**
+
+The pattern `visual-regression/**` matches all files within the `visual-regression` directory and its subdirectories. This glob pattern protects:
+- `visual-regression/tests/header-layout.spec.ts`
+- `visual-regression/tests/sidebar.spec.ts`
+- `visual-regression/snapshots/baseline.png`
+- Any other file nested under `visual-regression/`
+
+By preventing Claude from weakening the test assertions, the configuration forces it to address the actual problem: fixing the CSS that caused the layout shifts. This preserves the integrity of pixel-perfect visual regression tests.
+
+**Purpose:**
+
+File protection patterns connect mechanism to purpose. While `preventRootAdditions` keeps your project root clean, `uneditableFiles` enforces your engineering values. In this case, the value is "tests should verify behavior, not accommodate it." When tests fail, fix the code, not the test.
+
 ---
 
 ### PostToolUse
