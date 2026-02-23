@@ -117,142 +117,161 @@ fn test_matches_uneditable_pattern_comprehensive() {
 
     // Test Case 1: Pattern matches file_path only
     // resolved_path contains absolute path, relative_path has subdir prefix, but file_path matches
-    assert!(matches_uneditable_pattern(
-        "config.json",           // file_path - matches pattern
-        "project/config.json",   // relative_path - does NOT match pattern
-        "/home/user/project/config.json", // resolved_path - does NOT match pattern
-        "config.json"            // pattern
-    )
-    .unwrap(), "Should match via file_path");
+    assert!(
+        matches_uneditable_pattern(
+            "config.json",                    // file_path - matches pattern
+            "project/config.json",            // relative_path - does NOT match pattern
+            "/home/user/project/config.json", // resolved_path - does NOT match pattern
+            "config.json"                     // pattern
+        )
+        .unwrap(),
+        "Should match via file_path"
+    );
 
     // Test Case 2: Pattern matches relative_path only
     // Use different paths to ensure relative_path is the one being matched
-    assert!(matches_uneditable_pattern(
-        "other.json",            // file_path - does NOT match pattern
-        "src/index.ts",          // relative_path - matches pattern
-        "/home/user/project/src/index.ts", // resolved_path - may also match
-        "src/**/*.ts"            // pattern
-    )
-    .unwrap(), "Should match via relative_path");
+    assert!(
+        matches_uneditable_pattern(
+            "other.json",                      // file_path - does NOT match pattern
+            "src/index.ts",                    // relative_path - matches pattern
+            "/home/user/project/src/index.ts", // resolved_path - may also match
+            "src/**/*.ts"                      // pattern
+        )
+        .unwrap(),
+        "Should match via relative_path"
+    );
 
     // Test Case 3: Pattern matches resolved_path only
     // Absolute path pattern matching
-    assert!(matches_uneditable_pattern(
-        "file.txt",              // file_path - does NOT match pattern
-        "subdir/file.txt",       // relative_path - does NOT match pattern
-        "/restricted/file.txt",  // resolved_path - matches pattern
-        "/restricted/*"          // pattern for absolute paths
-    )
-    .unwrap(), "Should match via resolved_path");
+    assert!(
+        matches_uneditable_pattern(
+            "file.txt",             // file_path - does NOT match pattern
+            "subdir/file.txt",      // relative_path - does NOT match pattern
+            "/restricted/file.txt", // resolved_path - matches pattern
+            "/restricted/*"         // pattern for absolute paths
+        )
+        .unwrap(),
+        "Should match via resolved_path"
+    );
 
     // Test Case 4: Multiple patterns matching - environment files
     // All three inputs have .env prefix, testing with different suffixes
-    assert!(matches_uneditable_pattern(
-        ".env",
-        ".env",
-        "/path/.env",
-        ".env*"
-    )
-    .unwrap(), ".env should match .env* pattern");
+    assert!(
+        matches_uneditable_pattern(".env", ".env", "/path/.env", ".env*").unwrap(),
+        ".env should match .env* pattern"
+    );
 
-    assert!(matches_uneditable_pattern(
-        ".env.local",
-        ".env.local",
-        "/path/.env.local",
-        ".env*"
-    )
-    .unwrap(), ".env.local should match .env* pattern");
+    assert!(
+        matches_uneditable_pattern(".env.local", ".env.local", "/path/.env.local", ".env*")
+            .unwrap(),
+        ".env.local should match .env* pattern"
+    );
 
-    assert!(matches_uneditable_pattern(
-        ".env.production",
-        ".env.production",
-        "/path/.env.production",
-        ".env*"
-    )
-    .unwrap(), ".env.production should match .env* pattern");
+    assert!(
+        matches_uneditable_pattern(
+            ".env.production",
+            ".env.production",
+            "/path/.env.production",
+            ".env*"
+        )
+        .unwrap(),
+        ".env.production should match .env* pattern"
+    );
 
-    assert!(!matches_uneditable_pattern(
-        "environment.txt",
-        "environment.txt",
-        "/path/environment.txt",
-        ".env*"
-    )
-    .unwrap(), "environment.txt should NOT match .env* pattern");
+    assert!(
+        !matches_uneditable_pattern(
+            "environment.txt",
+            "environment.txt",
+            "/path/environment.txt",
+            ".env*"
+        )
+        .unwrap(),
+        "environment.txt should NOT match .env* pattern"
+    );
 
     // Test Case 5: Multiple config file patterns
-    assert!(matches_uneditable_pattern(
-        "package.json",
-        "package.json",
-        "/path/package.json",
-        "package.json"
-    )
-    .unwrap(), "package.json should match exact pattern");
+    assert!(
+        matches_uneditable_pattern(
+            "package.json",
+            "package.json",
+            "/path/package.json",
+            "package.json"
+        )
+        .unwrap(),
+        "package.json should match exact pattern"
+    );
 
-    assert!(matches_uneditable_pattern(
-        "tsconfig.json",
-        "tsconfig.json",
-        "/path/tsconfig.json",
-        "tsconfig.json"
-    )
-    .unwrap(), "tsconfig.json should match exact pattern");
+    assert!(
+        matches_uneditable_pattern(
+            "tsconfig.json",
+            "tsconfig.json",
+            "/path/tsconfig.json",
+            "tsconfig.json"
+        )
+        .unwrap(),
+        "tsconfig.json should match exact pattern"
+    );
 
-    assert!(!matches_uneditable_pattern(
-        "other.json",
-        "other.json",
-        "/path/other.json",
-        "package.json"
-    )
-    .unwrap(), "other.json should NOT match package.json pattern");
+    assert!(
+        !matches_uneditable_pattern(
+            "other.json",
+            "other.json",
+            "/path/other.json",
+            "package.json"
+        )
+        .unwrap(),
+        "other.json should NOT match package.json pattern"
+    );
 
     // Test Case 6: Wildcard extension matching
-    assert!(matches_uneditable_pattern(
-        "test.md",
-        "test.md",
-        "/path/test.md",
-        "*.md"
-    )
-    .unwrap(), "test.md should match *.md pattern");
+    assert!(
+        matches_uneditable_pattern("test.md", "test.md", "/path/test.md", "*.md").unwrap(),
+        "test.md should match *.md pattern"
+    );
 
-    assert!(matches_uneditable_pattern(
-        "README.md",
-        "README.md",
-        "/path/README.md",
-        "*.md"
-    )
-    .unwrap(), "README.md should match *.md pattern");
+    assert!(
+        matches_uneditable_pattern("README.md", "README.md", "/path/README.md", "*.md").unwrap(),
+        "README.md should match *.md pattern"
+    );
 
-    assert!(!matches_uneditable_pattern(
-        "other.txt",
-        "other.txt",
-        "/path/other.txt",
-        "*.md"
-    )
-    .unwrap(), "other.txt should NOT match *.md pattern");
+    assert!(
+        !matches_uneditable_pattern("other.txt", "other.txt", "/path/other.txt", "*.md").unwrap(),
+        "other.txt should NOT match *.md pattern"
+    );
 
     // Test Case 7: Directory pattern matching with different depths
-    assert!(matches_uneditable_pattern(
-        "src/index.ts",
-        "src/index.ts",
-        "/path/src/index.ts",
-        "src/**/*.ts"
-    )
-    .unwrap(), "src/index.ts should match src/**/*.ts pattern");
+    assert!(
+        matches_uneditable_pattern(
+            "src/index.ts",
+            "src/index.ts",
+            "/path/src/index.ts",
+            "src/**/*.ts"
+        )
+        .unwrap(),
+        "src/index.ts should match src/**/*.ts pattern"
+    );
 
-    assert!(matches_uneditable_pattern(
-        "src/lib/utils.ts",
-        "src/lib/utils.ts",
-        "/path/src/lib/utils.ts",
-        "src/**/*.ts"
-    )
-    .unwrap(), "src/lib/utils.ts should match src/**/*.ts pattern");
+    assert!(
+        matches_uneditable_pattern(
+            "src/lib/utils.ts",
+            "src/lib/utils.ts",
+            "/path/src/lib/utils.ts",
+            "src/**/*.ts"
+        )
+        .unwrap(),
+        "src/lib/utils.ts should match src/**/*.ts pattern"
+    );
 
-    assert!(!matches_uneditable_pattern(
-        "lib/index.ts",
-        "lib/index.ts",
-        "/path/lib/index.ts",
-        "src/**/*.ts"
-    )
-    .unwrap(), "lib/index.ts should NOT match src/**/*.ts pattern");
+    assert!(
+        !matches_uneditable_pattern(
+            "lib/index.ts",
+            "lib/index.ts",
+            "/path/lib/index.ts",
+            "src/**/*.ts"
+        )
+        .unwrap(),
+        "lib/index.ts should NOT match src/**/*.ts pattern"
+    );
 }
 
 #[test]
@@ -333,7 +352,6 @@ fn test_validate_base_payload_integration() {
     };
     assert!(validate_base_payload(&invalid_base).is_err());
 }
-
 
 // ============================================================================
 // Integration Tests for Bash Command Validation
@@ -950,7 +968,6 @@ fn test_subagent_stop_payload_with_empty_permission_mode() {
 // 1. Creating NEW files at root (should be BLOCKED)
 // 2. Modifying EXISTING files at root (should be ALLOWED)
 
-
 #[test]
 fn test_prevent_root_additions_semantic_correctness() {
     // This test documents the expected semantic behavior:
@@ -989,8 +1006,6 @@ fn test_prevent_root_additions_semantic_correctness() {
     assert!(!is_root, "src/main.rs should NOT be at root level");
     // Doesn't matter if it exists, it's not at root so it's allowed
 }
-
-
 
 #[test]
 fn test_prevent_root_additions_path_resolution() {
@@ -1099,8 +1114,6 @@ fn test_prevent_additions_basic_glob_matching() {
         "Pattern 'build/**' should NOT match 'build.rs' (file, not in directory)"
     );
 }
-
-
 
 #[test]
 fn test_prevent_additions_multiple_patterns() {
@@ -1266,7 +1279,6 @@ fn test_prevent_additions_and_uneditable_files_both_checked() {
     // then checks uneditableFiles (for all file operations)
 }
 
-
 #[test]
 fn test_prevent_additions_glob_pattern_variations() {
     // Test various glob pattern formats that should work with preventAdditions
@@ -1327,7 +1339,6 @@ fn test_prevent_additions_glob_pattern_variations() {
     );
 }
 
-
 #[test]
 fn test_prevent_additions_pattern_matching_edge_cases() {
     // Test edge cases in pattern matching
@@ -1374,7 +1385,6 @@ fn test_prevent_additions_pattern_matching_edge_cases() {
         "Path without leading ./ should still match"
     );
 }
-
 
 #[test]
 fn test_prevent_additions_combined_with_prevent_root_additions() {

@@ -3,6 +3,100 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
+    "ConfigChangeCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual config change commands with optional messages",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_CONFIG_SOURCE, CONCLAUDE_CONFIG_FILE_PATH, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "ConfigChangeConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for config change hooks with source-based command execution.\n\nCommands run when configuration changes. Exit code 2 blocks the change, except when source is policy_settings (cannot be blocked).",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/ConfigChangeCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of source patterns to command configurations. Keys are glob patterns matching source names (e.g., \"user_settings\", \"*\").",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "ContextInjectionRule": {
       "additionalProperties": false,
       "description": "Configuration for a single context injection rule\n\nRules define patterns to match against user prompts and context to inject when matches occur.",
@@ -156,6 +250,194 @@
           "type": "array"
         }
       },
+      "type": "object"
+    },
+    "SkillStartCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual skill start commands with optional messages",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command (start and completion). Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_SKILL_NAME, CONCLAUDE_AGENT_ID, CONCLAUDE_AGENT_TRANSCRIPT_PATH, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated and the hook is blocked.",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "SkillStartConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for skill start hooks that trigger when subagents (skills) start.\n\nThis allows configuring different commands for different skill types using pattern matching. Commands run when a skill/subagent begins execution.\n\n# Pattern Matching Rules\n\n- Patterns are matched in the order they appear in the configuration - First matching pattern's commands are executed - Use \"*\" to match all skills (put last as fallback) - Glob patterns support: *, ?, \\[abc\\], \\[a-z\\], {foo,bar}\n\n# Environment Variables\n\nThe following environment variables are available in skill start hooks: - `CONCLAUDE_SKILL_NAME` - The skill/agent type name - `CONCLAUDE_AGENT_ID` - Unique agent identifier - `CONCLAUDE_AGENT_TRANSCRIPT_PATH` - Path to subagent's transcript - `CONCLAUDE_SESSION_ID` - Current session ID - `CONCLAUDE_TRANSCRIPT_PATH` - Main transcript file path - `CONCLAUDE_HOOK_EVENT` - Always \"SubagentStart\" - `CONCLAUDE_CWD` - Current working directory\n\n# Examples\n\n```yaml skillStart: commands: # Exact match - only runs when \"coder\" skill starts \"coder\": - run: \".claude/scripts/coder-init.sh\" showStdout: true\n\n# Glob pattern - runs for any skill starting with \"test\" \"test*\": - run: \".claude/scripts/test-env-check.sh\"\n\n# Wildcard - runs for ALL skills \"*\": - run: \".claude/scripts/log-skill.sh\" showCommand: false ```",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/SkillStartCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of skill name patterns to command configurations.\n\nEach key is a glob pattern that matches against the skill/agent type. Commands are executed in the order they appear when the pattern matches.\n\nPattern examples: - `\"*\"` - Matches all skills (wildcard) - `\"coder\"` - Exact match for coder skill - `\"test*\"` - Matches any skill starting with \"test\" - `\"*coder\"` - Matches any skill ending with \"coder\"\n\nCommand options: - `run`: (required) Command to execute - `showStdout`: (optional) Show stdout to user/Claude. Default: false - `showStderr`: (optional) Show stderr to user/Claude. Default: false - `message`: (optional) Custom error message on non-zero exit - `maxOutputLines`: (optional) Limit output lines. Range: 1-10000 - `timeout`: (optional) Command timeout in seconds. Range: 1-3600",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "SlashCommandConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for slash command hooks that trigger when users invoke slash commands.\n\nThis allows configuring different commands for different slash command names using pattern matching. Commands run when a user submits a prompt starting with a slash command (e.g., `/commit`, `/deploy`).\n\n# Pattern Matching Rules\n\n- Patterns are matched in the order they appear in the configuration - First matching pattern's commands are executed - Use \"*\" to match all slash commands (put last as fallback) - Glob patterns support: *, ?, \\[abc\\], \\[a-z\\], {foo,bar}\n\n# Environment Variables\n\nThe following environment variables are available in slash command hooks: - `CONCLAUDE_SLASH_COMMAND` - The detected slash command name (e.g., \"commit\") - `CONCLAUDE_SLASH_COMMAND_ARGS` - Arguments passed to the command - `CONCLAUDE_USER_PROMPT` - Full prompt text - `CONCLAUDE_SESSION_ID` - Current session ID - `CONCLAUDE_TRANSCRIPT_PATH` - Main transcript file path - `CONCLAUDE_HOOK_EVENT` - Always \"UserPromptSubmit\" - `CONCLAUDE_CWD` - Current working directory\n\n# Examples\n\n```yaml userPromptSubmit: slashCommands: commands: # Exact match - only runs for /commit \"/commit\": - run: \".claude/scripts/pre-commit-check.sh\" showStdout: true\n\n# Glob pattern - runs for any command starting with /test \"/test*\": - run: \".claude/scripts/test-setup.sh\"\n\n# Wildcard - runs for ALL slash commands \"*\": - run: \".claude/scripts/log-command.sh\" showCommand: false ```",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/SlashCommandEntry"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of slash command patterns to command configurations.\n\nEach key is a glob pattern that matches against the slash command name. Commands are executed in the order they appear when the pattern matches.\n\nPattern examples: - `\"*\"` - Matches all slash commands (wildcard) - `\"/commit\"` - Exact match for /commit command - `\"/test*\"` - Matches any command starting with \"/test\" - `\"/*deploy\"` - Matches any command ending with \"deploy\"\n\nCommand options: - `run`: (required) Command to execute - `showStdout`: (optional) Show stdout to user/Claude. Default: false - `showStderr`: (optional) Show stderr to user/Claude. Default: false - `message`: (optional) Custom error message on non-zero exit - `maxOutputLines`: (optional) Limit output lines. Range: 1-10000 - `timeout`: (optional) Command timeout in seconds. Range: 1-3600",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "SlashCommandEntry": {
+      "additionalProperties": false,
+      "description": "Configuration for individual slash command entries with optional messages",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command (start and completion). Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_SLASH_COMMAND, CONCLAUDE_SLASH_COMMAND_ARGS, CONCLAUDE_USER_PROMPT, CONCLAUDE_SESSION_ID, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_HOOK_EVENT",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated and the hook is blocked.",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
       "type": "object"
     },
     "StopCommand": {
@@ -356,6 +638,194 @@
       },
       "type": "object"
     },
+    "TaskCompletedCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual task completed commands with optional messages",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_TASK_ID, CONCLAUDE_TASK_SUBJECT, CONCLAUDE_TASK_DESCRIPTION, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "TaskCompletedConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for task completed hooks with pattern-based command execution.\n\nCommands run when a task is completed. Exit code 2 blocks completion.",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/TaskCompletedCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of task subject patterns to command configurations. Keys are glob patterns matching task subjects.",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "TeammateIdleCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual teammate idle commands with optional messages",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_TEAMMATE_NAME, CONCLAUDE_TEAM_NAME, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "TeammateIdleConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for teammate idle hooks with pattern-based command execution.\n\nCommands run when a teammate agent becomes idle. Exit code 2 blocks the idle.",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/TeammateIdleCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of teammate name patterns to command configurations. Keys are glob patterns matching teammate names.",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "ToolUsageRule": {
       "additionalProperties": false,
       "description": "Tool usage validation rule for fine-grained control over tool usage based on file patterns.\n\nAllows controlling which tools can be used on which files or with which command patterns. Rules are evaluated in order and the first matching rule determines the action. Supports optional agent scoping to apply rules only to specific agents.",
@@ -550,6 +1020,44 @@
             "$ref": "#/definitions/ContextInjectionRule"
           },
           "type": "array"
+        },
+        "slashCommands": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SlashCommandConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Configuration for slash command hooks that trigger when users invoke slash commands.\n\nAllows running custom commands when specific slash commands are detected in user prompts. Slash commands are detected from the prompt text (e.g., `/commit`, `/deploy`).\n\nCommands are executed after contextRules and regular commands processing. Unlike regular commands, slash command hooks CAN block prompt processing if a command exits with code 2.\n\n# Examples\n\n```yaml userPromptSubmit: slashCommands: commands: # Run for /commit command \"/commit\": - run: \".claude/scripts/pre-commit.sh\" showStdout: true\n\n# Run for any /test* command \"/test*\": - run: \".claude/scripts/test-setup.sh\"\n\n# Run for all slash commands \"*\": - run: \".claude/scripts/log-command.sh\" ```"
+        }
+      },
+      "type": "object"
+    },
+    "WorktreeCreateConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for worktree create hook.\n\nWhen configured, this command runs instead of the default `git worktree add`. The command must output the worktree path on stdout.",
+      "properties": {
+        "command": {
+          "default": null,
+          "description": "The shell command to execute to create a worktree. Must output the worktree path to stdout. Environment variable CONCLAUDE_WORKTREE_NAME is set to the requested name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600.",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
         }
       },
       "type": "object"
@@ -557,6 +1065,17 @@
   },
   "description": "Configuration schema for Conclaude - Claude Code hook handler",
   "properties": {
+    "configChange": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ConfigChangeConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for config change hooks"
+    },
     "notifications": {
       "allOf": [
         {
@@ -597,6 +1116,17 @@
         "uneditableFiles": []
       }
     },
+    "skillStart": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/SkillStartConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for skill start hooks that trigger when subagents (skills) start.\n\nAllows running custom commands when specific skills are activated during a session. Skills are identified by their agent_type (e.g., \"coder\", \"tester\", \"stuck\").\n\n# Examples\n\n```yaml skillStart: commands: # Run when \"coder\" skill starts \"coder\": - run: \".claude/scripts/coder-init.sh\" showStdout: true\n\n# Run for any skill starting with \"test\" \"test*\": - run: \".claude/scripts/test-env-check.sh\"\n\n# Run for all skills \"*\": - run: \".claude/scripts/log-skill.sh\" ```"
+    },
     "stop": {
       "allOf": [
         {
@@ -619,6 +1149,28 @@
         "commands": {}
       }
     },
+    "taskCompleted": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/TaskCompletedConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for task completed hooks"
+    },
+    "teammateIdle": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/TeammateIdleConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for teammate idle hooks"
+    },
     "userPromptSubmit": {
       "allOf": [
         {
@@ -627,8 +1179,21 @@
       ],
       "default": {
         "commands": [],
-        "contextRules": []
+        "contextRules": [],
+        "slashCommands": null
       }
+    },
+    "worktreeCreate": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/WorktreeCreateConfig"
+        }
+      ],
+      "default": {
+        "command": null,
+        "timeout": null
+      },
+      "description": "Configuration for worktree create hook"
     }
   },
   "title": "Conclaude Configuration",

@@ -114,7 +114,11 @@ fn test_default_config_parsing() {
     assert!(
         result.is_ok(),
         "YAML-only content should be parseable, but failed with: {}\n\nYAML content:\n{}",
-        result.as_ref().err().map(|e| e.to_string()).unwrap_or_default(),
+        result
+            .as_ref()
+            .err()
+            .map(|e| e.to_string())
+            .unwrap_or_default(),
         yaml_only
     );
     assert!(result.unwrap().pre_tool_use.prevent_root_additions);
@@ -151,6 +155,102 @@ async fn test_config_search_level_limit() {
     assert!(result.is_err());
     let error_message = result.unwrap_err().to_string();
     assert!(error_message.contains("Configuration file not found"));
+}
+
+#[test]
+fn test_config_with_teammate_idle_section() {
+    let config_yaml = r#"
+teammateIdle:
+  commands:
+    "coder":
+      - run: "echo coder idle"
+        showStdout: true
+    "*":
+      - run: "echo any teammate idle"
+"#;
+    let result = conclaude::config::parse_and_validate_config(
+        config_yaml,
+        std::path::Path::new(".conclaude.yaml"),
+    );
+    assert!(result.is_ok());
+    let config = result.unwrap();
+    assert_eq!(config.teammate_idle.commands.len(), 2);
+}
+
+#[test]
+fn test_config_with_task_completed_section() {
+    let config_yaml = r#"
+taskCompleted:
+  commands:
+    "deploy*":
+      - run: "echo deploy task"
+    "*":
+      - run: "echo any task"
+"#;
+    let result = conclaude::config::parse_and_validate_config(
+        config_yaml,
+        std::path::Path::new(".conclaude.yaml"),
+    );
+    assert!(result.is_ok());
+    let config = result.unwrap();
+    assert_eq!(config.task_completed.commands.len(), 2);
+}
+
+#[test]
+fn test_config_with_config_change_section() {
+    let config_yaml = r#"
+configChange:
+  commands:
+    "user_settings":
+      - run: "echo user settings changed"
+    "*":
+      - run: "echo any config changed"
+"#;
+    let result = conclaude::config::parse_and_validate_config(
+        config_yaml,
+        std::path::Path::new(".conclaude.yaml"),
+    );
+    assert!(result.is_ok());
+    let config = result.unwrap();
+    assert_eq!(config.config_change.commands.len(), 2);
+}
+
+#[test]
+fn test_config_with_worktree_create_section() {
+    let config_yaml = r#"
+worktreeCreate:
+  command: ".claude/scripts/create-worktree.sh"
+  timeout: 120
+"#;
+    let result = conclaude::config::parse_and_validate_config(
+        config_yaml,
+        std::path::Path::new(".conclaude.yaml"),
+    );
+    assert!(result.is_ok());
+    let config = result.unwrap();
+    assert_eq!(
+        config.worktree_create.command,
+        Some(".claude/scripts/create-worktree.sh".to_string())
+    );
+    assert_eq!(config.worktree_create.timeout, Some(120));
+}
+
+#[test]
+fn test_config_with_empty_new_sections() {
+    let config_yaml = r#"
+teammateIdle:
+  commands: {}
+taskCompleted:
+  commands: {}
+configChange:
+  commands: {}
+worktreeCreate: {}
+"#;
+    let result = conclaude::config::parse_and_validate_config(
+        config_yaml,
+        std::path::Path::new(".conclaude.yaml"),
+    );
+    assert!(result.is_ok());
 }
 
 #[tokio::test]
