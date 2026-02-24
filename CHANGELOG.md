@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9] - 2026-02-24
+
+### Features
+
+- Add updatedInput support for PreToolUse hooks with ask decision ([1c022ad](https://github.com/connerohnesorge/conclaude/commit/1c022adbe2509929ef2bd402d2a03893b81a0cc6))
+- Allow nil prompt in UserPromptSubmit hook payload ([1a149a8](https://github.com/connerohnesorge/conclaude/commit/1a149a845d357d55aeccf0b419bc0603ea1852e9))
+- Add slash command, skill start, teammate idle, task completed, config change, and worktree create lifecycle hooks (#235) ([0b8c5fb](https://github.com/connerohnesorge/conclaude/commit/0b8c5fb215f800cf426278a65bb2c9c77c9d640e))
+
+### Miscellaneous Tasks
+
+- **release:** Update CHANGELOG.md for v0.2.8 ([6c7ee63](https://github.com/connerohnesorge/conclaude/commit/6c7ee630a7b0c92d59a4d1ae8867d4f8642c3591))
+- Bump version to 0.2.9 for release ([1369842](https://github.com/connerohnesorge/conclaude/commit/1369842607030ad5ab403185b4176073bb29ffb9))
+
+### Spectr
+
+- **proposal:** Add-pretooluse-updatedinput-ask-support ([de09e4d](https://github.com/connerohnesorge/conclaude/commit/de09e4df5a19585c6cd40c6e5a32871e74e6f73d))
+- **archive:** Add-pretooluse-updatedinput-ask-support ([495317c](https://github.com/connerohnesorge/conclaude/commit/495317c0d4afa0a19cdeb4db3b31522a89129df1))
+
 ## [0.2.8] - 2026-01-07
 
 ### Features
