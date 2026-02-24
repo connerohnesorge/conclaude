@@ -727,7 +727,9 @@ notifications:
             .expect("Failed to write to stdin");
     }
 
-    let result = child.wait_with_output().expect("Failed to wait for command");
+    let result = child
+        .wait_with_output()
+        .expect("Failed to wait for command");
 
     // The hook should succeed
     let stdout = String::from_utf8_lossy(&result.stdout);
@@ -736,7 +738,8 @@ notifications:
     assert!(
         result.status.success(),
         "Stop hook should execute successfully. stdout: {}, stderr: {}",
-        stdout, stderr
+        stdout,
+        stderr
     );
 
     // Verify output shows command execution (output might be in stdout or stderr)
@@ -744,7 +747,8 @@ notifications:
     assert!(
         combined_output.contains("Executing") || combined_output.contains("echo"),
         "Output should show command execution. stdout: {}, stderr: {}",
-        stdout, stderr
+        stdout,
+        stderr
     );
 
     // Note: We can't easily verify that notifications were actually sent without
@@ -885,7 +889,9 @@ notifications:
             .expect("Failed to write to stdin");
     }
 
-    let result = child.wait_with_output().expect("Failed to wait for command");
+    let result = child
+        .wait_with_output()
+        .expect("Failed to wait for command");
 
     // The hook should succeed (even if agent name extraction fails, commands should run)
     assert!(
@@ -940,4 +946,58 @@ stop:
         "Error should mention type validation failure. stderr: {}",
         stderr
     );
+}
+
+#[test]
+fn test_cli_hooks_post_tool_use_failure_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "PostToolUseFailure", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "PostToolUseFailure subcommand should exist");
+}
+
+#[test]
+fn test_cli_hooks_teammate_idle_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "TeammateIdle", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "TeammateIdle subcommand should exist");
+}
+
+#[test]
+fn test_cli_hooks_task_completed_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "TaskCompleted", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "TaskCompleted subcommand should exist");
+}
+
+#[test]
+fn test_cli_hooks_config_change_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "ConfigChange", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "ConfigChange subcommand should exist");
+}
+
+#[test]
+fn test_cli_hooks_worktree_create_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "WorktreeCreate", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "WorktreeCreate subcommand should exist");
+}
+
+#[test]
+fn test_cli_hooks_worktree_remove_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "WorktreeRemove", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "WorktreeRemove subcommand should exist");
 }

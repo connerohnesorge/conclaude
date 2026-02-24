@@ -8,9 +8,11 @@ mod types;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use hooks::{
-    handle_hook_result, handle_notification, handle_permission_request, handle_post_tool_use,
-    handle_pre_compact, handle_pre_tool_use, handle_session_end, handle_session_start, handle_stop,
-    handle_subagent_start, handle_subagent_stop, handle_user_prompt_submit,
+    handle_config_change, handle_hook_result, handle_notification, handle_permission_request,
+    handle_post_tool_use, handle_post_tool_use_failure, handle_pre_compact, handle_pre_tool_use,
+    handle_session_end, handle_session_start, handle_stop, handle_subagent_start,
+    handle_subagent_stop, handle_task_completed, handle_teammate_idle, handle_user_prompt_submit,
+    handle_worktree_create_result, handle_worktree_remove,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -163,6 +165,48 @@ enum HooksCommands {
         #[clap(long)]
         agent: Option<String>,
     },
+    /// Process `PostToolUseFailure` hook - fired when tool execution fails
+    #[clap(name = "PostToolUseFailure")]
+    PostToolUseFailure {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `TeammateIdle` hook - fired when a teammate agent becomes idle
+    #[clap(name = "TeammateIdle")]
+    TeammateIdle {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `TaskCompleted` hook - fired when a task is completed
+    #[clap(name = "TaskCompleted")]
+    TaskCompleted {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `ConfigChange` hook - fired when configuration changes
+    #[clap(name = "ConfigChange")]
+    ConfigChange {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `WorktreeCreate` hook - fired when a worktree needs to be created
+    #[clap(name = "WorktreeCreate")]
+    WorktreeCreate {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `WorktreeRemove` hook - fired when a worktree is being removed
+    #[clap(name = "WorktreeRemove")]
+    WorktreeRemove {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -220,6 +264,30 @@ async fn main() -> Result<()> {
             HooksCommands::PreCompact { agent } => {
                 set_agent_env(agent.as_deref());
                 handle_hook_result(handle_pre_compact).await
+            }
+            HooksCommands::PostToolUseFailure { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_post_tool_use_failure).await
+            }
+            HooksCommands::TeammateIdle { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_teammate_idle).await
+            }
+            HooksCommands::TaskCompleted { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_task_completed).await
+            }
+            HooksCommands::ConfigChange { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_config_change).await
+            }
+            HooksCommands::WorktreeCreate { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_worktree_create_result().await
+            }
+            HooksCommands::WorktreeRemove { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_worktree_remove).await
             }
         },
         Commands::Visualize { rule, show_matches } => handle_visualize(rule, show_matches).await,
@@ -396,12 +464,18 @@ async fn handle_init(
         "UserPromptSubmit",
         "PreToolUse",
         "PostToolUse",
+        "PostToolUseFailure",
         "PermissionRequest",
         "Notification",
         "Stop",
         "PreCompact",
         "SessionStart",
         "SessionEnd",
+        "TeammateIdle",
+        "TaskCompleted",
+        "ConfigChange",
+        "WorktreeCreate",
+        "WorktreeRemove",
     ];
 
     // Add hook configurations using merge logic to preserve user-defined hooks
@@ -514,7 +588,10 @@ fn parse_agent_frontmatter(content: &str) -> Result<Option<(serde_yaml::Value, S
             Ok(yaml_value) => Ok(Some((yaml_value, body.to_string()))),
             Err(e) => {
                 // Return error with context
-                Err(anyhow::anyhow!("Failed to parse agent frontmatter YAML: {}", e))
+                Err(anyhow::anyhow!(
+                    "Failed to parse agent frontmatter YAML: {}",
+                    e
+                ))
             }
         }
     } else {
@@ -527,15 +604,21 @@ fn generate_agent_hooks(agent_name: &str) -> serde_yaml::Value {
     use serde_yaml::{Mapping, Value};
 
     let hook_types = [
-        ("PreToolUse", true),      // needs matcher
-        ("PostToolUse", true),     // needs matcher
+        ("PreToolUse", true),  // needs matcher
+        ("PostToolUse", true), // needs matcher
+        ("PostToolUseFailure", true), // needs matcher (tool_name)
         ("Stop", false),
         ("SessionStart", false),
         ("SessionEnd", false),
-        ("Notification", true),    // needs matcher
+        ("Notification", true), // needs matcher
         ("PreCompact", false),
         ("PermissionRequest", true), // needs matcher
         ("UserPromptSubmit", true),  // needs matcher
+        ("TeammateIdle", false),
+        ("TaskCompleted", false),
+        ("ConfigChange", false),
+        ("WorktreeCreate", false),
+        ("WorktreeRemove", false),
     ];
 
     let mut hooks_map = Mapping::new();
@@ -708,15 +791,12 @@ fn inject_agent_hooks_into_file(agent_path: &Path, force: bool) -> Result<()> {
     let merged_hooks = merge_agent_hooks_yaml(existing_hooks, conclaude_hooks);
 
     if let serde_yaml::Value::Mapping(ref mut map) = frontmatter {
-        map.insert(
-            serde_yaml::Value::String("hooks".to_string()),
-            merged_hooks,
-        );
+        map.insert(serde_yaml::Value::String("hooks".to_string()), merged_hooks);
     }
 
     // Serialize frontmatter back to YAML
-    let yaml_str = serde_yaml::to_string(&frontmatter)
-        .context("Failed to serialize agent frontmatter")?;
+    let yaml_str =
+        serde_yaml::to_string(&frontmatter).context("Failed to serialize agent frontmatter")?;
 
     // Reconstruct the file
     let new_content = format!("---\n{}---\n{}", yaml_str, body);
@@ -756,7 +836,11 @@ fn inject_agent_hooks(agents_dir: &Path, force: bool) -> Result<()> {
         match inject_agent_hooks_into_file(agent_file, force) {
             Ok(()) => success_count += 1,
             Err(e) => {
-                eprintln!("   [ERROR] Failed to inject hooks into {}: {}", agent_file.display(), e);
+                eprintln!(
+                    "   [ERROR] Failed to inject hooks into {}: {}",
+                    agent_file.display(),
+                    e
+                );
                 error_count += 1;
             }
         }

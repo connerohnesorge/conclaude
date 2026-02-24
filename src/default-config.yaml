@@ -181,3 +181,150 @@ notifications:
 #   # - CONCLAUDE_CWD: Current working directory
 #   # - CONCLAUDE_CONFIG_DIR: Directory containing .conclaude.yaml
 #   # - CONCLAUDE_HOOK_EVENT: Always "UserPromptSubmit"
+#
+#   # Slash command hooks - trigger when users invoke /commands
+#   # Commands CAN block prompt processing if they exit with code 2
+#   slashCommands:
+#     commands:
+#       # Run when /commit is invoked
+#       "/commit":
+#         - run: ".claude/scripts/pre-commit-check.sh"
+#           showStdout: true
+#           message: "Commit blocked: validation failed"
+#
+#       # Run for any /test* command (e.g., /test, /test-unit)
+#       "/test*":
+#         - run: ".claude/scripts/test-setup.sh"
+#           showCommand: false
+#
+#       # Run for all slash commands (wildcard)
+#       "*":
+#         - run: ".claude/scripts/log-slash-command.sh"
+#           showCommand: false
+#
+#   # Environment variables available to slash command hooks:
+#   # - CONCLAUDE_SLASH_COMMAND: The command name (e.g., "commit")
+#   # - CONCLAUDE_SLASH_COMMAND_ARGS: Arguments passed to the command
+#   # - CONCLAUDE_USER_PROMPT: Full prompt text
+#   # - CONCLAUDE_SESSION_ID: Current session ID
+#   # - CONCLAUDE_CWD: Current working directory
+#   # - CONCLAUDE_HOOK_EVENT: Always "UserPromptSubmit"
+
+# Skill start hook - runs when subagents (skills) start
+# Uncomment to enable:
+#
+# skillStart:
+#   commands:
+#     # Run when "coder" skill starts
+#     "coder":
+#       - run: ".claude/scripts/coder-init.sh"
+#         showStdout: true
+#         message: "Coder environment initialized"
+#
+#     # Run for any skill starting with "test"
+#     "test*":
+#       - run: ".claude/scripts/test-env-check.sh"
+#         showCommand: false
+#
+#     # Run for all skills (wildcard)
+#     "*":
+#       - run: ".claude/scripts/log-skill.sh"
+#         showCommand: false
+#
+#   # Environment variables available to skill start hooks:
+#   # - CONCLAUDE_SKILL_NAME: The skill/agent type name
+#   # - CONCLAUDE_AGENT_ID: Unique agent identifier
+#   # - CONCLAUDE_AGENT_TRANSCRIPT_PATH: Path to subagent's transcript
+#   # - CONCLAUDE_SESSION_ID: Current session ID
+#   # - CONCLAUDE_TRANSCRIPT_PATH: Main transcript file path
+#   # - CONCLAUDE_HOOK_EVENT: Always "SubagentStart"
+#   # - CONCLAUDE_CWD: Current working directory
+
+# Teammate idle hook - runs when teammate agents become idle
+# Exit code 2 from commands blocks the idle
+# Uncomment to enable:
+#
+# teammateIdle:
+#   commands:
+#     # Run when "coder" teammate becomes idle
+#     "coder":
+#       - run: ".claude/scripts/check-coder-work.sh"
+#         showStdout: true
+#         message: "Coder has more work to do"
+#
+#     # Run for any teammate
+#     "*":
+#       - run: ".claude/scripts/log-teammate-idle.sh"
+#         showCommand: false
+#
+#   # Environment variables available to teammate idle hooks:
+#   # - CONCLAUDE_TEAMMATE_NAME: The teammate name
+#   # - CONCLAUDE_TEAM_NAME: The team name
+#   # - CONCLAUDE_SESSION_ID: Current session ID
+#   # - CONCLAUDE_TRANSCRIPT_PATH: Main transcript file path
+#   # - CONCLAUDE_HOOK_EVENT: Always "TeammateIdle"
+#   # - CONCLAUDE_CWD: Current working directory
+
+# Task completed hook - runs when tasks are completed
+# Exit code 2 from commands blocks the completion
+# Uncomment to enable:
+#
+# taskCompleted:
+#   commands:
+#     # Run for tasks matching "deploy*"
+#     "deploy*":
+#       - run: ".claude/scripts/verify-deploy.sh"
+#         showStdout: true
+#         message: "Deployment verification failed"
+#
+#     # Run for all completed tasks
+#     "*":
+#       - run: ".claude/scripts/log-task-complete.sh"
+#         showCommand: false
+#
+#   # Environment variables available to task completed hooks:
+#   # - CONCLAUDE_TASK_ID: The task identifier
+#   # - CONCLAUDE_TASK_SUBJECT: The task subject/title
+#   # - CONCLAUDE_TASK_DESCRIPTION: The task description (if available)
+#   # - CONCLAUDE_SESSION_ID: Current session ID
+#   # - CONCLAUDE_TRANSCRIPT_PATH: Main transcript file path
+#   # - CONCLAUDE_HOOK_EVENT: Always "TaskCompleted"
+#   # - CONCLAUDE_CWD: Current working directory
+
+# Config change hook - runs when configuration changes
+# Exit code 2 blocks the change (except policy_settings which cannot be blocked)
+# Uncomment to enable:
+#
+# configChange:
+#   commands:
+#     # Audit all config changes
+#     "*":
+#       - run: ".claude/scripts/audit-config-change.sh"
+#         showStdout: true
+#
+#     # Block user settings changes
+#     "user_settings":
+#       - run: ".claude/scripts/validate-user-settings.sh"
+#         message: "User settings change blocked by validation"
+#
+#   # Environment variables available to config change hooks:
+#   # - CONCLAUDE_CONFIG_SOURCE: The change source (user_settings, project_settings, local_settings, policy_settings, skills)
+#   # - CONCLAUDE_CONFIG_FILE_PATH: Path to the changed file (if available)
+#   # - CONCLAUDE_SESSION_ID: Current session ID
+#   # - CONCLAUDE_TRANSCRIPT_PATH: Main transcript file path
+#   # - CONCLAUDE_HOOK_EVENT: Always "ConfigChange"
+#   # - CONCLAUDE_CWD: Current working directory
+
+# Worktree create hook - custom worktree creation command
+# The command must output the worktree path to stdout
+# Uncomment to enable:
+#
+# worktreeCreate:
+#   command: ".claude/scripts/create-worktree.sh"
+#   timeout: 60
+#
+#   # Environment variables available:
+#   # - CONCLAUDE_WORKTREE_NAME: The requested worktree name
+#   # - CONCLAUDE_SESSION_ID: Current session ID
+#   # - CONCLAUDE_CWD: Current working directory
+#   # - CONCLAUDE_HOOK_EVENT: Always "WorktreeCreate"

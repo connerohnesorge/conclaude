@@ -22,6 +22,19 @@ fn test_is_system_event_hook() {
 }
 
 #[test]
+fn test_is_system_event_hook_new_hooks() {
+    // New system event hooks
+    assert!(is_system_event_hook("TeammateIdle"));
+    assert!(is_system_event_hook("TaskCompleted"));
+    assert!(is_system_event_hook("ConfigChange"));
+    assert!(is_system_event_hook("WorktreeCreate"));
+    assert!(is_system_event_hook("WorktreeRemove"));
+
+    // PostToolUseFailure is NOT a system event hook
+    assert!(!is_system_event_hook("PostToolUseFailure"));
+}
+
+#[test]
 fn test_truncate_output_no_truncation() {
     // Test no truncation needed (fewer lines than limit)
     let output = "line1\nline2\nline3";
@@ -1603,10 +1616,7 @@ mod user_prompt_submit_command_tests {
         let env_vars = build_user_prompt_submit_env_vars(&payload, temp_dir.path());
 
         // Nil prompt should result in empty string in env var
-        assert_eq!(
-            env_vars.get("CONCLAUDE_USER_PROMPT"),
-            Some(&"".to_string())
-        );
+        assert_eq!(env_vars.get("CONCLAUDE_USER_PROMPT"), Some(&"".to_string()));
         // Other env vars should still be set
         assert_eq!(
             env_vars.get("CONCLAUDE_SESSION_ID"),
@@ -1632,9 +1642,6 @@ mod user_prompt_submit_command_tests {
         let env_vars = build_user_prompt_submit_env_vars(&payload, temp_dir.path());
 
         // Empty string prompt should result in empty string in env var
-        assert_eq!(
-            env_vars.get("CONCLAUDE_USER_PROMPT"),
-            Some(&"".to_string())
-        );
+        assert_eq!(env_vars.get("CONCLAUDE_USER_PROMPT"), Some(&"".to_string()));
     }
 }

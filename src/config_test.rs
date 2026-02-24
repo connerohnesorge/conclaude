@@ -1,6 +1,4 @@
-use crate::config::{
-    parse_and_validate_config, suggest_similar_fields, ConclaudeConfig,
-};
+use crate::config::{parse_and_validate_config, suggest_similar_fields, ConclaudeConfig};
 use std::path::Path;
 
 #[test]
@@ -1024,7 +1022,10 @@ notifications:
     assert_eq!(rule.pattern, "");
     assert_eq!(rule.action, "block");
     assert_eq!(rule.command_pattern, Some("rm -rf *".to_string()));
-    assert_eq!(rule.agent, None, "agent should default to None when not specified");
+    assert_eq!(
+        rule.agent, None,
+        "agent should default to None when not specified"
+    );
 }
 
 #[test]
@@ -1065,7 +1066,11 @@ notifications:
     assert_eq!(rule.pattern, "");
     assert_eq!(rule.action, "block");
     assert_eq!(rule.command_pattern, Some("rm -rf *".to_string()));
-    assert_eq!(rule.agent, Some("coder".to_string()), "agent should be 'coder'");
+    assert_eq!(
+        rule.agent,
+        Some("coder".to_string()),
+        "agent should be 'coder'"
+    );
 }
 
 #[test]
@@ -1111,8 +1116,15 @@ notifications:
     assert_eq!(rule1.tool, "Write");
     assert_eq!(rule1.pattern, "**/*.rs");
     assert_eq!(rule1.action, "block");
-    assert_eq!(rule1.agent, Some("test*".to_string()), "agent should be 'test*' glob pattern");
-    assert_eq!(rule1.message, Some("Test agents cannot modify Rust files".to_string()));
+    assert_eq!(
+        rule1.agent,
+        Some("test*".to_string()),
+        "agent should be 'test*' glob pattern"
+    );
+    assert_eq!(
+        rule1.message,
+        Some("Test agents cannot modify Rust files".to_string())
+    );
 
     // Second rule: glob pattern "code*"
     let rule2 = &config.pre_tool_use.tool_usage_validation[1];
@@ -1120,7 +1132,11 @@ notifications:
     assert_eq!(rule2.pattern, "");
     assert_eq!(rule2.action, "allow");
     assert_eq!(rule2.command_pattern, Some("cargo test".to_string()));
-    assert_eq!(rule2.agent, Some("code*".to_string()), "agent should be 'code*' glob pattern");
+    assert_eq!(
+        rule2.agent,
+        Some("code*".to_string()),
+        "agent should be 'code*' glob pattern"
+    );
 }
 
 // Tests for notifyPerCommand field parsing and validation
