@@ -59,7 +59,7 @@ preToolUse:
 
 When Claude attempts to modify a protected test file, conclaude blocks the operation:
 
-```
+```text
 Blocked Edit operation: file matches preToolUse.uneditableFiles pattern 'visual-regression/**' File: /home/user/project/visual-regression/tests/header-layout.spec.ts
 ```
 

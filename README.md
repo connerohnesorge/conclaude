@@ -150,8 +150,8 @@ preToolUse:
 **What Happens:**
 Claude attempts to modify the test tolerance settings:
 
-```
-Blocked Edit operation: file matches preToolUse.uneditableFiles pattern 'visual-regression/**' File: visual-regression/tests/header-layout.spec.ts
+```text
+Blocked Edit operation: file matches preToolUse.uneditableFiles pattern 'visual-regression/**' File: /home/user/project/visual-regression/tests/header-layout.spec.ts
 ```
 
 **The Result:**
