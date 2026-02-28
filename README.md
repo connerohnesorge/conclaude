@@ -134,7 +134,30 @@ preToolUse:
 
 Claude tries to create a root file → conclaude blocks it → Claude puts it in the right place.
 
-### Scenario 3: The "Continuous Refactoring" Workflow
+### Scenario 3: The Test Integrity Enforcer
+
+**The Problem:**
+Your visual regression tests caught layout shifts after a CSS migration. Claude suggests "adding a small tolerance (±10px)" to make the tests pass—but that defeats the purpose of pixel-perfect visual testing.
+
+**The Solution:**
+```yaml
+# .conclaude.yaml
+preToolUse:
+  uneditableFiles:
+    - "visual-regression/**"  # Protect test integrity
+```
+
+**What Happens:**
+Claude attempts to modify the test tolerance settings:
+
+```text
+Blocked Edit operation: file matches preToolUse.uneditableFiles pattern 'visual-regression/**' File: /home/user/project/visual-regression/tests/header-layout.spec.ts
+```
+
+**The Result:**
+Test integrity is preserved. Claude can't weaken your visual regression tests by adding tolerance. Instead, it must fix the actual CSS issues causing the layout shifts. Your tests remain a reliable guard against visual regressions.
+
+### Scenario 4: The "Continuous Refactoring" Workflow
 
 **The Vision:**
 You're pair programming with Claude for hours, making incremental improvements. You want validation after every change, not just at the end.

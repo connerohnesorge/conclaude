@@ -2,7 +2,7 @@
 
 ## Implementation Tasks
 
-- [ ] 1.1 Add file protection scenario to README.md
+- [x] 1.1 Add file protection scenario to README.md
   - Insert new "Scenario: The Test Integrity Enforcer" after Scenario 2
   - Include problem statement about visual regression test tolerance
   - Show YAML configuration with `uneditableFiles: ["visual-regression/**"]`
@@ -10,7 +10,7 @@
   - Explain the outcome: test integrity preserved, Claude must fix CSS
   - Validate: Ensure scenario format matches existing scenarios 1 and 2
 
-- [ ] 1.2 Enhance PreToolUse documentation in hooks guide
+- [x] 1.2 Enhance PreToolUse documentation in hooks guide
   - Add "Real-World Example: Protecting Test Integrity" subsection to PreToolUse section
   - Include context about visual regression testing and why tolerance is problematic
   - Show the error message in a code block with proper formatting
@@ -18,7 +18,7 @@
   - Connect mechanism (pattern blocking) to purpose (value enforcement)
   - Validate: Ensure markdown renders correctly and flows with existing content
 
-- [ ] 1.3 Review and validate documentation changes
+- [x] 1.3 Review and validate documentation changes
   - Read through README.md with new scenario in context
   - Read through hooks.md guide with enhanced PreToolUse section
   - Check that terminology is consistent across both additions
@@ -28,13 +28,13 @@
 
 ## Validation Tasks
 
-- [ ] 2.1 Verify error message accuracy
+- [x] 2.1 Verify error message accuracy
   - Confirm error output format matches actual conclaude PreToolUse output
   - Check that field names (tool_name, file_path, pattern) are correct
   - Validate that pattern `visual-regression/**` is valid glob syntax
   - Ensure error message text matches actual hook implementation
 
-- [ ] 2.2 Ensure consistency and quality
+- [x] 2.2 Ensure consistency and quality
   - Verify scenario follows README.md formatting conventions
   - Check that hooks guide addition follows docs site style
   - Confirm examples are educational and actionable
