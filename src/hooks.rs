@@ -199,6 +199,7 @@ pub(crate) fn is_system_event_hook(hook_name: &str) -> bool {
             | "ConfigChange"
             | "WorktreeCreate"
             | "WorktreeRemove"
+            | "Setup"
     )
 }
 

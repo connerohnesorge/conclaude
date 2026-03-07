@@ -1813,6 +1813,52 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
         }
     }
 
+    // Validate setup configuration
+    for (pattern, commands) in &config.setup.commands {
+        if pattern.trim().is_empty() {
+            let error_msg = "Validation failed for setup.commands\n\n\
+                 Error: Pattern key cannot be empty\n\n\
+                 Valid patterns: \"*\" (all), \"install\" (exact), \"init*\" (prefix)\n\n\
+                 Example valid configurations:\n\
+                   setup:\n\
+                     commands:\n\
+                       \"*\":\n\
+                         - run: \"echo setup\"\n\n\
+                 For a valid configuration template, run:\n\
+                   conclaude init"
+                .to_string();
+            return Err(anyhow::anyhow!(error_msg));
+        }
+
+        for (idx, command) in commands.iter().enumerate() {
+            if let Some(max_lines) = command.max_output_lines {
+                if !(1..=10000).contains(&max_lines) {
+                    let error_msg = format!(
+                        "Range validation failed for setup.commands[\"{pattern}\"][{idx}].maxOutputLines\n\n\
+                         Error: Value {max_lines} is out of valid range\n\n\
+                         Valid range: 1 to 10000\n\n\
+                         For a valid configuration template, run:\n\
+                           conclaude init"
+                    );
+                    return Err(anyhow::anyhow!(error_msg));
+                }
+            }
+
+            if let Some(timeout) = command.timeout {
+                if !(1..=3600).contains(&timeout) {
+                    let error_msg = format!(
+                        "Range validation failed for setup.commands[\"{pattern}\"][{idx}].timeout\n\n\
+                         Error: Value {timeout} is out of valid range\n\n\
+                         Valid range: 1 to 3600 seconds (1 second to 1 hour)\n\n\
+                         For a valid configuration template, run:\n\
+                           conclaude init"
+                    );
+                    return Err(anyhow::anyhow!(error_msg));
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 
