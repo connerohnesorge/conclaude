@@ -125,6 +125,9 @@ pub struct PermissionRequestPayload {
     pub tool_name: String,
     /// Input parameters for the tool requesting permission
     pub tool_input: HashMap<String, serde_json::Value>,
+    /// Suggested permission decisions from Claude Code
+    #[serde(default)]
+    pub permission_suggestions: Option<serde_json::Value>,
 }
 
 /// Payload for Notification hook - fired when Claude sends system notifications.
@@ -137,6 +140,9 @@ pub struct NotificationPayload {
     pub message: String,
     /// Optional title for the notification
     pub title: Option<String>,
+    /// Type/category of the notification (e.g., used as match query by Claude Code)
+    #[serde(default)]
+    pub notification_type: Option<String>,
 }
 
 /// Payload for Stop hook - fired when a Claude session is terminating.
@@ -157,7 +163,8 @@ pub struct SubagentStartPayload {
     pub base: BasePayload,
     /// Unique identifier for the subagent being started (e.g., "coder", "tester", "stuck")
     pub agent_id: String,
-    /// Type of subagent being started
+    /// Type of subagent being started. Claude Code sends this as `agent_type`.
+    #[serde(alias = "agent_type")]
     pub subagent_type: String,
     /// Path to the subagent's specific transcript file for conversation history
     pub agent_transcript_path: String,
@@ -214,6 +221,12 @@ pub struct SessionStartPayload {
     pub base: BasePayload,
     /// Source that initiated the session (e.g., CLI, IDE integration)
     pub source: String,
+    /// Type of agent running the session (e.g., "main", "coder", "tester")
+    #[serde(default)]
+    pub agent_type: Option<String>,
+    /// Model being used for the session (e.g., "claude-sonnet-4-6")
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 /// Payload for `SessionEnd` hook - fired when a Claude session terminates.
@@ -416,6 +429,25 @@ pub struct WorktreeRemovePayload {
     pub base: BasePayload,
     /// Path to the worktree being removed
     pub worktree_path: String,
+}
+
+/// Payload for `Setup` hook - fired during Claude Code setup/initialization.
+/// Allows running initialization commands before a session fully starts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetupPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// The trigger that initiated setup (used as match query)
+    pub trigger: String,
+}
+
+/// Validates that a SetupPayload contains all required fields.
+pub fn validate_setup_payload(payload: &SetupPayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.trigger.trim().is_empty() {
+        return Err("trigger cannot be empty".to_string());
+    }
+    Ok(())
 }
 
 /// Validates that a TeammateIdlePayload contains all required fields.

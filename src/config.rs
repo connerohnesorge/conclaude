@@ -193,6 +193,37 @@ pub struct TaskCompletedCommand {
     pub notify_per_command: Option<bool>,
 }
 
+/// Configuration for individual setup commands with optional messages
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct SetupCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_SETUP_TRIGGER, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
 /// Configuration for individual config change commands with optional messages
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
 #[serde(deny_unknown_fields)]
@@ -479,6 +510,19 @@ pub struct WorktreeCreateConfig {
     #[serde(default)]
     #[schemars(range(min = 1, max = 3600))]
     pub timeout: Option<u64>,
+}
+
+/// Configuration for setup hooks with trigger-based command execution.
+///
+/// Commands run during Claude Code setup/initialization. Exit code 2 blocks the setup.
+/// The trigger value is used as the match query for pattern-based execution.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct SetupConfig {
+    /// Map of trigger patterns to command configurations.
+    /// Keys are glob patterns matching trigger values (e.g., "install", "*").
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<SetupCommand>>,
 }
 
 /// Configuration for stop hook commands that run when Claude is about to stop
@@ -1267,6 +1311,23 @@ pub struct ConclaudeConfig {
     /// Configuration for worktree create hook
     #[serde(default, rename = "worktreeCreate")]
     pub worktree_create: WorktreeCreateConfig,
+    /// Configuration for setup hooks that trigger during Claude Code initialization.
+    ///
+    /// Allows running custom commands when Claude Code runs its setup process.
+    /// Commands are matched by trigger value using glob patterns.
+    ///
+    /// # Examples
+    ///
+    /// ```yaml
+    /// setup:
+    ///   commands:
+    ///     # Run for any setup trigger
+    ///     "*":
+    ///       - run: ".claude/scripts/setup-env.sh"
+    ///         showStdout: true
+    /// ```
+    #[serde(default)]
+    pub setup: SetupConfig,
 }
 
 /// Extract the field name from an unknown field error message
@@ -1297,6 +1358,7 @@ pub fn suggest_similar_fields(unknown_field: &str, section: &str) -> Vec<String>
         ("taskCompleted", TaskCompletedConfig::field_names()),
         ("configChange", ConfigChangeConfig::field_names()),
         ("worktreeCreate", WorktreeCreateConfig::field_names()),
+        ("setup", SetupConfig::field_names()),
         ("commands", StopCommand::field_names()),
         ("subagentStopCommands", SubagentStopCommand::field_names()),
         ("slashCommands", SlashCommandEntry::field_names()),
@@ -1304,6 +1366,7 @@ pub fn suggest_similar_fields(unknown_field: &str, section: &str) -> Vec<String>
         ("teammateIdleCommands", TeammateIdleCommand::field_names()),
         ("taskCompletedCommands", TaskCompletedCommand::field_names()),
         ("configChangeCommands", ConfigChangeCommand::field_names()),
+        ("setupCommands", SetupCommand::field_names()),
         (
             "userPromptSubmitCommands",
             UserPromptSubmitCommand::field_names(),
