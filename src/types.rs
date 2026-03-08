@@ -1108,4 +1108,115 @@ mod tests {
         empty.worktree_path = "  ".to_string();
         assert!(validate_worktree_remove_payload(&empty).is_err());
     }
+
+    #[test]
+    fn test_setup_payload_deserialization() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "Setup",
+            "cwd": "/current/dir",
+            "trigger": "install"
+        }"#;
+        let payload: SetupPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.trigger, "install");
+        assert_eq!(payload.base.session_id, "test_session");
+    }
+
+    #[test]
+    fn test_validate_setup_payload() {
+        let valid = SetupPayload {
+            base: BasePayload {
+                session_id: "s".to_string(),
+                transcript_path: "/t".to_string(),
+                hook_event_name: "Setup".to_string(),
+                cwd: "/c".to_string(),
+                permission_mode: None,
+            },
+            trigger: "install".to_string(),
+        };
+        assert!(validate_setup_payload(&valid).is_ok());
+
+        let mut empty_trigger = valid.clone();
+        empty_trigger.trigger = "".to_string();
+        assert!(validate_setup_payload(&empty_trigger).is_err());
+
+        let mut whitespace_trigger = valid.clone();
+        whitespace_trigger.trigger = "  ".to_string();
+        assert!(validate_setup_payload(&whitespace_trigger).is_err());
+    }
+
+    #[test]
+    fn test_session_start_payload_with_new_fields() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "SessionStart",
+            "cwd": "/current/dir",
+            "source": "cli",
+            "agent_type": "main",
+            "model": "claude-sonnet-4-6"
+        }"#;
+        let payload: SessionStartPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.agent_type, Some("main".to_string()));
+        assert_eq!(payload.model, Some("claude-sonnet-4-6".to_string()));
+    }
+
+    #[test]
+    fn test_session_start_payload_without_new_fields() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "SessionStart",
+            "cwd": "/current/dir",
+            "source": "cli"
+        }"#;
+        let payload: SessionStartPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.agent_type, None);
+        assert_eq!(payload.model, None);
+    }
+
+    #[test]
+    fn test_notification_payload_with_notification_type() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "Notification",
+            "cwd": "/current/dir",
+            "message": "test",
+            "notification_type": "warning"
+        }"#;
+        let payload: NotificationPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.notification_type, Some("warning".to_string()));
+    }
+
+    #[test]
+    fn test_subagent_start_payload_agent_type_alias() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "SubagentStart",
+            "cwd": "/current/dir",
+            "agent_id": "agent-1",
+            "agent_type": "coder",
+            "agent_transcript_path": "/path/to/agent"
+        }"#;
+        let payload: SubagentStartPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.subagent_type, "coder");
+    }
+
+    #[test]
+    fn test_permission_request_payload_with_suggestions() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "PermissionRequest",
+            "cwd": "/current/dir",
+            "tool_name": "Bash",
+            "tool_input": {},
+            "permission_suggestions": ["allow"]
+        }"#;
+        let payload: PermissionRequestPayload = serde_json::from_str(json).unwrap();
+        assert!(payload.permission_suggestions.is_some());
+    }
 }

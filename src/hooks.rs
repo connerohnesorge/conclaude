@@ -4248,6 +4248,8 @@ pub async fn handle_setup() -> Result<HookResult> {
                 let result =
                     execute_generic_commands(&commands, &env_vars, config_dir, "Setup").await?;
                 if let Some(blocked_result) = result {
+                    let context = blocked_result.message.as_deref().unwrap_or("Setup blocked");
+                    send_notification("Setup", "failure", Some(context));
                     return Ok(blocked_result);
                 }
             }

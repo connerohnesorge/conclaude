@@ -1001,3 +1001,12 @@ fn test_cli_hooks_worktree_remove_exists() {
         .expect("Failed to run CLI");
     assert!(output.status.success(), "WorktreeRemove subcommand should exist");
 }
+
+#[test]
+fn test_cli_hooks_setup_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "Setup", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "Setup subcommand should exist");
+}
