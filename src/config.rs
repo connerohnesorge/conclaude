@@ -1495,6 +1495,8 @@ fn format_parse_error(error: &serde_yaml::Error, config_path: &Path) -> String {
                 .to_string(),
         );
         parts.push("  commands (subagentStop): run, message, showStdout, showStderr, maxOutputLines, timeout".to_string());
+        parts.push("  setup: commands".to_string());
+        parts.push("  commands (setup): run, message, showCommand, showStdout, showStderr, maxOutputLines, timeout".to_string());
     } else if base_error.contains("invalid type") {
         parts.push(String::new());
         parts.push("Type mismatch detected. Common causes:".to_string());
