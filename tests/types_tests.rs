@@ -330,6 +330,7 @@ fn test_permission_request_payload_serialization() {
         },
         tool_name: "Bash".to_string(),
         tool_input,
+        permission_suggestions: None,
     };
 
     let json = serde_json::to_string(&payload).unwrap();
@@ -357,6 +358,7 @@ fn test_validate_permission_request_payload_valid() {
         },
         tool_name: "Bash".to_string(),
         tool_input,
+        permission_suggestions: None,
     };
     assert!(validate_permission_request_payload(&payload).is_ok());
 }
@@ -379,6 +381,7 @@ fn test_validate_permission_request_payload_empty_tool_name() {
         },
         tool_name: String::new(),
         tool_input,
+        permission_suggestions: None,
     };
     let result = validate_permission_request_payload(&payload);
     assert!(result.is_err());
@@ -403,6 +406,7 @@ fn test_validate_permission_request_payload_whitespace_tool_name() {
         },
         tool_name: "   ".to_string(),
         tool_input,
+        permission_suggestions: None,
     };
     let result = validate_permission_request_payload(&payload);
     assert!(result.is_err());

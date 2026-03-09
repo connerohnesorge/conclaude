@@ -125,6 +125,9 @@ pub struct PermissionRequestPayload {
     pub tool_name: String,
     /// Input parameters for the tool requesting permission
     pub tool_input: HashMap<String, serde_json::Value>,
+    /// Suggested permission decisions from Claude Code
+    #[serde(default)]
+    pub permission_suggestions: Option<serde_json::Value>,
 }
 
 /// Payload for Notification hook - fired when Claude sends system notifications.
@@ -137,6 +140,9 @@ pub struct NotificationPayload {
     pub message: String,
     /// Optional title for the notification
     pub title: Option<String>,
+    /// Type/category of the notification (e.g., used as match query by Claude Code)
+    #[serde(default)]
+    pub notification_type: Option<String>,
 }
 
 /// Payload for Stop hook - fired when a Claude session is terminating.
@@ -157,7 +163,8 @@ pub struct SubagentStartPayload {
     pub base: BasePayload,
     /// Unique identifier for the subagent being started (e.g., "coder", "tester", "stuck")
     pub agent_id: String,
-    /// Type of subagent being started
+    /// Type of subagent being started. Claude Code sends this as `agent_type`.
+    #[serde(alias = "agent_type")]
     pub subagent_type: String,
     /// Path to the subagent's specific transcript file for conversation history
     pub agent_transcript_path: String,
@@ -214,6 +221,12 @@ pub struct SessionStartPayload {
     pub base: BasePayload,
     /// Source that initiated the session (e.g., CLI, IDE integration)
     pub source: String,
+    /// Type of agent running the session (e.g., "main", "coder", "tester")
+    #[serde(default)]
+    pub agent_type: Option<String>,
+    /// Model being used for the session (e.g., "claude-sonnet-4-6")
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 /// Payload for `SessionEnd` hook - fired when a Claude session terminates.
@@ -416,6 +429,25 @@ pub struct WorktreeRemovePayload {
     pub base: BasePayload,
     /// Path to the worktree being removed
     pub worktree_path: String,
+}
+
+/// Payload for `Setup` hook - fired during Claude Code setup/initialization.
+/// Allows running initialization commands before a session fully starts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetupPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// The trigger that initiated setup (used as match query)
+    pub trigger: String,
+}
+
+/// Validates that a SetupPayload contains all required fields.
+pub fn validate_setup_payload(payload: &SetupPayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.trigger.trim().is_empty() {
+        return Err("trigger cannot be empty".to_string());
+    }
+    Ok(())
 }
 
 /// Validates that a TeammateIdlePayload contains all required fields.
@@ -1075,5 +1107,116 @@ mod tests {
         let mut empty = valid.clone();
         empty.worktree_path = "  ".to_string();
         assert!(validate_worktree_remove_payload(&empty).is_err());
+    }
+
+    #[test]
+    fn test_setup_payload_deserialization() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "Setup",
+            "cwd": "/current/dir",
+            "trigger": "install"
+        }"#;
+        let payload: SetupPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.trigger, "install");
+        assert_eq!(payload.base.session_id, "test_session");
+    }
+
+    #[test]
+    fn test_validate_setup_payload() {
+        let valid = SetupPayload {
+            base: BasePayload {
+                session_id: "s".to_string(),
+                transcript_path: "/t".to_string(),
+                hook_event_name: "Setup".to_string(),
+                cwd: "/c".to_string(),
+                permission_mode: None,
+            },
+            trigger: "install".to_string(),
+        };
+        assert!(validate_setup_payload(&valid).is_ok());
+
+        let mut empty_trigger = valid.clone();
+        empty_trigger.trigger = "".to_string();
+        assert!(validate_setup_payload(&empty_trigger).is_err());
+
+        let mut whitespace_trigger = valid.clone();
+        whitespace_trigger.trigger = "  ".to_string();
+        assert!(validate_setup_payload(&whitespace_trigger).is_err());
+    }
+
+    #[test]
+    fn test_session_start_payload_with_new_fields() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "SessionStart",
+            "cwd": "/current/dir",
+            "source": "cli",
+            "agent_type": "main",
+            "model": "claude-sonnet-4-6"
+        }"#;
+        let payload: SessionStartPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.agent_type, Some("main".to_string()));
+        assert_eq!(payload.model, Some("claude-sonnet-4-6".to_string()));
+    }
+
+    #[test]
+    fn test_session_start_payload_without_new_fields() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "SessionStart",
+            "cwd": "/current/dir",
+            "source": "cli"
+        }"#;
+        let payload: SessionStartPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.agent_type, None);
+        assert_eq!(payload.model, None);
+    }
+
+    #[test]
+    fn test_notification_payload_with_notification_type() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "Notification",
+            "cwd": "/current/dir",
+            "message": "test",
+            "notification_type": "warning"
+        }"#;
+        let payload: NotificationPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.notification_type, Some("warning".to_string()));
+    }
+
+    #[test]
+    fn test_subagent_start_payload_agent_type_alias() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "SubagentStart",
+            "cwd": "/current/dir",
+            "agent_id": "agent-1",
+            "agent_type": "coder",
+            "agent_transcript_path": "/path/to/agent"
+        }"#;
+        let payload: SubagentStartPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.subagent_type, "coder");
+    }
+
+    #[test]
+    fn test_permission_request_payload_with_suggestions() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "PermissionRequest",
+            "cwd": "/current/dir",
+            "tool_name": "Bash",
+            "tool_input": {},
+            "permission_suggestions": ["allow"]
+        }"#;
+        let payload: PermissionRequestPayload = serde_json::from_str(json).unwrap();
+        assert!(payload.permission_suggestions.is_some());
     }
 }

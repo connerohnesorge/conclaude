@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand};
 use hooks::{
     handle_config_change, handle_hook_result, handle_notification, handle_permission_request,
     handle_post_tool_use, handle_post_tool_use_failure, handle_pre_compact, handle_pre_tool_use,
-    handle_session_end, handle_session_start, handle_stop, handle_subagent_start,
+    handle_session_end, handle_session_start, handle_setup, handle_stop, handle_subagent_start,
     handle_subagent_stop, handle_task_completed, handle_teammate_idle, handle_user_prompt_submit,
     handle_worktree_create_result, handle_worktree_remove,
 };
@@ -207,6 +207,13 @@ enum HooksCommands {
         #[clap(long)]
         agent: Option<String>,
     },
+    /// Process `Setup` hook - fired during Claude Code initialization
+    #[clap(name = "Setup")]
+    Setup {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -288,6 +295,10 @@ async fn main() -> Result<()> {
             HooksCommands::WorktreeRemove { agent } => {
                 set_agent_env(agent.as_deref());
                 handle_hook_result(handle_worktree_remove).await
+            }
+            HooksCommands::Setup { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_setup).await
             }
         },
         Commands::Visualize { rule, show_matches } => handle_visualize(rule, show_matches).await,
@@ -476,6 +487,7 @@ async fn handle_init(
         "ConfigChange",
         "WorktreeCreate",
         "WorktreeRemove",
+        "Setup",
     ];
 
     // Add hook configurations using merge logic to preserve user-defined hooks
@@ -619,6 +631,7 @@ fn generate_agent_hooks(agent_name: &str) -> serde_yaml::Value {
         ("ConfigChange", false),
         ("WorktreeCreate", false),
         ("WorktreeRemove", false),
+        ("Setup", true), // needs matcher (trigger)
     ];
 
     let mut hooks_map = Mapping::new();

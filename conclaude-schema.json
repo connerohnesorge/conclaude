@@ -252,6 +252,100 @@
       },
       "type": "object"
     },
+    "SetupCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual setup commands with optional messages",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_SETUP_TRIGGER, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_PAYLOAD_JSON, CONCLAUDE_AGENT_NAME",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "SetupConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for setup hooks with trigger-based command execution.\n\nCommands run during Claude Code setup/initialization. Exit code 2 blocks the setup. The trigger value is used as the match query for pattern-based execution.",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/SetupCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of trigger patterns to command configurations. Keys are glob patterns matching trigger values (e.g., \"install\", \"*\").",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "SkillStartCommand": {
       "additionalProperties": false,
       "description": "Configuration for individual skill start commands with optional messages",
@@ -1115,6 +1209,17 @@
         "toolUsageValidation": [],
         "uneditableFiles": []
       }
+    },
+    "setup": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/SetupConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for setup hooks that trigger during Claude Code initialization.\n\nAllows running custom commands when Claude Code runs its setup process. Commands are matched by trigger value using glob patterns.\n\n# Examples\n\n```yaml setup: commands: # Run for any setup trigger \"*\": - run: \".claude/scripts/setup-env.sh\" showStdout: true ```"
     },
     "skillStart": {
       "allOf": [

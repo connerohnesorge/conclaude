@@ -17,6 +17,7 @@ Conclaude uses YAML configuration files to define lifecycle hooks, file protecti
 | [Notifications](/conclaude/reference/config/notifications) | Configuration for system notifications | `enabled`, `hooks`, `showErrors` |
 | [Permission Request](/conclaude/reference/config/permission-request) | Configuration for permission request hooks that control tool permission decisions | `allow`, `default`, `deny` |
 | [Pre Tool Use](/conclaude/reference/config/pre-tool-use) | Configuration for pre-tool-use hooks that run before tools are executed | `preventAdditions`, `preventRootAdditions`, `preventRootAdditionsMessage` |
+| [Setup](/conclaude/reference/config/setup) | Configuration for setup hooks with trigger-based command execution | `commands` |
 | [Skill Start](/conclaude/reference/config/skill-start) | Configuration for skill start hooks that trigger when subagents (skills) start | `commands` |
 | [Stop](/conclaude/reference/config/stop) | Configuration for stop hook commands that run when Claude is about to stop | `commands`, `infinite`, `infiniteMessage` |
 | [Subagent Stop](/conclaude/reference/config/subagent-stop) | Configuration for subagent stop hooks with pattern-based command execution | `commands` |
@@ -44,6 +45,10 @@ Configuration for permission request hooks that control tool permission decision
 ### [Pre Tool Use](/conclaude/reference/config/pre-tool-use)
 
 Configuration for pre-tool-use hooks that run before tools are executed.
+
+### [Setup](/conclaude/reference/config/setup)
+
+Configuration for setup hooks with trigger-based command execution.
 
 ### [Skill Start](/conclaude/reference/config/skill-start)
 

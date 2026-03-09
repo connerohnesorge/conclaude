@@ -1,16 +1,17 @@
 use crate::config::{
     extract_bash_commands, load_conclaude_config, ConclaudeConfig, ConfigChangeConfig,
-    SkillStartConfig, SlashCommandConfig, SubagentStopConfig, TaskCompletedConfig,
+    SetupConfig, SkillStartConfig, SlashCommandConfig, SubagentStopConfig, TaskCompletedConfig,
     TeammateIdleConfig, UserPromptSubmitCommand,
 };
 use crate::gitignore::{find_git_root, is_path_git_ignored};
 use crate::types::{
-    validate_base_payload, validate_permission_request_payload, validate_subagent_start_payload,
-    validate_subagent_stop_payload, validate_task_completed_payload, validate_teammate_idle_payload,
+    validate_base_payload, validate_permission_request_payload, validate_setup_payload,
+    validate_subagent_start_payload, validate_subagent_stop_payload,
+    validate_task_completed_payload, validate_teammate_idle_payload,
     validate_worktree_create_payload, validate_worktree_remove_payload, ConfigChangePayload,
     ConfigChangeSource, HookResult, NotificationPayload, PermissionRequestPayload,
     PostToolUseFailurePayload, PostToolUsePayload, PreCompactPayload, PreToolUsePayload,
-    SessionEndPayload, SessionStartPayload, StopPayload, SubagentStartPayload,
+    SessionEndPayload, SessionStartPayload, SetupPayload, StopPayload, SubagentStartPayload,
     SubagentStopPayload, TaskCompletedPayload, TeammateIdlePayload, UserPromptSubmitPayload,
     WorktreeCreatePayload, WorktreeRemovePayload,
 };
@@ -198,6 +199,7 @@ pub(crate) fn is_system_event_hook(hook_name: &str) -> bool {
             | "ConfigChange"
             | "WorktreeCreate"
             | "WorktreeRemove"
+            | "Setup"
     )
 }
 
@@ -4201,6 +4203,124 @@ pub async fn handle_config_change() -> Result<HookResult> {
     );
 
     Ok(HookResult::success())
+}
+
+/// Handles `Setup` hook events fired during Claude Code initialization.
+///
+/// # Errors
+///
+/// Returns an error if payload validation fails or configuration loading fails.
+pub async fn handle_setup() -> Result<HookResult> {
+    let payload: SetupPayload = read_payload_from_stdin()?;
+
+    validate_setup_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    println!(
+        "Processing Setup hook: session_id={}, trigger={}",
+        payload.base.session_id, payload.trigger
+    );
+
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
+    std::env::set_var("CONCLAUDE_SETUP_TRIGGER", &payload.trigger);
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    if !config.setup.commands.is_empty() {
+        let matching_patterns =
+            match_generic_patterns(&payload.trigger, &config.setup.commands)?;
+
+        if !matching_patterns.is_empty() {
+            println!(
+                "Setup trigger '{}' matched patterns: {:?}",
+                payload.trigger, matching_patterns
+            );
+
+            let commands = collect_setup_commands(&config.setup, &matching_patterns)?;
+
+            if !commands.is_empty() {
+                let env_vars = build_setup_env_vars(&payload, config_dir);
+
+                let result =
+                    execute_generic_commands(&commands, &env_vars, config_dir, "Setup").await?;
+                if let Some(blocked_result) = result {
+                    let context = blocked_result.message.as_deref().unwrap_or("Setup blocked");
+                    send_notification("Setup", "failure", Some(context));
+                    return Ok(blocked_result);
+                }
+            }
+        }
+    }
+
+    send_notification(
+        "Setup",
+        "success",
+        Some(&format!("Setup completed: trigger={}", payload.trigger)),
+    );
+
+    Ok(HookResult::success())
+}
+
+/// Collect commands from SetupConfig for matching patterns
+fn collect_setup_commands(
+    config: &SetupConfig,
+    matching_patterns: &[&str],
+) -> Result<Vec<GenericCommandConfig>> {
+    let mut commands = Vec::new();
+    for pattern in matching_patterns {
+        if let Some(cmd_list) = config.commands.get(*pattern) {
+            for cmd_config in cmd_list {
+                let extracted = extract_bash_commands(&cmd_config.run)?;
+                for cmd in extracted {
+                    commands.push(GenericCommandConfig {
+                        command: cmd,
+                        message: cmd_config.message.clone(),
+                        show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                        show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                        max_output_lines: cmd_config.max_output_lines,
+                        timeout: cmd_config.timeout,
+                        show_command: cmd_config.show_command.unwrap_or(true),
+                        notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
+                    });
+                }
+            }
+        }
+    }
+    Ok(commands)
+}
+
+/// Build environment variables for Setup hook execution
+fn build_setup_env_vars(payload: &SetupPayload, config_dir: &Path) -> HashMap<String, String> {
+    let mut env_vars = HashMap::new();
+    env_vars.insert(
+        "CONCLAUDE_SETUP_TRIGGER".to_string(),
+        payload.trigger.clone(),
+    );
+    env_vars.insert(
+        "CONCLAUDE_SESSION_ID".to_string(),
+        payload.base.session_id.clone(),
+    );
+    env_vars.insert(
+        "CONCLAUDE_TRANSCRIPT_PATH".to_string(),
+        payload.base.transcript_path.clone(),
+    );
+    env_vars.insert(
+        "CONCLAUDE_HOOK_EVENT".to_string(),
+        "Setup".to_string(),
+    );
+    env_vars.insert("CONCLAUDE_CWD".to_string(), payload.base.cwd.clone());
+    env_vars.insert(
+        "CONCLAUDE_CONFIG_DIR".to_string(),
+        config_dir.to_string_lossy().to_string(),
+    );
+    if let Ok(json) = serde_json::to_string(payload) {
+        env_vars.insert("CONCLAUDE_PAYLOAD_JSON".to_string(), json);
+    }
+    env_vars
 }
 
 /// Handles `WorktreeCreate` hook events when a git worktree needs to be created.

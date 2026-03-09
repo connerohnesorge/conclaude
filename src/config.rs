@@ -193,6 +193,37 @@ pub struct TaskCompletedCommand {
     pub notify_per_command: Option<bool>,
 }
 
+/// Configuration for individual setup commands with optional messages
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct SetupCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_SETUP_TRIGGER, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_PAYLOAD_JSON, CONCLAUDE_AGENT_NAME
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
 /// Configuration for individual config change commands with optional messages
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
 #[serde(deny_unknown_fields)]
@@ -479,6 +510,19 @@ pub struct WorktreeCreateConfig {
     #[serde(default)]
     #[schemars(range(min = 1, max = 3600))]
     pub timeout: Option<u64>,
+}
+
+/// Configuration for setup hooks with trigger-based command execution.
+///
+/// Commands run during Claude Code setup/initialization. Exit code 2 blocks the setup.
+/// The trigger value is used as the match query for pattern-based execution.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct SetupConfig {
+    /// Map of trigger patterns to command configurations.
+    /// Keys are glob patterns matching trigger values (e.g., "install", "*").
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<SetupCommand>>,
 }
 
 /// Configuration for stop hook commands that run when Claude is about to stop
@@ -1267,6 +1311,23 @@ pub struct ConclaudeConfig {
     /// Configuration for worktree create hook
     #[serde(default, rename = "worktreeCreate")]
     pub worktree_create: WorktreeCreateConfig,
+    /// Configuration for setup hooks that trigger during Claude Code initialization.
+    ///
+    /// Allows running custom commands when Claude Code runs its setup process.
+    /// Commands are matched by trigger value using glob patterns.
+    ///
+    /// # Examples
+    ///
+    /// ```yaml
+    /// setup:
+    ///   commands:
+    ///     # Run for any setup trigger
+    ///     "*":
+    ///       - run: ".claude/scripts/setup-env.sh"
+    ///         showStdout: true
+    /// ```
+    #[serde(default)]
+    pub setup: SetupConfig,
 }
 
 /// Extract the field name from an unknown field error message
@@ -1297,6 +1358,7 @@ pub fn suggest_similar_fields(unknown_field: &str, section: &str) -> Vec<String>
         ("taskCompleted", TaskCompletedConfig::field_names()),
         ("configChange", ConfigChangeConfig::field_names()),
         ("worktreeCreate", WorktreeCreateConfig::field_names()),
+        ("setup", SetupConfig::field_names()),
         ("commands", StopCommand::field_names()),
         ("subagentStopCommands", SubagentStopCommand::field_names()),
         ("slashCommands", SlashCommandEntry::field_names()),
@@ -1304,6 +1366,7 @@ pub fn suggest_similar_fields(unknown_field: &str, section: &str) -> Vec<String>
         ("teammateIdleCommands", TeammateIdleCommand::field_names()),
         ("taskCompletedCommands", TaskCompletedCommand::field_names()),
         ("configChangeCommands", ConfigChangeCommand::field_names()),
+        ("setupCommands", SetupCommand::field_names()),
         (
             "userPromptSubmitCommands",
             UserPromptSubmitCommand::field_names(),
@@ -1432,6 +1495,8 @@ fn format_parse_error(error: &serde_yaml::Error, config_path: &Path) -> String {
                 .to_string(),
         );
         parts.push("  commands (subagentStop): run, message, showStdout, showStderr, maxOutputLines, timeout".to_string());
+        parts.push("  setup: commands".to_string());
+        parts.push("  commands (setup): run, message, showCommand, showStdout, showStderr, maxOutputLines, timeout".to_string());
     } else if base_error.contains("invalid type") {
         parts.push(String::new());
         parts.push("Type mismatch detected. Common causes:".to_string());
@@ -1741,6 +1806,52 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
                            timeout: 30       # 30 seconds\n\
                            timeout: 300      # 5 minutes\n\
                            timeout: 3600     # maximum allowed (1 hour)\n\n\
+                         For a valid configuration template, run:\n\
+                           conclaude init"
+                    );
+                    return Err(anyhow::anyhow!(error_msg));
+                }
+            }
+        }
+    }
+
+    // Validate setup configuration
+    for (pattern, commands) in &config.setup.commands {
+        if pattern.trim().is_empty() {
+            let error_msg = "Validation failed for setup.commands\n\n\
+                 Error: Pattern key cannot be empty\n\n\
+                 Valid patterns: \"*\" (all), \"install\" (exact), \"init*\" (prefix)\n\n\
+                 Example valid configurations:\n\
+                   setup:\n\
+                     commands:\n\
+                       \"*\":\n\
+                         - run: \"echo setup\"\n\n\
+                 For a valid configuration template, run:\n\
+                   conclaude init"
+                .to_string();
+            return Err(anyhow::anyhow!(error_msg));
+        }
+
+        for (idx, command) in commands.iter().enumerate() {
+            if let Some(max_lines) = command.max_output_lines {
+                if !(1..=10000).contains(&max_lines) {
+                    let error_msg = format!(
+                        "Range validation failed for setup.commands[\"{pattern}\"][{idx}].maxOutputLines\n\n\
+                         Error: Value {max_lines} is out of valid range\n\n\
+                         Valid range: 1 to 10000\n\n\
+                         For a valid configuration template, run:\n\
+                           conclaude init"
+                    );
+                    return Err(anyhow::anyhow!(error_msg));
+                }
+            }
+
+            if let Some(timeout) = command.timeout {
+                if !(1..=3600).contains(&timeout) {
+                    let error_msg = format!(
+                        "Range validation failed for setup.commands[\"{pattern}\"][{idx}].timeout\n\n\
+                         Error: Value {timeout} is out of valid range\n\n\
+                         Valid range: 1 to 3600 seconds (1 second to 1 hour)\n\n\
                          For a valid configuration template, run:\n\
                            conclaude init"
                     );
@@ -2122,5 +2233,66 @@ userPromptSubmit:
         assert_eq!(cmd.show_stderr, None); // Default: false
         assert_eq!(cmd.max_output_lines, None); // Default: no limit
         assert_eq!(cmd.timeout, None); // Default: no timeout
+    }
+
+    #[test]
+    fn test_setup_config_valid() {
+        let config_yaml = r#"
+setup:
+  commands:
+    "*":
+      - run: "echo setup"
+        showStdout: true
+        timeout: 30
+"#;
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        assert_eq!(config.setup.commands.len(), 1);
+        assert!(config.setup.commands.contains_key("*"));
+    }
+
+    #[test]
+    fn test_setup_config_empty_pattern_rejected() {
+        let config_yaml = r#"
+setup:
+  commands:
+    "":
+      - run: "echo setup"
+"#;
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Pattern key cannot be empty"));
+    }
+
+    #[test]
+    fn test_setup_config_invalid_timeout_rejected() {
+        let config_yaml = r#"
+setup:
+  commands:
+    "*":
+      - run: "echo setup"
+        timeout: 0
+"#;
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("timeout"));
+    }
+
+    #[test]
+    fn test_setup_config_invalid_max_output_lines_rejected() {
+        let config_yaml = r#"
+setup:
+  commands:
+    "*":
+      - run: "echo setup"
+        maxOutputLines: 0
+"#;
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("maxOutputLines"));
     }
 }
