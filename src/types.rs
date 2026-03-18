@@ -155,6 +155,18 @@ pub struct StopPayload {
     pub stop_hook_active: bool,
 }
 
+/// Payload for `StopFailure` hook - fired when a turn ends due to an API error.
+/// Contains error details for observability, alerting, and recovery logic.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StopFailurePayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Whether stop hooks are currently active for this session
+    pub stop_hook_active: bool,
+    /// Error message describing the API failure
+    pub error: String,
+}
+
 /// Payload for `SubagentStart` hook - fired when a Claude subagent is launched.
 /// Subagents are spawned for complex tasks and this fires when they begin execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -256,6 +268,15 @@ pub fn validate_base_payload(base: &BasePayload) -> Result<(), String> {
     }
     if base.cwd.is_empty() {
         return Err("Missing required field: cwd".to_string());
+    }
+    Ok(())
+}
+
+/// Validates that a StopFailurePayload contains all required fields.
+pub fn validate_stop_failure_payload(payload: &StopFailurePayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.error.trim().is_empty() {
+        return Err("error cannot be empty".to_string());
     }
     Ok(())
 }
@@ -1218,5 +1239,43 @@ mod tests {
         }"#;
         let payload: PermissionRequestPayload = serde_json::from_str(json).unwrap();
         assert!(payload.permission_suggestions.is_some());
+    }
+
+    #[test]
+    fn test_stop_failure_payload_deserialization() {
+        let json = r#"{
+            "session_id": "test-session",
+            "transcript_path": "/tmp/transcript.jsonl",
+            "hook_event_name": "StopFailure",
+            "cwd": "/current/dir",
+            "stop_hook_active": true,
+            "error": "rate limit exceeded"
+        }"#;
+        let payload: StopFailurePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.base.session_id, "test-session");
+        assert!(payload.stop_hook_active);
+        assert_eq!(payload.error, "rate limit exceeded");
+    }
+
+    #[test]
+    fn test_stop_failure_payload_validation() {
+        let payload = StopFailurePayload {
+            base: BasePayload {
+                session_id: "test".to_string(),
+                transcript_path: "/tmp/t.jsonl".to_string(),
+                hook_event_name: "StopFailure".to_string(),
+                cwd: "/tmp".to_string(),
+                permission_mode: None,
+            },
+            stop_hook_active: false,
+            error: "auth failure".to_string(),
+        };
+        assert!(validate_stop_failure_payload(&payload).is_ok());
+
+        let empty_error = StopFailurePayload {
+            error: "".to_string(),
+            ..payload.clone()
+        };
+        assert!(validate_stop_failure_payload(&empty_error).is_err());
     }
 }

@@ -540,6 +540,15 @@ pub struct StopConfig {
     pub infinite_message: Option<String>,
 }
 
+/// Configuration for stop failure hook commands that run when a turn ends due to an API error
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct StopFailureConfig {
+    /// List of commands to execute when a turn ends due to an API error (rate limit, auth failure, etc.). Commands run in order and can provide custom error messages.
+    #[serde(default)]
+    pub commands: Vec<StopCommand>,
+}
+
 /// Tool usage validation rule for fine-grained control over tool usage based on file patterns.
 ///
 /// Allows controlling which tools can be used on which files or with which command patterns.
@@ -1264,6 +1273,9 @@ impl NotificationsConfig {
 pub struct ConclaudeConfig {
     #[serde(default)]
     pub stop: StopConfig,
+    /// Configuration for StopFailure hook - commands to run when a turn ends due to an API error
+    #[serde(default, rename = "stopFailure")]
+    pub stop_failure: StopFailureConfig,
     #[serde(default, rename = "subagentStop")]
     pub subagent_stop: SubagentStopConfig,
     #[serde(default, rename = "preToolUse")]
@@ -1348,6 +1360,7 @@ fn extract_unknown_field(error_msg: &str) -> Option<String> {
 pub fn suggest_similar_fields(unknown_field: &str, section: &str) -> Vec<String> {
     let all_fields: Vec<(&str, Vec<&str>)> = vec![
         ("stop", StopConfig::field_names()),
+        ("stopFailure", StopFailureConfig::field_names()),
         ("subagentStop", SubagentStopConfig::field_names()),
         ("preToolUse", PreToolUseConfig::field_names()),
         ("notifications", NotificationsConfig::field_names()),

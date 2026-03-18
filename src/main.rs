@@ -10,9 +10,9 @@ use clap::{Parser, Subcommand};
 use hooks::{
     handle_config_change, handle_hook_result, handle_notification, handle_permission_request,
     handle_post_tool_use, handle_post_tool_use_failure, handle_pre_compact, handle_pre_tool_use,
-    handle_session_end, handle_session_start, handle_setup, handle_stop, handle_subagent_start,
-    handle_subagent_stop, handle_task_completed, handle_teammate_idle, handle_user_prompt_submit,
-    handle_worktree_create_result, handle_worktree_remove,
+    handle_session_end, handle_session_start, handle_setup, handle_stop, handle_stop_failure,
+    handle_subagent_start, handle_subagent_stop, handle_task_completed, handle_teammate_idle,
+    handle_user_prompt_submit, handle_worktree_create_result, handle_worktree_remove,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -144,6 +144,13 @@ enum HooksCommands {
         #[clap(long)]
         agent: Option<String>,
     },
+    /// Process `StopFailure` hook - fired when a turn ends due to an API error
+    #[clap(name = "StopFailure")]
+    StopFailure {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
     /// Process `SubagentStart` hook - fired when subagent begins
     #[clap(name = "SubagentStart")]
     SubagentStart {
@@ -259,6 +266,10 @@ async fn main() -> Result<()> {
             HooksCommands::Stop { agent } => {
                 set_agent_env(agent.as_deref());
                 handle_hook_result(handle_stop).await
+            }
+            HooksCommands::StopFailure { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_stop_failure).await
             }
             HooksCommands::SubagentStart { agent } => {
                 set_agent_env(agent.as_deref());
@@ -479,6 +490,7 @@ async fn handle_init(
         "PermissionRequest",
         "Notification",
         "Stop",
+        "StopFailure",
         "PreCompact",
         "SessionStart",
         "SessionEnd",
