@@ -125,6 +125,9 @@ pub struct PermissionRequestPayload {
     pub tool_name: String,
     /// Input parameters for the tool requesting permission
     pub tool_input: HashMap<String, serde_json::Value>,
+    /// Suggested permission decisions from Claude Code
+    #[serde(default)]
+    pub permission_suggestions: Option<serde_json::Value>,
 }
 
 /// Payload for Notification hook - fired when Claude sends system notifications.
@@ -137,6 +140,9 @@ pub struct NotificationPayload {
     pub message: String,
     /// Optional title for the notification
     pub title: Option<String>,
+    /// Type/category of the notification (e.g., used as match query by Claude Code)
+    #[serde(default)]
+    pub notification_type: Option<String>,
 }
 
 /// Payload for Stop hook - fired when a Claude session is terminating.
@@ -157,7 +163,8 @@ pub struct SubagentStartPayload {
     pub base: BasePayload,
     /// Unique identifier for the subagent being started (e.g., "coder", "tester", "stuck")
     pub agent_id: String,
-    /// Type of subagent being started
+    /// Type of subagent being started. Claude Code sends this as `agent_type`.
+    #[serde(alias = "agent_type")]
     pub subagent_type: String,
     /// Path to the subagent's specific transcript file for conversation history
     pub agent_transcript_path: String,
@@ -214,6 +221,12 @@ pub struct SessionStartPayload {
     pub base: BasePayload,
     /// Source that initiated the session (e.g., CLI, IDE integration)
     pub source: String,
+    /// Type of agent running the session (e.g., "main", "coder", "tester")
+    #[serde(default)]
+    pub agent_type: Option<String>,
+    /// Model being used for the session (e.g., "claude-sonnet-4-6")
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 /// Payload for `SessionEnd` hook - fired when a Claude session terminates.
@@ -312,6 +325,170 @@ pub fn validate_subagent_stop_payload(payload: &SubagentStopPayload) -> Result<(
         return Err("agent_transcript_path cannot be empty".to_string());
     }
 
+    Ok(())
+}
+
+/// Payload for `PostToolUseFailure` hook - fired when a tool execution fails.
+/// Contains tool context and error details for observability and logging.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostToolUseFailurePayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Name of the tool that failed
+    pub tool_name: String,
+    /// Input parameters that were passed to the tool
+    pub tool_input: HashMap<String, serde_json::Value>,
+    /// Unique identifier for this tool invocation
+    pub tool_use_id: Option<String>,
+    /// Error message describing the failure
+    pub error: String,
+    /// Whether the failure was due to an interrupt
+    pub is_interrupt: Option<bool>,
+}
+
+/// Payload for `TeammateIdle` hook - fired when a teammate agent becomes idle.
+/// Allows quality gates before a teammate stops working.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TeammateIdlePayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Name of the teammate that became idle
+    pub teammate_name: String,
+    /// Name of the team the teammate belongs to
+    pub team_name: String,
+}
+
+/// Payload for `TaskCompleted` hook - fired when a task is completed.
+/// Allows enforcing completion criteria before accepting task results.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskCompletedPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Unique identifier for the completed task
+    pub task_id: String,
+    /// Subject/title of the completed task
+    pub task_subject: String,
+    /// Optional detailed description of the task
+    pub task_description: Option<String>,
+    /// Optional name of the teammate that completed the task
+    pub teammate_name: Option<String>,
+    /// Optional name of the team
+    pub team_name: Option<String>,
+}
+
+/// Source of a configuration change
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfigChangeSource {
+    UserSettings,
+    ProjectSettings,
+    LocalSettings,
+    PolicySettings,
+    Skills,
+}
+
+impl std::fmt::Display for ConfigChangeSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConfigChangeSource::UserSettings => write!(f, "user_settings"),
+            ConfigChangeSource::ProjectSettings => write!(f, "project_settings"),
+            ConfigChangeSource::LocalSettings => write!(f, "local_settings"),
+            ConfigChangeSource::PolicySettings => write!(f, "policy_settings"),
+            ConfigChangeSource::Skills => write!(f, "skills"),
+        }
+    }
+}
+
+/// Payload for `ConfigChange` hook - fired when Claude Code configuration changes.
+/// Allows auditing and optionally blocking configuration modifications.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConfigChangePayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Source of the configuration change
+    pub source: ConfigChangeSource,
+    /// Optional path to the configuration file that changed
+    pub file_path: Option<String>,
+}
+
+/// Payload for `WorktreeCreate` hook - fired when a git worktree needs to be created.
+/// The hook handler must output the worktree path on stdout.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorktreeCreatePayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Name for the new worktree
+    pub name: String,
+}
+
+/// Payload for `WorktreeRemove` hook - fired when a git worktree is being removed.
+/// Observational - allows cleanup operations.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorktreeRemovePayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Path to the worktree being removed
+    pub worktree_path: String,
+}
+
+/// Payload for `Setup` hook - fired during Claude Code setup/initialization.
+/// Allows running initialization commands before a session fully starts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetupPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// The trigger that initiated setup (used as match query)
+    pub trigger: String,
+}
+
+/// Validates that a SetupPayload contains all required fields.
+pub fn validate_setup_payload(payload: &SetupPayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.trigger.trim().is_empty() {
+        return Err("trigger cannot be empty".to_string());
+    }
+    Ok(())
+}
+
+/// Validates that a TeammateIdlePayload contains all required fields.
+pub fn validate_teammate_idle_payload(payload: &TeammateIdlePayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.teammate_name.trim().is_empty() {
+        return Err("teammate_name cannot be empty".to_string());
+    }
+    if payload.team_name.trim().is_empty() {
+        return Err("team_name cannot be empty".to_string());
+    }
+    Ok(())
+}
+
+/// Validates that a TaskCompletedPayload contains all required fields.
+pub fn validate_task_completed_payload(payload: &TaskCompletedPayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.task_id.trim().is_empty() {
+        return Err("task_id cannot be empty".to_string());
+    }
+    if payload.task_subject.trim().is_empty() {
+        return Err("task_subject cannot be empty".to_string());
+    }
+    Ok(())
+}
+
+/// Validates that a WorktreeCreatePayload contains all required fields.
+pub fn validate_worktree_create_payload(payload: &WorktreeCreatePayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.name.trim().is_empty() {
+        return Err("name cannot be empty".to_string());
+    }
+    Ok(())
+}
+
+/// Validates that a WorktreeRemovePayload contains all required fields.
+pub fn validate_worktree_remove_payload(payload: &WorktreeRemovePayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.worktree_path.trim().is_empty() {
+        return Err("worktree_path cannot be empty".to_string());
+    }
     Ok(())
 }
 
@@ -667,5 +844,379 @@ mod tests {
         assert_eq!(deserialized.system_prompt, Some("Context".to_string()));
         assert_eq!(deserialized.decision, Some("allow".to_string()));
         assert!(deserialized.updated_input.is_some());
+    }
+
+    #[test]
+    fn test_post_tool_use_failure_payload_deserialization() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "PostToolUseFailure",
+            "cwd": "/current/dir",
+            "tool_name": "Bash",
+            "tool_input": {"command": "false"},
+            "error": "command failed with exit code 1"
+        }"#;
+        let payload: PostToolUseFailurePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.tool_name, "Bash");
+        assert_eq!(payload.error, "command failed with exit code 1");
+        assert_eq!(payload.tool_use_id, None);
+        assert_eq!(payload.is_interrupt, None);
+    }
+
+    #[test]
+    fn test_post_tool_use_failure_payload_with_optional_fields() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "PostToolUseFailure",
+            "cwd": "/current/dir",
+            "tool_name": "Bash",
+            "tool_input": {},
+            "tool_use_id": "tu_123",
+            "error": "interrupted",
+            "is_interrupt": true
+        }"#;
+        let payload: PostToolUseFailurePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.tool_use_id, Some("tu_123".to_string()));
+        assert_eq!(payload.is_interrupt, Some(true));
+    }
+
+    #[test]
+    fn test_teammate_idle_payload_deserialization() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "TeammateIdle",
+            "cwd": "/current/dir",
+            "teammate_name": "coder-1",
+            "team_name": "dev-team"
+        }"#;
+        let payload: TeammateIdlePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.teammate_name, "coder-1");
+        assert_eq!(payload.team_name, "dev-team");
+    }
+
+    #[test]
+    fn test_task_completed_payload_deserialization() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "TaskCompleted",
+            "cwd": "/current/dir",
+            "task_id": "task-42",
+            "task_subject": "Implement feature X"
+        }"#;
+        let payload: TaskCompletedPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.task_id, "task-42");
+        assert_eq!(payload.task_subject, "Implement feature X");
+        assert_eq!(payload.task_description, None);
+        assert_eq!(payload.teammate_name, None);
+        assert_eq!(payload.team_name, None);
+    }
+
+    #[test]
+    fn test_task_completed_payload_with_optional_fields() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "TaskCompleted",
+            "cwd": "/current/dir",
+            "task_id": "task-42",
+            "task_subject": "Implement feature X",
+            "task_description": "Full description here",
+            "teammate_name": "coder-1",
+            "team_name": "dev-team"
+        }"#;
+        let payload: TaskCompletedPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.task_description, Some("Full description here".to_string()));
+        assert_eq!(payload.teammate_name, Some("coder-1".to_string()));
+        assert_eq!(payload.team_name, Some("dev-team".to_string()));
+    }
+
+    #[test]
+    fn test_config_change_source_deserialization() {
+        assert_eq!(
+            serde_json::from_str::<ConfigChangeSource>("\"user_settings\"").unwrap(),
+            ConfigChangeSource::UserSettings
+        );
+        assert_eq!(
+            serde_json::from_str::<ConfigChangeSource>("\"project_settings\"").unwrap(),
+            ConfigChangeSource::ProjectSettings
+        );
+        assert_eq!(
+            serde_json::from_str::<ConfigChangeSource>("\"local_settings\"").unwrap(),
+            ConfigChangeSource::LocalSettings
+        );
+        assert_eq!(
+            serde_json::from_str::<ConfigChangeSource>("\"policy_settings\"").unwrap(),
+            ConfigChangeSource::PolicySettings
+        );
+        assert_eq!(
+            serde_json::from_str::<ConfigChangeSource>("\"skills\"").unwrap(),
+            ConfigChangeSource::Skills
+        );
+    }
+
+    #[test]
+    fn test_config_change_source_display() {
+        assert_eq!(ConfigChangeSource::UserSettings.to_string(), "user_settings");
+        assert_eq!(ConfigChangeSource::PolicySettings.to_string(), "policy_settings");
+        assert_eq!(ConfigChangeSource::Skills.to_string(), "skills");
+    }
+
+    #[test]
+    fn test_config_change_payload_deserialization() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "ConfigChange",
+            "cwd": "/current/dir",
+            "source": "user_settings",
+            "file_path": "/home/user/.claude/settings.json"
+        }"#;
+        let payload: ConfigChangePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.source, ConfigChangeSource::UserSettings);
+        assert_eq!(payload.file_path, Some("/home/user/.claude/settings.json".to_string()));
+    }
+
+    #[test]
+    fn test_config_change_payload_without_file_path() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "ConfigChange",
+            "cwd": "/current/dir",
+            "source": "skills"
+        }"#;
+        let payload: ConfigChangePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.source, ConfigChangeSource::Skills);
+        assert_eq!(payload.file_path, None);
+    }
+
+    #[test]
+    fn test_worktree_create_payload_deserialization() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "WorktreeCreate",
+            "cwd": "/current/dir",
+            "name": "feature-branch"
+        }"#;
+        let payload: WorktreeCreatePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.name, "feature-branch");
+    }
+
+    #[test]
+    fn test_worktree_remove_payload_deserialization() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "WorktreeRemove",
+            "cwd": "/current/dir",
+            "worktree_path": "/tmp/worktrees/feature-branch"
+        }"#;
+        let payload: WorktreeRemovePayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.worktree_path, "/tmp/worktrees/feature-branch");
+    }
+
+    #[test]
+    fn test_validate_teammate_idle_payload() {
+        let valid = TeammateIdlePayload {
+            base: BasePayload {
+                session_id: "s".to_string(),
+                transcript_path: "/t".to_string(),
+                hook_event_name: "TeammateIdle".to_string(),
+                cwd: "/c".to_string(),
+                permission_mode: None,
+            },
+            teammate_name: "coder".to_string(),
+            team_name: "team".to_string(),
+        };
+        assert!(validate_teammate_idle_payload(&valid).is_ok());
+
+        let mut empty_teammate = valid.clone();
+        empty_teammate.teammate_name = "".to_string();
+        assert!(validate_teammate_idle_payload(&empty_teammate).is_err());
+
+        let mut empty_team = valid.clone();
+        empty_team.team_name = "  ".to_string();
+        assert!(validate_teammate_idle_payload(&empty_team).is_err());
+    }
+
+    #[test]
+    fn test_validate_task_completed_payload() {
+        let valid = TaskCompletedPayload {
+            base: BasePayload {
+                session_id: "s".to_string(),
+                transcript_path: "/t".to_string(),
+                hook_event_name: "TaskCompleted".to_string(),
+                cwd: "/c".to_string(),
+                permission_mode: None,
+            },
+            task_id: "t1".to_string(),
+            task_subject: "subject".to_string(),
+            task_description: None,
+            teammate_name: None,
+            team_name: None,
+        };
+        assert!(validate_task_completed_payload(&valid).is_ok());
+
+        let mut empty_id = valid.clone();
+        empty_id.task_id = "".to_string();
+        assert!(validate_task_completed_payload(&empty_id).is_err());
+
+        let mut empty_subject = valid.clone();
+        empty_subject.task_subject = "  ".to_string();
+        assert!(validate_task_completed_payload(&empty_subject).is_err());
+    }
+
+    #[test]
+    fn test_validate_worktree_create_payload() {
+        let valid = WorktreeCreatePayload {
+            base: BasePayload {
+                session_id: "s".to_string(),
+                transcript_path: "/t".to_string(),
+                hook_event_name: "WorktreeCreate".to_string(),
+                cwd: "/c".to_string(),
+                permission_mode: None,
+            },
+            name: "feature".to_string(),
+        };
+        assert!(validate_worktree_create_payload(&valid).is_ok());
+
+        let mut empty = valid.clone();
+        empty.name = "".to_string();
+        assert!(validate_worktree_create_payload(&empty).is_err());
+    }
+
+    #[test]
+    fn test_validate_worktree_remove_payload() {
+        let valid = WorktreeRemovePayload {
+            base: BasePayload {
+                session_id: "s".to_string(),
+                transcript_path: "/t".to_string(),
+                hook_event_name: "WorktreeRemove".to_string(),
+                cwd: "/c".to_string(),
+                permission_mode: None,
+            },
+            worktree_path: "/tmp/wt".to_string(),
+        };
+        assert!(validate_worktree_remove_payload(&valid).is_ok());
+
+        let mut empty = valid.clone();
+        empty.worktree_path = "  ".to_string();
+        assert!(validate_worktree_remove_payload(&empty).is_err());
+    }
+
+    #[test]
+    fn test_setup_payload_deserialization() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "Setup",
+            "cwd": "/current/dir",
+            "trigger": "install"
+        }"#;
+        let payload: SetupPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.trigger, "install");
+        assert_eq!(payload.base.session_id, "test_session");
+    }
+
+    #[test]
+    fn test_validate_setup_payload() {
+        let valid = SetupPayload {
+            base: BasePayload {
+                session_id: "s".to_string(),
+                transcript_path: "/t".to_string(),
+                hook_event_name: "Setup".to_string(),
+                cwd: "/c".to_string(),
+                permission_mode: None,
+            },
+            trigger: "install".to_string(),
+        };
+        assert!(validate_setup_payload(&valid).is_ok());
+
+        let mut empty_trigger = valid.clone();
+        empty_trigger.trigger = "".to_string();
+        assert!(validate_setup_payload(&empty_trigger).is_err());
+
+        let mut whitespace_trigger = valid.clone();
+        whitespace_trigger.trigger = "  ".to_string();
+        assert!(validate_setup_payload(&whitespace_trigger).is_err());
+    }
+
+    #[test]
+    fn test_session_start_payload_with_new_fields() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "SessionStart",
+            "cwd": "/current/dir",
+            "source": "cli",
+            "agent_type": "main",
+            "model": "claude-sonnet-4-6"
+        }"#;
+        let payload: SessionStartPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.agent_type, Some("main".to_string()));
+        assert_eq!(payload.model, Some("claude-sonnet-4-6".to_string()));
+    }
+
+    #[test]
+    fn test_session_start_payload_without_new_fields() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "SessionStart",
+            "cwd": "/current/dir",
+            "source": "cli"
+        }"#;
+        let payload: SessionStartPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.agent_type, None);
+        assert_eq!(payload.model, None);
+    }
+
+    #[test]
+    fn test_notification_payload_with_notification_type() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "Notification",
+            "cwd": "/current/dir",
+            "message": "test",
+            "notification_type": "warning"
+        }"#;
+        let payload: NotificationPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.notification_type, Some("warning".to_string()));
+    }
+
+    #[test]
+    fn test_subagent_start_payload_agent_type_alias() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "SubagentStart",
+            "cwd": "/current/dir",
+            "agent_id": "agent-1",
+            "agent_type": "coder",
+            "agent_transcript_path": "/path/to/agent"
+        }"#;
+        let payload: SubagentStartPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.subagent_type, "coder");
+    }
+
+    #[test]
+    fn test_permission_request_payload_with_suggestions() {
+        let json = r#"{
+            "session_id": "test_session",
+            "transcript_path": "/path/to/transcript",
+            "hook_event_name": "PermissionRequest",
+            "cwd": "/current/dir",
+            "tool_name": "Bash",
+            "tool_input": {},
+            "permission_suggestions": ["allow"]
+        }"#;
+        let payload: PermissionRequestPayload = serde_json::from_str(json).unwrap();
+        assert!(payload.permission_suggestions.is_some());
     }
 }

@@ -37,6 +37,29 @@ Each rule supports: - `pattern`: (required) Regex pattern to match user prompt -
 | **Type** | `array` |
 | **Default** | `[]` |
 
+### `slashCommands`
+
+Configuration for slash command hooks that trigger when users invoke slash commands.
+
+Allows running custom commands when specific slash commands are detected in user prompts. Slash commands are detected from the prompt text (e.g., `/commit`, `/deploy`).
+
+Commands are executed after contextRules and regular commands processing. Unlike regular commands, slash command hooks CAN block prompt processing if a command exits with code 2.
+
+| Attribute | Value |
+|-----------|-------|
+| **Type** | `unknown` |
+| **Default** | `null` |
+
+**Examples:**
+
+```yaml
+userPromptSubmit: slashCommands: commands: # Run for /commit command "/commit": - run: ".claude/scripts/pre-commit.sh" showStdout: true
+
+# Run for any /test* command "/test*": - run: ".claude/scripts/test-setup.sh"
+
+# Run for all slash commands "*": - run: ".claude/scripts/log-command.sh"
+```
+
 ## Nested Types
 
 This section uses the following nested type definitions:

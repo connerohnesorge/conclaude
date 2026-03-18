@@ -372,8 +372,6 @@ async fn test_bash_validation_block_exact_command() -> anyhow::Result<()> {
                 command_pattern: Some("rm -rf /".to_string()),
                 match_mode: Some("full".to_string()),
                 agent: None,
-
-                skill: None,
             }],
             ..Default::default()
         },
@@ -432,8 +430,6 @@ async fn test_bash_validation_block_command_family() -> anyhow::Result<()> {
                 command_pattern: Some("git push --force*".to_string()),
                 match_mode: Some("prefix".to_string()),
                 agent: None,
-
-                skill: None,
             }],
             ..Default::default()
         },
@@ -497,8 +493,6 @@ async fn test_bash_validation_allow_whitelist() -> anyhow::Result<()> {
                 command_pattern: Some("echo *".to_string()),
                 match_mode: Some("full".to_string()),
                 agent: None,
-
-                skill: None,
             }],
             ..Default::default()
         },
@@ -580,8 +574,6 @@ async fn test_bash_validation_custom_message() -> anyhow::Result<()> {
                 command_pattern: Some("rm -rf*".to_string()),
                 match_mode: Some("full".to_string()),
                 agent: None,
-
-                skill: None,
             }],
             ..Default::default()
         },
@@ -632,8 +624,6 @@ async fn test_bash_validation_default_match_mode() -> anyhow::Result<()> {
                 command_pattern: Some("curl *".to_string()),
                 match_mode: None, // No explicit mode - should default to "full"
                 agent: None,
-
-                skill: None,
             }],
             ..Default::default()
         },
@@ -686,8 +676,6 @@ async fn test_bash_validation_backward_compatible() -> anyhow::Result<()> {
                 command_pattern: None, // No command pattern - uses file path pattern
                 match_mode: None,
                 agent: None,
-
-                skill: None,
             }],
             ..Default::default()
         },
@@ -739,8 +727,6 @@ async fn test_bash_validation_wildcard_tool() -> anyhow::Result<()> {
                 command_pattern: Some("sudo *".to_string()),
                 match_mode: Some("full".to_string()),
                 agent: None,
-
-                skill: None,
             }],
             ..Default::default()
         },
@@ -796,8 +782,6 @@ async fn test_bash_validation_prefix_mode_no_match_in_middle() -> anyhow::Result
                 command_pattern: Some("curl *".to_string()),
                 match_mode: Some("prefix".to_string()),
                 agent: None,
-
-                skill: None,
             }],
             ..Default::default()
         },
@@ -863,8 +847,6 @@ async fn test_bash_validation_multiple_rules() -> anyhow::Result<()> {
                     command_pattern: Some("rm *".to_string()),
                     match_mode: Some("full".to_string()),
                     agent: None,
-
-                    skill: None,
                 },
                 ToolUsageRule {
                     tool: "Bash".to_string(),
@@ -874,8 +856,6 @@ async fn test_bash_validation_multiple_rules() -> anyhow::Result<()> {
                     command_pattern: Some("curl *".to_string()),
                     match_mode: Some("full".to_string()),
                     agent: None,
-
-                    skill: None,
                 },
             ],
             ..Default::default()
@@ -1539,42 +1519,6 @@ fn test_agent_pattern_no_match() {
     assert!(!matches_agent_pattern("test", "testing"));
 }
 
-#[test]
-fn test_skill_pattern_exact_match() {
-    use conclaude::hooks::matches_skill_pattern;
-
-    assert!(matches_skill_pattern("tester", "tester"));
-    assert!(!matches_skill_pattern("documenter", "tester"));
-    assert!(matches_skill_pattern("commit", "commit"));
-    assert!(!matches_skill_pattern("commit", "tester"));
-}
-
-#[test]
-fn test_skill_pattern_wildcard() {
-    use conclaude::hooks::matches_skill_pattern;
-
-    // "*" should match all skills
-    assert!(matches_skill_pattern("tester", "*"));
-    assert!(matches_skill_pattern("documenter", "*"));
-    assert!(matches_skill_pattern("any_skill_name", "*"));
-    assert!(matches_skill_pattern("", "*"));
-}
-
-#[test]
-fn test_skill_pattern_glob() {
-    use conclaude::hooks::matches_skill_pattern;
-
-    // Test "test*" glob pattern
-    assert!(matches_skill_pattern("tester", "test*"));
-    assert!(matches_skill_pattern("test-runner", "test*"));
-    assert!(!matches_skill_pattern("documenter", "test*"));
-
-    // Test "doc*" glob pattern
-    assert!(matches_skill_pattern("documenter", "doc*"));
-    assert!(matches_skill_pattern("doc-gen", "doc*"));
-    assert!(!matches_skill_pattern("tester", "doc*"));
-}
-
 #[tokio::test]
 async fn test_tool_usage_rule_with_agent_filter() -> anyhow::Result<()> {
     use conclaude::config::{ConclaudeConfig, PreToolUseConfig, ToolUsageRule};
@@ -1591,8 +1535,6 @@ async fn test_tool_usage_rule_with_agent_filter() -> anyhow::Result<()> {
                     command_pattern: Some("rm -rf /".to_string()),
                     match_mode: Some("full".to_string()),
                     agent: Some("coder".to_string()),
-
-                    skill: None,
                 },
                 ToolUsageRule {
                     tool: "Bash".to_string(),
@@ -1602,8 +1544,6 @@ async fn test_tool_usage_rule_with_agent_filter() -> anyhow::Result<()> {
                     command_pattern: Some("drop database".to_string()),
                     match_mode: Some("full".to_string()),
                     agent: Some("test*".to_string()),
-
-                    skill: None,
                 },
             ],
             ..Default::default()
@@ -1645,75 +1585,6 @@ async fn test_tool_usage_rule_with_agent_filter() -> anyhow::Result<()> {
     assert!(
         !conclaude::hooks::matches_agent_pattern("coder", agent_pattern2),
         "Rule should not match 'coder' agent"
-    );
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn test_tool_usage_rule_with_skill_filter() -> anyhow::Result<()> {
-    use conclaude::config::{ConclaudeConfig, PreToolUseConfig, ToolUsageRule};
-
-    // Create test configuration with a rule that only applies to "tester" skill
-    let config = ConclaudeConfig {
-        pre_tool_use: PreToolUseConfig {
-            tool_usage_validation: vec![
-                ToolUsageRule {
-                    tool: "Bash".to_string(),
-                    pattern: String::new(),
-                    action: "block".to_string(),
-                    message: Some("Command blocked for tester skill!".to_string()),
-                    command_pattern: Some("rm -rf /".to_string()),
-                    match_mode: Some("full".to_string()),
-                    agent: None,
-                    skill: Some("tester".to_string()),
-                },
-                ToolUsageRule {
-                    tool: "Bash".to_string(),
-                    pattern: String::new(),
-                    action: "block".to_string(),
-                    message: Some("Command blocked for doc* skills!".to_string()),
-                    command_pattern: Some("rm -rf /".to_string()),
-                    match_mode: Some("full".to_string()),
-                    agent: None,
-                    skill: Some("doc*".to_string()),
-                },
-            ],
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-
-    // Test that the first rule matches "tester" skill
-    let rule1 = &config.pre_tool_use.tool_usage_validation[0];
-    assert!(rule1.skill.is_some());
-    let skill_pattern1 = rule1.skill.as_deref().unwrap();
-
-    assert!(
-        conclaude::hooks::matches_skill_pattern("tester", skill_pattern1),
-        "Rule should match 'tester' skill"
-    );
-    assert!(
-        !conclaude::hooks::matches_skill_pattern("documenter", skill_pattern1),
-        "Rule should not match 'documenter' skill"
-    );
-
-    // Test that the second rule matches "doc*" skills
-    let rule2 = &config.pre_tool_use.tool_usage_validation[1];
-    assert!(rule2.skill.is_some());
-    let skill_pattern2 = rule2.skill.as_deref().unwrap();
-
-    assert!(
-        conclaude::hooks::matches_skill_pattern("documenter", skill_pattern2),
-        "Rule should match 'documenter' skill"
-    );
-    assert!(
-        conclaude::hooks::matches_skill_pattern("doc-gen", skill_pattern2),
-        "Rule should match 'doc-gen' skill"
-    );
-    assert!(
-        !conclaude::hooks::matches_skill_pattern("tester", skill_pattern2),
-        "Rule should not match 'tester' skill"
     );
 
     Ok(())

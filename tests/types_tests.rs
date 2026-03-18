@@ -330,6 +330,7 @@ fn test_permission_request_payload_serialization() {
         },
         tool_name: "Bash".to_string(),
         tool_input,
+        permission_suggestions: None,
     };
 
     let json = serde_json::to_string(&payload).unwrap();
@@ -357,6 +358,7 @@ fn test_validate_permission_request_payload_valid() {
         },
         tool_name: "Bash".to_string(),
         tool_input,
+        permission_suggestions: None,
     };
     assert!(validate_permission_request_payload(&payload).is_ok());
 }
@@ -379,6 +381,7 @@ fn test_validate_permission_request_payload_empty_tool_name() {
         },
         tool_name: String::new(),
         tool_input,
+        permission_suggestions: None,
     };
     let result = validate_permission_request_payload(&payload);
     assert!(result.is_err());
@@ -403,6 +406,7 @@ fn test_validate_permission_request_payload_whitespace_tool_name() {
         },
         tool_name: "   ".to_string(),
         tool_input,
+        permission_suggestions: None,
     };
     let result = validate_permission_request_payload(&payload);
     assert!(result.is_err());
@@ -678,4 +682,91 @@ fn test_subagent_start_payload_serialization_round_trip() {
         deserialized.agent_transcript_path,
         payload.agent_transcript_path
     );
+}
+
+// Tests for new hook payload types
+
+#[test]
+fn test_post_tool_use_failure_payload_valid() {
+    let json = r#"{
+        "session_id": "test_session",
+        "transcript_path": "/path/to/transcript",
+        "hook_event_name": "PostToolUseFailure",
+        "cwd": "/current/dir",
+        "tool_name": "Bash",
+        "tool_input": {"command": "false"},
+        "error": "command failed"
+    }"#;
+    let payload: PostToolUseFailurePayload = serde_json::from_str(json).unwrap();
+    assert_eq!(payload.tool_name, "Bash");
+    assert_eq!(payload.error, "command failed");
+    assert!(validate_base_payload(&payload.base).is_ok());
+}
+
+#[test]
+fn test_teammate_idle_payload_valid() {
+    let json = r#"{
+        "session_id": "test_session",
+        "transcript_path": "/path/to/transcript",
+        "hook_event_name": "TeammateIdle",
+        "cwd": "/current/dir",
+        "teammate_name": "coder-1",
+        "team_name": "dev-team"
+    }"#;
+    let payload: TeammateIdlePayload = serde_json::from_str(json).unwrap();
+    assert!(validate_teammate_idle_payload(&payload).is_ok());
+}
+
+#[test]
+fn test_task_completed_payload_valid() {
+    let json = r#"{
+        "session_id": "test_session",
+        "transcript_path": "/path/to/transcript",
+        "hook_event_name": "TaskCompleted",
+        "cwd": "/current/dir",
+        "task_id": "task-1",
+        "task_subject": "Build feature X"
+    }"#;
+    let payload: TaskCompletedPayload = serde_json::from_str(json).unwrap();
+    assert!(validate_task_completed_payload(&payload).is_ok());
+}
+
+#[test]
+fn test_config_change_payload_valid() {
+    let json = r#"{
+        "session_id": "test_session",
+        "transcript_path": "/path/to/transcript",
+        "hook_event_name": "ConfigChange",
+        "cwd": "/current/dir",
+        "source": "user_settings"
+    }"#;
+    let payload: ConfigChangePayload = serde_json::from_str(json).unwrap();
+    assert!(validate_base_payload(&payload.base).is_ok());
+    assert_eq!(payload.source, ConfigChangeSource::UserSettings);
+}
+
+#[test]
+fn test_worktree_create_payload_valid() {
+    let json = r#"{
+        "session_id": "test_session",
+        "transcript_path": "/path/to/transcript",
+        "hook_event_name": "WorktreeCreate",
+        "cwd": "/current/dir",
+        "name": "feature-branch"
+    }"#;
+    let payload: WorktreeCreatePayload = serde_json::from_str(json).unwrap();
+    assert!(validate_worktree_create_payload(&payload).is_ok());
+}
+
+#[test]
+fn test_worktree_remove_payload_valid() {
+    let json = r#"{
+        "session_id": "test_session",
+        "transcript_path": "/path/to/transcript",
+        "hook_event_name": "WorktreeRemove",
+        "cwd": "/current/dir",
+        "worktree_path": "/tmp/worktrees/feature"
+    }"#;
+    let payload: WorktreeRemovePayload = serde_json::from_str(json).unwrap();
+    assert!(validate_worktree_remove_payload(&payload).is_ok());
 }

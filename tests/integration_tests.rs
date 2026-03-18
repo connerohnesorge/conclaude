@@ -56,7 +56,7 @@ fn test_cli_init_command_force_overwrite() {
     file.write_all(b"existing content")
         .expect("Failed to write existing content");
 
-    // First init without force should succeed but skip config creation
+    // First init without force should fail (exit code 1)
     let output = Command::new("cargo")
         .args([
             "run",
@@ -70,26 +70,13 @@ fn test_cli_init_command_force_overwrite() {
         .output()
         .expect("Failed to run CLI init command");
 
-    // Should succeed but skip config creation (continues with other files)
+    // Should fail because config already exists
     assert!(
-        output.status.success(),
-        "Init without force should succeed (skipping config creation)"
+        !output.status.success(),
+        "Init without force should fail when config exists"
     );
 
-    // Verify the config was NOT overwritten
-    let config_content = fs::read_to_string(&config_path).expect("Failed to read config file");
-    assert!(
-        config_content.contains("existing content"),
-        "Config should not be overwritten without --force"
-    );
-
-    // Verify that other files were still created
-    assert!(
-        temp_path.join(".claude/settings.json").exists(),
-        "settings.json should still be created"
-    );
-
-    // Second init with force should succeed and overwrite config
+    // Second init with force should succeed
     let output = Command::new("cargo")
         .args([
             "run",
@@ -959,4 +946,67 @@ stop:
         "Error should mention type validation failure. stderr: {}",
         stderr
     );
+}
+
+#[test]
+fn test_cli_hooks_post_tool_use_failure_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "PostToolUseFailure", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "PostToolUseFailure subcommand should exist");
+}
+
+#[test]
+fn test_cli_hooks_teammate_idle_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "TeammateIdle", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "TeammateIdle subcommand should exist");
+}
+
+#[test]
+fn test_cli_hooks_task_completed_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "TaskCompleted", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "TaskCompleted subcommand should exist");
+}
+
+#[test]
+fn test_cli_hooks_config_change_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "ConfigChange", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "ConfigChange subcommand should exist");
+}
+
+#[test]
+fn test_cli_hooks_worktree_create_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "WorktreeCreate", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "WorktreeCreate subcommand should exist");
+}
+
+#[test]
+fn test_cli_hooks_worktree_remove_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "WorktreeRemove", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "WorktreeRemove subcommand should exist");
+}
+
+#[test]
+fn test_cli_hooks_setup_exists() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "Hooks", "Setup", "--help"])
+        .output()
+        .expect("Failed to run CLI");
+    assert!(output.status.success(), "Setup subcommand should exist");
 }

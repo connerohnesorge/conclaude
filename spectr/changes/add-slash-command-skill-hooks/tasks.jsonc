@@ -38,338 +38,230 @@
   "tasks": [
     {
       "id": "1.1",
-      "section": "CLI Flag Implementation",
-      "description": "Add `--skill` flag to `PreToolUse` hook command",
+      "section": "Configuration Structs",
+      "description": "Add `SlashCommandConfig` struct to `src/config.rs` with pattern-to-commands mapping",
       "status": "completed"
     },
     {
       "id": "1.2",
-      "section": "CLI Flag Implementation",
-      "description": "Add `--skill` flag to `PostToolUse` hook command",
+      "section": "Configuration Structs",
+      "description": "Add `SkillStartConfig` struct to `src/config.rs` with skill pattern-to-commands mapping",
       "status": "completed"
     },
     {
       "id": "1.3",
-      "section": "CLI Flag Implementation",
-      "description": "Add `--skill` flag to `Stop` hook command",
+      "section": "Configuration Structs",
+      "description": "Add `SlashCommandEntry` struct with run, message, showCommand, showStdout, showStderr, maxOutputLines, timeout fields",
       "status": "completed"
     },
     {
       "id": "1.4",
-      "section": "CLI Flag Implementation",
-      "description": "Add `--skill` flag to `SessionStart` hook command",
+      "section": "Configuration Structs",
+      "description": "Add `SkillStartCommand` struct (same fields as SlashCommandEntry)",
       "status": "completed"
     },
     {
       "id": "1.5",
-      "section": "CLI Flag Implementation",
-      "description": "Add `--skill` flag to `SessionEnd` hook command",
+      "section": "Configuration Structs",
+      "description": "Extend `UserPromptSubmitConfig` to include optional `slashCommands` field",
       "status": "completed"
     },
     {
       "id": "1.6",
-      "section": "CLI Flag Implementation",
-      "description": "Add `--skill` flag to `UserPromptSubmit` hook command",
+      "section": "Configuration Structs",
+      "description": "Add `skillStart` field to `ConclaudeConfig` at root level",
       "status": "completed"
     },
     {
       "id": "1.7",
-      "section": "CLI Flag Implementation",
-      "description": "Add `--skill` flag to `Notification` hook command",
-      "status": "completed"
-    },
-    {
-      "id": "1.8",
-      "section": "CLI Flag Implementation",
-      "description": "Add `--skill` flag to `SubagentStart` hook command",
-      "status": "completed"
-    },
-    {
-      "id": "1.9",
-      "section": "CLI Flag Implementation",
-      "description": "Add `--skill` flag to `SubagentStop` hook command",
-      "status": "completed"
-    },
-    {
-      "id": "1.10",
-      "section": "CLI Flag Implementation",
-      "description": "Add `--skill` flag to `PreCompact` hook command",
-      "status": "completed"
-    },
-    {
-      "id": "1.11",
-      "section": "CLI Flag Implementation",
-      "description": "Add `--skill` flag to `PermissionRequest` hook command",
-      "status": "completed"
-    },
-    {
-      "id": "1.12",
-      "section": "CLI Flag Implementation",
-      "description": "Add `CONCLAUDE_SKILL` environment variable handling (similar to `CONCLAUDE_AGENT`)",
+      "section": "Configuration Structs",
+      "description": "Add serde derive macros and JsonSchema for new structs",
       "status": "completed"
     },
     {
       "id": "2.1",
-      "section": "Hook Injection for Commands and Skills",
-      "description": "Create `discover_command_files()` function (similar to `discover_agent_files()`)",
+      "section": "Slash Command Detection Logic",
+      "description": "Create `detect_slash_command()` function to parse `/command` from prompt text",
       "status": "completed"
     },
     {
       "id": "2.2",
-      "section": "Hook Injection for Commands and Skills",
-      "description": "Create `discover_skill_files()` function (similar to `discover_agent_files()`)",
+      "section": "Slash Command Detection Logic",
+      "description": "Implement regex pattern: `/^\\\\/(\\\\w+)(?:\\\\s+(.*))?$/m` to extract command and args",
       "status": "completed"
     },
     {
       "id": "2.3",
-      "section": "Hook Injection for Commands and Skills",
-      "description": "Create `generate_skill_hooks()` function (similar to `generate_agent_hooks()`)",
+      "section": "Slash Command Detection Logic",
+      "description": "Add unit tests for slash command detection edge cases",
       "status": "completed"
     },
     {
       "id": "2.4",
-      "section": "Hook Injection for Commands and Skills",
-      "description": "Create `inject_skill_hooks_into_file()` function (similar to `inject_agent_hooks_into_file()`)",
+      "section": "Slash Command Detection Logic",
+      "description": "Integrate slash command detection into `handle_user_prompt_submit()` flow",
       "status": "completed"
     },
     {
       "id": "2.5",
-      "section": "Hook Injection for Commands and Skills",
-      "description": "Create `inject_skill_hooks()` function for batch injection",
-      "status": "completed"
-    },
-    {
-      "id": "2.6",
-      "section": "Hook Injection for Commands and Skills",
-      "description": "Integrate command/skill hook injection into `handle_init()`",
-      "status": "completed"
-    },
-    {
-      "id": "2.7",
-      "section": "Hook Injection for Commands and Skills",
-      "description": "Add user feedback messages for command/skill discovery",
-      "status": "completed"
-    },
-    {
-      "id": "2.8",
-      "section": "Hook Injection for Commands and Skills",
-      "description": "Support `--force` flag for re-injection",
+      "section": "Slash Command Detection Logic",
+      "description": "Match detected command against configured patterns using glob matching",
       "status": "completed"
     },
     {
       "id": "3.1",
-      "section": "Configuration Schema Updates",
-      "description": "Add `skill` field to `UnEditableFileRule` type",
+      "section": "Skill Start Detection Logic",
+      "description": "Extend `SubagentStartPayload` handling to check for skill patterns",
       "status": "completed"
     },
     {
       "id": "3.2",
-      "section": "Configuration Schema Updates",
-      "description": "Add `skill` field to `ToolUsageRule` type",
+      "section": "Skill Start Detection Logic",
+      "description": "Add pattern matching against `agent_type` field in SubagentStart events",
       "status": "completed"
     },
     {
       "id": "3.3",
-      "section": "Configuration Schema Updates",
-      "description": "Add `skill` field to `StopCommand` type",
+      "section": "Skill Start Detection Logic",
+      "description": "Create `handle_skill_start()` function for skill-specific hooks",
       "status": "completed"
     },
     {
       "id": "3.4",
-      "section": "Configuration Schema Updates",
-      "description": "Add `skill` field to `SubagentStopCommand` type (if applicable)",
-      "status": "completed"
-    },
-    {
-      "id": "3.5",
-      "section": "Configuration Schema Updates",
-      "description": "Add `matches_skill_pattern()` helper function (similar to `matches_agent_pattern()`)",
-      "status": "completed"
-    },
-    {
-      "id": "3.6",
-      "section": "Configuration Schema Updates",
-      "description": "Update field name lists in error suggestion system",
+      "section": "Skill Start Detection Logic",
+      "description": "Integrate with existing subagent hook processing flow",
       "status": "completed"
     },
     {
       "id": "4.1",
-      "section": "Hook Processing Updates",
-      "description": "Read `CONCLAUDE_SKILL` environment variable in hook handlers",
+      "section": "Command Execution",
+      "description": "Add `CONCLAUDE_SLASH_COMMAND` environment variable support",
       "status": "completed"
     },
     {
       "id": "4.2",
-      "section": "Hook Processing Updates",
-      "description": "Add skill context logging",
+      "section": "Command Execution",
+      "description": "Add `CONCLAUDE_SLASH_COMMAND_ARGS` environment variable support",
       "status": "completed"
     },
     {
       "id": "4.3",
-      "section": "Hook Processing Updates",
-      "description": "Update rule matching to check skill patterns",
+      "section": "Command Execution",
+      "description": "Add `CONCLAUDE_SKILL_NAME` environment variable support",
       "status": "completed"
     },
     {
       "id": "4.4",
-      "section": "Hook Processing Updates",
-      "description": "Add skill information to notification messages",
+      "section": "Command Execution",
+      "description": "Reuse existing command execution infrastructure from `execute_stop_commands()`",
       "status": "completed"
     },
     {
       "id": "4.5",
-      "section": "Hook Processing Updates",
-      "description": "Update PreToolUse handler to check skill-specific rules",
-      "status": "completed"
-    },
-    {
-      "id": "4.6",
-      "section": "Hook Processing Updates",
-      "description": "Update Stop handler to execute skill-specific commands",
+      "section": "Command Execution",
+      "description": "Support exit code 2 for blocking behavior",
       "status": "completed"
     },
     {
       "id": "5.1",
-      "section": "Default Configuration Updates",
-      "description": "Add commented examples for skill-specific rules in `src/default-config.yaml`",
+      "section": "Schema and Validation",
+      "description": "Update JSON schema generator to include new config sections",
       "status": "completed"
     },
     {
       "id": "5.2",
-      "section": "Default Configuration Updates",
-      "description": "Document `CONCLAUDE_SKILL` environment variable",
+      "section": "Schema and Validation",
+      "description": "Run `/generate-schema` to regenerate `conclaude-schema.json`",
       "status": "completed"
     },
     {
       "id": "5.3",
-      "section": "Default Configuration Updates",
-      "description": "Add skill pattern matching examples",
+      "section": "Schema and Validation",
+      "description": "Add validation for pattern syntax (valid glob patterns)",
+      "status": "completed"
+    },
+    {
+      "id": "5.4",
+      "section": "Schema and Validation",
+      "description": "Add validation for command field requirements",
       "status": "completed"
     },
     {
       "id": "6.1",
-      "section": "Schema Generation",
-      "description": "Update `src/schema.rs` to include skill fields",
+      "section": "Configuration Defaults and Documentation",
+      "description": "Add commented examples to `src/default-config.yaml`",
       "status": "completed"
     },
     {
       "id": "6.2",
-      "section": "Schema Generation",
-      "description": "Run schema generation to update `conclaude-schema.json`",
+      "section": "Configuration Defaults and Documentation",
+      "description": "Run `/generate-docs` to regenerate configuration reference docs",
+      "status": "completed"
+    },
+    {
+      "id": "6.3",
+      "section": "Configuration Defaults and Documentation",
+      "description": "Update docs with slash command and skill hook examples",
       "status": "completed"
     },
     {
       "id": "7.1",
-      "section": "Documentation",
-      "description": "Update README.md with slash command/skill hook information",
+      "section": "Testing",
+      "description": "Add unit tests for `SlashCommandConfig` parsing",
       "status": "completed"
     },
     {
       "id": "7.2",
-      "section": "Documentation",
-      "description": "Document `--skill` flag usage",
+      "section": "Testing",
+      "description": "Add unit tests for `SkillStartConfig` parsing",
       "status": "completed"
     },
     {
       "id": "7.3",
-      "section": "Documentation",
-      "description": "Add examples of skill-specific configuration",
+      "section": "Testing",
+      "description": "Add unit tests for slash command detection from prompts",
       "status": "completed"
     },
     {
       "id": "7.4",
-      "section": "Documentation",
-      "description": "Document `CONCLAUDE_SKILL` environment variable",
+      "section": "Testing",
+      "description": "Add unit tests for pattern matching (exact, glob, wildcard)",
+      "status": "completed"
+    },
+    {
+      "id": "7.5",
+      "section": "Testing",
+      "description": "Add integration tests for end-to-end slash command hooks",
+      "status": "completed"
+    },
+    {
+      "id": "7.6",
+      "section": "Testing",
+      "description": "Add integration tests for skill start hooks",
       "status": "completed"
     },
     {
       "id": "8.1",
-      "section": "Testing",
-      "description": "Add unit tests for `discover_command_files()`",
+      "section": "Finalization",
+      "description": "Run `cargo clippy` and fix any warnings",
       "status": "completed"
     },
     {
       "id": "8.2",
-      "section": "Testing",
-      "description": "Add unit tests for `discover_skill_files()`",
-      "status": "completed"
-    },
-    {
-      "id": "8.3",
-      "section": "Testing",
-      "description": "Add unit tests for `generate_skill_hooks()`",
-      "status": "completed"
-    },
-    {
-      "id": "8.4",
-      "section": "Testing",
-      "description": "Add unit tests for `matches_skill_pattern()`",
-      "status": "completed"
-    },
-    {
-      "id": "8.5",
-      "section": "Testing",
-      "description": "Add unit tests for skill field in configuration parsing",
-      "status": "completed"
-    },
-    {
-      "id": "8.6",
-      "section": "Testing",
-      "description": "Add integration test for command file hook injection",
-      "status": "completed"
-    },
-    {
-      "id": "8.7",
-      "section": "Testing",
-      "description": "Add integration test for skill file hook injection",
-      "status": "completed"
-    },
-    {
-      "id": "8.8",
-      "section": "Testing",
-      "description": "Add tests for skill-specific rule matching",
-      "status": "completed"
-    },
-    {
-      "id": "8.9",
-      "section": "Testing",
-      "description": "Verify backward compatibility with existing agent hooks",
-      "status": "completed"
-    },
-    {
-      "id": "9.1",
-      "section": "Finalization",
-      "description": "Run `cargo clippy` and fix warnings",
-      "status": "completed"
-    },
-    {
-      "id": "9.2",
       "section": "Finalization",
       "description": "Run `cargo fmt` to format code",
       "status": "completed"
     },
     {
-      "id": "9.3",
+      "id": "8.3",
       "section": "Finalization",
       "description": "Run `cargo test` to verify all tests pass",
       "status": "completed"
     },
     {
-      "id": "9.4",
+      "id": "8.4",
       "section": "Finalization",
-      "description": "Test `conclaude init` with sample command/skill files",
-      "status": "completed"
-    },
-    {
-      "id": "9.5",
-      "section": "Finalization",
-      "description": "Validate schema with example configurations",
-      "status": "completed"
-    },
-    {
-      "id": "9.6",
-      "section": "Finalization",
-      "description": "Run `spectr validate add-slash-command-skill-hooks`",
+      "description": "Verify schema validation with example configs",
       "status": "completed"
     }
   ]

@@ -36,9 +36,6 @@ pub struct StopCommand {
     /// Whether to send individual notifications for this command (start and completion). Default: false
     #[serde(default, rename = "notifyPerCommand")]
     pub notify_per_command: Option<bool>,
-    /// Optional skill pattern to scope this command to specific skills (e.g., "tester", "commit", or glob patterns like "test*")
-    #[serde(default)]
-    pub skill: Option<String>,
 }
 
 /// Configuration for individual subagent stop commands with optional messages
@@ -70,9 +67,192 @@ pub struct SubagentStopCommand {
     /// Whether to send individual notifications for this command (start and completion). Default: false
     #[serde(default, rename = "notifyPerCommand")]
     pub notify_per_command: Option<bool>,
-    /// Optional skill pattern to scope this command to specific skills (e.g., "tester", "commit", or glob patterns like "test*")
+}
+
+/// Configuration for individual slash command entries with optional messages
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct SlashCommandEntry {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_SLASH_COMMAND, CONCLAUDE_SLASH_COMMAND_ARGS, CONCLAUDE_USER_PROMPT, CONCLAUDE_SESSION_ID, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_HOOK_EVENT
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
     #[serde(default)]
-    pub skill: Option<String>,
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated and the hook is blocked.
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command (start and completion). Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual skill start commands with optional messages
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct SkillStartCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_SKILL_NAME, CONCLAUDE_AGENT_ID, CONCLAUDE_AGENT_TRANSCRIPT_PATH, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour). When timeout occurs, the command is terminated and the hook is blocked.
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command (start and completion). Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual teammate idle commands with optional messages
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct TeammateIdleCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_TEAMMATE_NAME, CONCLAUDE_TEAM_NAME, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual task completed commands with optional messages
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct TaskCompletedCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_TASK_ID, CONCLAUDE_TASK_SUBJECT, CONCLAUDE_TASK_DESCRIPTION, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual setup commands with optional messages
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct SetupCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_SETUP_TRIGGER, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_PAYLOAD_JSON, CONCLAUDE_AGENT_NAME
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual config change commands with optional messages
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct ConfigChangeCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_CONFIG_SOURCE, CONCLAUDE_CONFIG_FILE_PATH, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
 }
 
 /// Configuration for subagent stop hooks with pattern-based command execution.
@@ -142,6 +322,209 @@ pub struct SubagentStopConfig {
     pub commands: std::collections::HashMap<String, Vec<SubagentStopCommand>>,
 }
 
+/// Configuration for slash command hooks that trigger when users invoke slash commands.
+///
+/// This allows configuring different commands for different slash command names
+/// using pattern matching. Commands run when a user submits a prompt starting
+/// with a slash command (e.g., `/commit`, `/deploy`).
+///
+/// # Pattern Matching Rules
+///
+/// - Patterns are matched in the order they appear in the configuration
+/// - First matching pattern's commands are executed
+/// - Use "*" to match all slash commands (put last as fallback)
+/// - Glob patterns support: *, ?, \[abc\], \[a-z\], {foo,bar}
+///
+/// # Environment Variables
+///
+/// The following environment variables are available in slash command hooks:
+/// - `CONCLAUDE_SLASH_COMMAND` - The detected slash command name (e.g., "commit")
+/// - `CONCLAUDE_SLASH_COMMAND_ARGS` - Arguments passed to the command
+/// - `CONCLAUDE_USER_PROMPT` - Full prompt text
+/// - `CONCLAUDE_SESSION_ID` - Current session ID
+/// - `CONCLAUDE_TRANSCRIPT_PATH` - Main transcript file path
+/// - `CONCLAUDE_HOOK_EVENT` - Always "UserPromptSubmit"
+/// - `CONCLAUDE_CWD` - Current working directory
+///
+/// # Examples
+///
+/// ```yaml
+/// userPromptSubmit:
+///   slashCommands:
+///     commands:
+///       # Exact match - only runs for /commit
+///       "/commit":
+///         - run: ".claude/scripts/pre-commit-check.sh"
+///           showStdout: true
+///
+///       # Glob pattern - runs for any command starting with /test
+///       "/test*":
+///         - run: ".claude/scripts/test-setup.sh"
+///
+///       # Wildcard - runs for ALL slash commands
+///       "*":
+///         - run: ".claude/scripts/log-command.sh"
+///           showCommand: false
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct SlashCommandConfig {
+    /// Map of slash command patterns to command configurations.
+    ///
+    /// Each key is a glob pattern that matches against the slash command name.
+    /// Commands are executed in the order they appear when the pattern matches.
+    ///
+    /// Pattern examples:
+    /// - `"*"` - Matches all slash commands (wildcard)
+    /// - `"/commit"` - Exact match for /commit command
+    /// - `"/test*"` - Matches any command starting with "/test"
+    /// - `"/*deploy"` - Matches any command ending with "deploy"
+    ///
+    /// Command options:
+    /// - `run`: (required) Command to execute
+    /// - `showStdout`: (optional) Show stdout to user/Claude. Default: false
+    /// - `showStderr`: (optional) Show stderr to user/Claude. Default: false
+    /// - `message`: (optional) Custom error message on non-zero exit
+    /// - `maxOutputLines`: (optional) Limit output lines. Range: 1-10000
+    /// - `timeout`: (optional) Command timeout in seconds. Range: 1-3600
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<SlashCommandEntry>>,
+}
+
+/// Configuration for skill start hooks that trigger when subagents (skills) start.
+///
+/// This allows configuring different commands for different skill types
+/// using pattern matching. Commands run when a skill/subagent begins execution.
+///
+/// # Pattern Matching Rules
+///
+/// - Patterns are matched in the order they appear in the configuration
+/// - First matching pattern's commands are executed
+/// - Use "*" to match all skills (put last as fallback)
+/// - Glob patterns support: *, ?, \[abc\], \[a-z\], {foo,bar}
+///
+/// # Environment Variables
+///
+/// The following environment variables are available in skill start hooks:
+/// - `CONCLAUDE_SKILL_NAME` - The skill/agent type name
+/// - `CONCLAUDE_AGENT_ID` - Unique agent identifier
+/// - `CONCLAUDE_AGENT_TRANSCRIPT_PATH` - Path to subagent's transcript
+/// - `CONCLAUDE_SESSION_ID` - Current session ID
+/// - `CONCLAUDE_TRANSCRIPT_PATH` - Main transcript file path
+/// - `CONCLAUDE_HOOK_EVENT` - Always "SubagentStart"
+/// - `CONCLAUDE_CWD` - Current working directory
+///
+/// # Examples
+///
+/// ```yaml
+/// skillStart:
+///   commands:
+///     # Exact match - only runs when "coder" skill starts
+///     "coder":
+///       - run: ".claude/scripts/coder-init.sh"
+///         showStdout: true
+///
+///     # Glob pattern - runs for any skill starting with "test"
+///     "test*":
+///       - run: ".claude/scripts/test-env-check.sh"
+///
+///     # Wildcard - runs for ALL skills
+///     "*":
+///       - run: ".claude/scripts/log-skill.sh"
+///         showCommand: false
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct SkillStartConfig {
+    /// Map of skill name patterns to command configurations.
+    ///
+    /// Each key is a glob pattern that matches against the skill/agent type.
+    /// Commands are executed in the order they appear when the pattern matches.
+    ///
+    /// Pattern examples:
+    /// - `"*"` - Matches all skills (wildcard)
+    /// - `"coder"` - Exact match for coder skill
+    /// - `"test*"` - Matches any skill starting with "test"
+    /// - `"*coder"` - Matches any skill ending with "coder"
+    ///
+    /// Command options:
+    /// - `run`: (required) Command to execute
+    /// - `showStdout`: (optional) Show stdout to user/Claude. Default: false
+    /// - `showStderr`: (optional) Show stderr to user/Claude. Default: false
+    /// - `message`: (optional) Custom error message on non-zero exit
+    /// - `maxOutputLines`: (optional) Limit output lines. Range: 1-10000
+    /// - `timeout`: (optional) Command timeout in seconds. Range: 1-3600
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<SkillStartCommand>>,
+}
+
+/// Configuration for teammate idle hooks with pattern-based command execution.
+///
+/// Commands run when a teammate agent becomes idle. Exit code 2 blocks the idle.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct TeammateIdleConfig {
+    /// Map of teammate name patterns to command configurations.
+    /// Keys are glob patterns matching teammate names.
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<TeammateIdleCommand>>,
+}
+
+/// Configuration for task completed hooks with pattern-based command execution.
+///
+/// Commands run when a task is completed. Exit code 2 blocks completion.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct TaskCompletedConfig {
+    /// Map of task subject patterns to command configurations.
+    /// Keys are glob patterns matching task subjects.
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<TaskCompletedCommand>>,
+}
+
+/// Configuration for config change hooks with source-based command execution.
+///
+/// Commands run when configuration changes. Exit code 2 blocks the change,
+/// except when source is policy_settings (cannot be blocked).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct ConfigChangeConfig {
+    /// Map of source patterns to command configurations.
+    /// Keys are glob patterns matching source names (e.g., "user_settings", "*").
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<ConfigChangeCommand>>,
+}
+
+/// Configuration for worktree create hook.
+///
+/// When configured, this command runs instead of the default `git worktree add`.
+/// The command must output the worktree path on stdout.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct WorktreeCreateConfig {
+    /// The shell command to execute to create a worktree. Must output the worktree path to stdout.
+    /// Environment variable CONCLAUDE_WORKTREE_NAME is set to the requested name.
+    #[serde(default)]
+    pub command: Option<String>,
+    /// Optional command timeout in seconds. Range: 1-3600.
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+}
+
+/// Configuration for setup hooks with trigger-based command execution.
+///
+/// Commands run during Claude Code setup/initialization. Exit code 2 blocks the setup.
+/// The trigger value is used as the match query for pattern-based execution.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct SetupConfig {
+    /// Map of trigger patterns to command configurations.
+    /// Keys are glob patterns matching trigger values (e.g., "install", "*").
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<SetupCommand>>,
+}
+
 /// Configuration for stop hook commands that run when Claude is about to stop
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
 #[serde(deny_unknown_fields)]
@@ -182,9 +565,6 @@ pub struct ToolUsageRule {
     /// Optional agent pattern to scope this rule to specific agents (e.g., "coder", "tester", "main", or glob patterns like "code*")
     #[serde(default)]
     pub agent: Option<String>,
-    /// Optional skill pattern to scope this rule to specific skills (e.g., "tester", "commit", or glob patterns like "test*")
-    #[serde(default)]
-    pub skill: Option<String>,
 }
 
 /// Configuration for an uneditable file rule.
@@ -229,11 +609,6 @@ pub struct ToolUsageRule {
 ///   - pattern: "dist/**"
 ///     agent: "test*"
 ///     message: "Test agents should not modify build output."
-///
-///   # Skill-scoped patterns (only applied to specific skills)
-///   - pattern: "tests/**"
-///     skill: "test*"
-///     message: "Test files managed by testing skills"
 /// ```
 ///
 /// The `#[serde(untagged)]` attribute allows serde to automatically handle both
@@ -255,9 +630,6 @@ pub enum UnEditableFileRule {
         /// Optional agent pattern to scope this rule to specific agents (e.g., "coder", "tester", "main", or glob patterns like "code*")
         #[serde(default)]
         agent: Option<String>,
-        /// Optional skill pattern to scope this rule to specific skills (e.g., "tester", "commit", or glob patterns like "test*")
-        #[serde(default)]
-        skill: Option<String>,
     },
     /// Simple format: just a glob pattern string.
     ///
@@ -292,15 +664,6 @@ impl UnEditableFileRule {
     pub fn agent(&self) -> Option<&str> {
         match self {
             UnEditableFileRule::Detailed { agent: Some(a), .. } => Some(a),
-            _ => None,
-        }
-    }
-
-    /// Get the skill pattern if present (only from Detailed variant)
-    #[must_use]
-    pub fn skill(&self) -> Option<&str> {
-        match self {
-            UnEditableFileRule::Detailed { skill: Some(s), .. } => Some(s),
             _ => None,
         }
     }
@@ -727,6 +1090,37 @@ pub struct UserPromptSubmitConfig {
     /// - `timeout`: (optional) Command timeout in seconds. Range: 1-3600
     #[serde(default)]
     pub commands: Vec<UserPromptSubmitCommand>,
+
+    /// Configuration for slash command hooks that trigger when users invoke slash commands.
+    ///
+    /// Allows running custom commands when specific slash commands are detected in user prompts.
+    /// Slash commands are detected from the prompt text (e.g., `/commit`, `/deploy`).
+    ///
+    /// Commands are executed after contextRules and regular commands processing.
+    /// Unlike regular commands, slash command hooks CAN block prompt processing
+    /// if a command exits with code 2.
+    ///
+    /// # Examples
+    ///
+    /// ```yaml
+    /// userPromptSubmit:
+    ///   slashCommands:
+    ///     commands:
+    ///       # Run for /commit command
+    ///       "/commit":
+    ///         - run: ".claude/scripts/pre-commit.sh"
+    ///           showStdout: true
+    ///
+    ///       # Run for any /test* command
+    ///       "/test*":
+    ///         - run: ".claude/scripts/test-setup.sh"
+    ///
+    ///       # Run for all slash commands
+    ///       "*":
+    ///         - run: ".claude/scripts/log-command.sh"
+    /// ```
+    #[serde(default, rename = "slashCommands")]
+    pub slash_commands: Option<SlashCommandConfig>,
 }
 
 /// Configuration for permission request hooks that control tool permission decisions.
@@ -880,6 +1274,60 @@ pub struct ConclaudeConfig {
     pub permission_request: Option<PermissionRequestConfig>,
     #[serde(default, rename = "userPromptSubmit")]
     pub user_prompt_submit: UserPromptSubmitConfig,
+    /// Configuration for skill start hooks that trigger when subagents (skills) start.
+    ///
+    /// Allows running custom commands when specific skills are activated during a session.
+    /// Skills are identified by their agent_type (e.g., "coder", "tester", "stuck").
+    ///
+    /// # Examples
+    ///
+    /// ```yaml
+    /// skillStart:
+    ///   commands:
+    ///     # Run when "coder" skill starts
+    ///     "coder":
+    ///       - run: ".claude/scripts/coder-init.sh"
+    ///         showStdout: true
+    ///
+    ///     # Run for any skill starting with "test"
+    ///     "test*":
+    ///       - run: ".claude/scripts/test-env-check.sh"
+    ///
+    ///     # Run for all skills
+    ///     "*":
+    ///       - run: ".claude/scripts/log-skill.sh"
+    /// ```
+    #[serde(default, rename = "skillStart")]
+    pub skill_start: SkillStartConfig,
+    /// Configuration for teammate idle hooks
+    #[serde(default, rename = "teammateIdle")]
+    pub teammate_idle: TeammateIdleConfig,
+    /// Configuration for task completed hooks
+    #[serde(default, rename = "taskCompleted")]
+    pub task_completed: TaskCompletedConfig,
+    /// Configuration for config change hooks
+    #[serde(default, rename = "configChange")]
+    pub config_change: ConfigChangeConfig,
+    /// Configuration for worktree create hook
+    #[serde(default, rename = "worktreeCreate")]
+    pub worktree_create: WorktreeCreateConfig,
+    /// Configuration for setup hooks that trigger during Claude Code initialization.
+    ///
+    /// Allows running custom commands when Claude Code runs its setup process.
+    /// Commands are matched by trigger value using glob patterns.
+    ///
+    /// # Examples
+    ///
+    /// ```yaml
+    /// setup:
+    ///   commands:
+    ///     # Run for any setup trigger
+    ///     "*":
+    ///       - run: ".claude/scripts/setup-env.sh"
+    ///         showStdout: true
+    /// ```
+    #[serde(default)]
+    pub setup: SetupConfig,
 }
 
 /// Extract the field name from an unknown field error message
@@ -905,8 +1353,20 @@ pub fn suggest_similar_fields(unknown_field: &str, section: &str) -> Vec<String>
         ("notifications", NotificationsConfig::field_names()),
         ("permissionRequest", PermissionRequestConfig::field_names()),
         ("userPromptSubmit", UserPromptSubmitConfig::field_names()),
+        ("skillStart", SkillStartConfig::field_names()),
+        ("teammateIdle", TeammateIdleConfig::field_names()),
+        ("taskCompleted", TaskCompletedConfig::field_names()),
+        ("configChange", ConfigChangeConfig::field_names()),
+        ("worktreeCreate", WorktreeCreateConfig::field_names()),
+        ("setup", SetupConfig::field_names()),
         ("commands", StopCommand::field_names()),
         ("subagentStopCommands", SubagentStopCommand::field_names()),
+        ("slashCommands", SlashCommandEntry::field_names()),
+        ("skillStartCommands", SkillStartCommand::field_names()),
+        ("teammateIdleCommands", TeammateIdleCommand::field_names()),
+        ("taskCompletedCommands", TaskCompletedCommand::field_names()),
+        ("configChangeCommands", ConfigChangeCommand::field_names()),
+        ("setupCommands", SetupCommand::field_names()),
         (
             "userPromptSubmitCommands",
             UserPromptSubmitCommand::field_names(),
@@ -1031,10 +1491,12 @@ fn format_parse_error(error: &serde_yaml::Error, config_path: &Path) -> String {
         );
         parts.push("  permissionRequest: default, allow, deny".to_string());
         parts.push(
-            "  commands (stop): run, message, showStdout, showStderr, maxOutputLines, timeout, skill"
+            "  commands (stop): run, message, showStdout, showStderr, maxOutputLines, timeout"
                 .to_string(),
         );
-        parts.push("  commands (subagentStop): run, message, showStdout, showStderr, maxOutputLines, timeout, skill".to_string());
+        parts.push("  commands (subagentStop): run, message, showStdout, showStderr, maxOutputLines, timeout".to_string());
+        parts.push("  setup: commands".to_string());
+        parts.push("  commands (setup): run, message, showCommand, showStdout, showStderr, maxOutputLines, timeout".to_string());
     } else if base_error.contains("invalid type") {
         parts.push(String::new());
         parts.push("Type mismatch detected. Common causes:".to_string());
@@ -1344,6 +1806,52 @@ fn validate_config_constraints(config: &ConclaudeConfig) -> Result<()> {
                            timeout: 30       # 30 seconds\n\
                            timeout: 300      # 5 minutes\n\
                            timeout: 3600     # maximum allowed (1 hour)\n\n\
+                         For a valid configuration template, run:\n\
+                           conclaude init"
+                    );
+                    return Err(anyhow::anyhow!(error_msg));
+                }
+            }
+        }
+    }
+
+    // Validate setup configuration
+    for (pattern, commands) in &config.setup.commands {
+        if pattern.trim().is_empty() {
+            let error_msg = "Validation failed for setup.commands\n\n\
+                 Error: Pattern key cannot be empty\n\n\
+                 Valid patterns: \"*\" (all), \"install\" (exact), \"init*\" (prefix)\n\n\
+                 Example valid configurations:\n\
+                   setup:\n\
+                     commands:\n\
+                       \"*\":\n\
+                         - run: \"echo setup\"\n\n\
+                 For a valid configuration template, run:\n\
+                   conclaude init"
+                .to_string();
+            return Err(anyhow::anyhow!(error_msg));
+        }
+
+        for (idx, command) in commands.iter().enumerate() {
+            if let Some(max_lines) = command.max_output_lines {
+                if !(1..=10000).contains(&max_lines) {
+                    let error_msg = format!(
+                        "Range validation failed for setup.commands[\"{pattern}\"][{idx}].maxOutputLines\n\n\
+                         Error: Value {max_lines} is out of valid range\n\n\
+                         Valid range: 1 to 10000\n\n\
+                         For a valid configuration template, run:\n\
+                           conclaude init"
+                    );
+                    return Err(anyhow::anyhow!(error_msg));
+                }
+            }
+
+            if let Some(timeout) = command.timeout {
+                if !(1..=3600).contains(&timeout) {
+                    let error_msg = format!(
+                        "Range validation failed for setup.commands[\"{pattern}\"][{idx}].timeout\n\n\
+                         Error: Value {timeout} is out of valid range\n\n\
+                         Valid range: 1 to 3600 seconds (1 second to 1 hour)\n\n\
                          For a valid configuration template, run:\n\
                            conclaude init"
                     );
@@ -1725,5 +2233,66 @@ userPromptSubmit:
         assert_eq!(cmd.show_stderr, None); // Default: false
         assert_eq!(cmd.max_output_lines, None); // Default: no limit
         assert_eq!(cmd.timeout, None); // Default: no timeout
+    }
+
+    #[test]
+    fn test_setup_config_valid() {
+        let config_yaml = r#"
+setup:
+  commands:
+    "*":
+      - run: "echo setup"
+        showStdout: true
+        timeout: 30
+"#;
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        assert_eq!(config.setup.commands.len(), 1);
+        assert!(config.setup.commands.contains_key("*"));
+    }
+
+    #[test]
+    fn test_setup_config_empty_pattern_rejected() {
+        let config_yaml = r#"
+setup:
+  commands:
+    "":
+      - run: "echo setup"
+"#;
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Pattern key cannot be empty"));
+    }
+
+    #[test]
+    fn test_setup_config_invalid_timeout_rejected() {
+        let config_yaml = r#"
+setup:
+  commands:
+    "*":
+      - run: "echo setup"
+        timeout: 0
+"#;
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("timeout"));
+    }
+
+    #[test]
+    fn test_setup_config_invalid_max_output_lines_rejected() {
+        let config_yaml = r#"
+setup:
+  commands:
+    "*":
+      - run: "echo setup"
+        maxOutputLines: 0
+"#;
+        let result = parse_and_validate_config(config_yaml, Path::new(".conclaude.yaml"));
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("maxOutputLines"));
     }
 }
