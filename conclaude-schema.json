@@ -638,6 +638,21 @@
       },
       "type": "object"
     },
+    "StopFailureConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for stop failure hook commands that run when a turn ends due to an API error",
+      "properties": {
+        "commands": {
+          "default": [],
+          "description": "List of commands to execute when a turn ends due to an API error (rate limit, auth failure, etc.). Commands run in order and can provide custom error messages.",
+          "items": {
+            "$ref": "#/definitions/StopCommand"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "SubagentStopCommand": {
       "additionalProperties": false,
       "description": "Configuration for individual subagent stop commands with optional messages",
@@ -1243,6 +1258,17 @@
         "infinite": false,
         "infiniteMessage": null
       }
+    },
+    "stopFailure": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/StopFailureConfig"
+        }
+      ],
+      "default": {
+        "commands": []
+      },
+      "description": "Configuration for StopFailure hook - commands to run when a turn ends due to an API error"
     },
     "subagentStop": {
       "allOf": [

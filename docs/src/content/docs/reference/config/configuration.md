@@ -20,6 +20,7 @@ Conclaude uses YAML configuration files to define lifecycle hooks, file protecti
 | [Setup](/conclaude/reference/config/setup) | Configuration for setup hooks with trigger-based command execution | `commands` |
 | [Skill Start](/conclaude/reference/config/skill-start) | Configuration for skill start hooks that trigger when subagents (skills) start | `commands` |
 | [Stop](/conclaude/reference/config/stop) | Configuration for stop hook commands that run when Claude is about to stop | `commands`, `infinite`, `infiniteMessage` |
+| [Stop Failure](/conclaude/reference/config/stop-failure) | Configuration for stop failure hook commands that run when a turn ends due to an API error | `commands` |
 | [Subagent Stop](/conclaude/reference/config/subagent-stop) | Configuration for subagent stop hooks with pattern-based command execution | `commands` |
 | [Task Completed](/conclaude/reference/config/task-completed) | Configuration for task completed hooks with pattern-based command execution | `commands` |
 | [Teammate Idle](/conclaude/reference/config/teammate-idle) | Configuration for teammate idle hooks with pattern-based command execution | `commands` |
@@ -57,6 +58,10 @@ Configuration for skill start hooks that trigger when subagents (skills) start.
 ### [Stop](/conclaude/reference/config/stop)
 
 Configuration for stop hook commands that run when Claude is about to stop
+
+### [Stop Failure](/conclaude/reference/config/stop-failure)
+
+Configuration for stop failure hook commands that run when a turn ends due to an API error
 
 ### [Subagent Stop](/conclaude/reference/config/subagent-stop)
 

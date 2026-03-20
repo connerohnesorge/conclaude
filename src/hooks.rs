@@ -6,14 +6,14 @@ use crate::config::{
 use crate::gitignore::{find_git_root, is_path_git_ignored};
 use crate::types::{
     validate_base_payload, validate_permission_request_payload, validate_setup_payload,
-    validate_subagent_start_payload, validate_subagent_stop_payload,
+    validate_stop_failure_payload, validate_subagent_start_payload, validate_subagent_stop_payload,
     validate_task_completed_payload, validate_teammate_idle_payload,
     validate_worktree_create_payload, validate_worktree_remove_payload, ConfigChangePayload,
     ConfigChangeSource, HookResult, NotificationPayload, PermissionRequestPayload,
     PostToolUseFailurePayload, PostToolUsePayload, PreCompactPayload, PreToolUsePayload,
-    SessionEndPayload, SessionStartPayload, SetupPayload, StopPayload, SubagentStartPayload,
-    SubagentStopPayload, TaskCompletedPayload, TeammateIdlePayload, UserPromptSubmitPayload,
-    WorktreeCreatePayload, WorktreeRemovePayload,
+    SessionEndPayload, SessionStartPayload, SetupPayload, StopFailurePayload, StopPayload,
+    SubagentStartPayload, SubagentStopPayload, TaskCompletedPayload, TeammateIdlePayload,
+    UserPromptSubmitPayload, WorktreeCreatePayload, WorktreeRemovePayload,
 };
 use anyhow::{Context, Result};
 use glob::Pattern;
@@ -1910,6 +1910,91 @@ pub async fn handle_stop() -> Result<HookResult> {
 
     // Send notification for successful stop hook completion
     send_notification("Stop", "success", None);
+    Ok(HookResult::success())
+}
+
+/// Collect stop failure commands from config into `StopCommandConfig` list.
+pub(crate) fn collect_stop_failure_commands(
+    config: &ConclaudeConfig,
+) -> Result<Vec<StopCommandConfig>> {
+    let mut commands = Vec::new();
+
+    for cmd_config in &config.stop_failure.commands {
+        let extracted = extract_bash_commands(&cmd_config.run)?;
+        let show_stdout = cmd_config.show_stdout.unwrap_or(false);
+        let show_stderr = cmd_config.show_stderr.unwrap_or(false);
+        let show_command = cmd_config.show_command.unwrap_or(true);
+        let max_output_lines = cmd_config.max_output_lines;
+        let notify_per_command = cmd_config.notify_per_command.unwrap_or(false);
+        for cmd in extracted {
+            commands.push(StopCommandConfig {
+                command: cmd,
+                message: cmd_config.message.clone(),
+                show_stdout,
+                show_stderr,
+                max_output_lines,
+                timeout: cmd_config.timeout,
+                show_command,
+                notify_per_command,
+            });
+        }
+    }
+
+    Ok(commands)
+}
+
+/// Handles `StopFailure` hook events when a turn ends due to an API error.
+///
+/// # Errors
+///
+/// Returns an error if payload validation fails or configuration loading fails.
+pub async fn handle_stop_failure() -> Result<HookResult> {
+    let payload: StopFailurePayload = read_payload_from_stdin()?;
+
+    validate_stop_failure_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    // Read agent name from environment variable (set by CLI --agent flag)
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+
+    // Export CONCLAUDE_AGENT_NAME for any commands that are executed
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
+    // Set error-specific environment variables
+    std::env::set_var("CONCLAUDE_STOP_ERROR", &payload.error);
+
+    println!(
+        "Processing StopFailure hook: session_id={}, error={}",
+        payload.base.session_id, payload.error
+    );
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    // Collect and execute commands from config.stop_failure.commands
+    let commands_with_messages = collect_stop_failure_commands(config)?;
+
+    if let Some(result) = execute_stop_commands(&commands_with_messages, config_dir).await? {
+        send_notification(
+            "StopFailure",
+            "failure",
+            Some(
+                &result
+                    .message
+                    .clone()
+                    .unwrap_or_else(|| "StopFailure hook blocked".to_string()),
+            ),
+        );
+        return Ok(result);
+    }
+
+    send_notification(
+        "StopFailure",
+        "failure",
+        Some(&format!("API error: {}", payload.error)),
+    );
+
     Ok(HookResult::success())
 }
 
