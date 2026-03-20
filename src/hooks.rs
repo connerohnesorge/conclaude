@@ -1973,7 +1973,7 @@ pub async fn handle_stop_failure() -> Result<HookResult> {
     let config_dir = get_config_dir(config_path);
 
     // Collect and execute commands from config.stop_failure.commands
-    let commands_with_messages = collect_stop_failure_commands(&config)?;
+    let commands_with_messages = collect_stop_failure_commands(config)?;
 
     if let Some(result) = execute_stop_commands(&commands_with_messages, config_dir).await? {
         send_notification(
