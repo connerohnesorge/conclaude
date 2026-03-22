@@ -1,5 +1,56 @@
 ---
 description: Detect spec drift from code and update specs interactively.
+hooks:
+  PreToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PreToolUse --skill sync
+      timeout: 600
+  PostToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PostToolUse --skill sync
+      timeout: 600
+  Stop:
+  - hooks:
+    - type: command
+      command: conclaude Hooks Stop --skill sync
+      timeout: 600
+  SessionStart:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionStart --skill sync
+      timeout: 600
+  SessionEnd:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionEnd --skill sync
+      timeout: 600
+  Notification:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks Notification --skill sync
+      timeout: 600
+  PreCompact:
+  - hooks:
+    - type: command
+      command: conclaude Hooks PreCompact --skill sync
+      timeout: 600
+  PermissionRequest:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PermissionRequest --skill sync
+      timeout: 600
+  UserPromptSubmit:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks UserPromptSubmit --skill sync
+      timeout: 600
 ---
 
 <!-- spectr:START -->

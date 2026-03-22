@@ -1,8 +1,59 @@
 ---
 name: generate-schema
-description: |
-   Generate the conclaude-schema.json configuration schema file using src/bin/generate-schema.rs.
-   USE WHEN the configuration format changes, new config fields are added, or the schema needs to be updated for release or testing.
+description: |-
+  Generate the conclaude-schema.json configuration schema file using src/bin/generate-schema.rs.
+  USE WHEN the configuration format changes, new config fields are added, or the schema needs to be updated for release or testing.
+hooks:
+  PreToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PreToolUse --skill generate-schema
+      timeout: 600
+  PostToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PostToolUse --skill generate-schema
+      timeout: 600
+  Stop:
+  - hooks:
+    - type: command
+      command: conclaude Hooks Stop --skill generate-schema
+      timeout: 600
+  SessionStart:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionStart --skill generate-schema
+      timeout: 600
+  SessionEnd:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionEnd --skill generate-schema
+      timeout: 600
+  Notification:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks Notification --skill generate-schema
+      timeout: 600
+  PreCompact:
+  - hooks:
+    - type: command
+      command: conclaude Hooks PreCompact --skill generate-schema
+      timeout: 600
+  PermissionRequest:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PermissionRequest --skill generate-schema
+      timeout: 600
+  UserPromptSubmit:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks UserPromptSubmit --skill generate-schema
+      timeout: 600
 ---
 
 # Generate Schema

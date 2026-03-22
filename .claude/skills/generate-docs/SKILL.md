@@ -1,8 +1,59 @@
 ---
 name: generate-docs
-description: |
+description: |-
   Generate configuration reference documentation from conclaude-schema.json using src/bin/generate-docs.rs.
   USE WHEN the schema file changes, configuration options are added/modified, or documentation needs to be regenerated for the website.
+hooks:
+  PreToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PreToolUse --skill generate-docs
+      timeout: 600
+  PostToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PostToolUse --skill generate-docs
+      timeout: 600
+  Stop:
+  - hooks:
+    - type: command
+      command: conclaude Hooks Stop --skill generate-docs
+      timeout: 600
+  SessionStart:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionStart --skill generate-docs
+      timeout: 600
+  SessionEnd:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionEnd --skill generate-docs
+      timeout: 600
+  Notification:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks Notification --skill generate-docs
+      timeout: 600
+  PreCompact:
+  - hooks:
+    - type: command
+      command: conclaude Hooks PreCompact --skill generate-docs
+      timeout: 600
+  PermissionRequest:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PermissionRequest --skill generate-docs
+      timeout: 600
+  UserPromptSubmit:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks UserPromptSubmit --skill generate-docs
+      timeout: 600
 ---
 
 # Generate Documentation

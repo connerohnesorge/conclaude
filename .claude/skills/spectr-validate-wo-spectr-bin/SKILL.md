@@ -7,16 +7,67 @@ description: |
   DO NOT USE when you have the spectr binary available.
 compatibility:
   requirements:
-    - bash 4.0+
-    - grep (GNU or BSD compatible)
-    - sed (GNU or BSD compatible)
-    - find (standard Unix utility)
+  - bash 4.0+
+  - grep (GNU or BSD compatible)
+  - sed (GNU or BSD compatible)
+  - find (standard Unix utility)
   optional:
-    - jq (JSON processor for --json output)
+  - jq (JSON processor for --json output)
   platforms:
-    - Linux
-    - macOS
-    - Unix-like systems with bash
+  - Linux
+  - macOS
+  - Unix-like systems with bash
+hooks:
+  PreToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PreToolUse --skill spectr-validate-wo-spectr-bin
+      timeout: 600
+  PostToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PostToolUse --skill spectr-validate-wo-spectr-bin
+      timeout: 600
+  Stop:
+  - hooks:
+    - type: command
+      command: conclaude Hooks Stop --skill spectr-validate-wo-spectr-bin
+      timeout: 600
+  SessionStart:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionStart --skill spectr-validate-wo-spectr-bin
+      timeout: 600
+  SessionEnd:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionEnd --skill spectr-validate-wo-spectr-bin
+      timeout: 600
+  Notification:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks Notification --skill spectr-validate-wo-spectr-bin
+      timeout: 600
+  PreCompact:
+  - hooks:
+    - type: command
+      command: conclaude Hooks PreCompact --skill spectr-validate-wo-spectr-bin
+      timeout: 600
+  PermissionRequest:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PermissionRequest --skill spectr-validate-wo-spectr-bin
+      timeout: 600
+  UserPromptSubmit:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks UserPromptSubmit --skill spectr-validate-wo-spectr-bin
+      timeout: 600
 ---
 
 # Spectr Validate (Without Binary)
