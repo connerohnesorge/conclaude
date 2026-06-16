@@ -9,6 +9,9 @@ fn test_validate_base_payload_valid() {
         hook_event_name: "PreToolUse".to_string(),
         cwd: "/current/dir".to_string(),
         permission_mode: Some("default".to_string()),
+        agent_id: None,
+        agent_type: None,
+        effort: None,
     };
     assert!(validate_base_payload(&valid_base).is_ok());
 }
@@ -21,6 +24,9 @@ fn test_validate_base_payload_missing_session_id() {
         hook_event_name: "PreToolUse".to_string(),
         cwd: "/current/dir".to_string(),
         permission_mode: Some("default".to_string()),
+        agent_id: None,
+        agent_type: None,
+        effort: None,
     };
     let result = validate_base_payload(&invalid_base);
     assert!(result.is_err());
@@ -35,6 +41,9 @@ fn test_validate_base_payload_missing_transcript_path() {
         hook_event_name: "PreToolUse".to_string(),
         cwd: "/current/dir".to_string(),
         permission_mode: Some("default".to_string()),
+        agent_id: None,
+        agent_type: None,
+        effort: None,
     };
     let result = validate_base_payload(&invalid_base);
     assert!(result.is_err());
@@ -49,6 +58,9 @@ fn test_validate_base_payload_missing_hook_event_name() {
         hook_event_name: String::new(),
         cwd: "/current/dir".to_string(),
         permission_mode: Some("default".to_string()),
+        agent_id: None,
+        agent_type: None,
+        effort: None,
     };
     let result = validate_base_payload(&invalid_base);
     assert!(result.is_err());
@@ -167,10 +179,17 @@ fn test_validate_subagent_stop_payload_valid() {
             hook_event_name: "SubagentStop".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         stop_hook_active: true,
         agent_id: "coder".to_string(),
         agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        subagent_type: None,
+        last_assistant_message: None,
+        background_tasks: None,
+        session_crons: None,
     };
     assert!(validate_subagent_stop_payload(&payload).is_ok());
 }
@@ -184,10 +203,17 @@ fn test_validate_subagent_stop_payload_empty_agent_id() {
             hook_event_name: "SubagentStop".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         stop_hook_active: true,
         agent_id: String::new(),
         agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        subagent_type: None,
+        last_assistant_message: None,
+        background_tasks: None,
+        session_crons: None,
     };
     let result = validate_subagent_stop_payload(&payload);
     assert!(result.is_err());
@@ -203,10 +229,17 @@ fn test_validate_subagent_stop_payload_whitespace_agent_id() {
             hook_event_name: "SubagentStop".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         stop_hook_active: true,
         agent_id: "   ".to_string(),
         agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        subagent_type: None,
+        last_assistant_message: None,
+        background_tasks: None,
+        session_crons: None,
     };
     let result = validate_subagent_stop_payload(&payload);
     assert!(result.is_err());
@@ -222,10 +255,17 @@ fn test_validate_subagent_stop_payload_empty_agent_transcript_path() {
             hook_event_name: "SubagentStop".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         stop_hook_active: true,
         agent_id: "coder".to_string(),
         agent_transcript_path: String::new(),
+        subagent_type: None,
+        last_assistant_message: None,
+        background_tasks: None,
+        session_crons: None,
     };
     let result = validate_subagent_stop_payload(&payload);
     assert!(result.is_err());
@@ -241,10 +281,17 @@ fn test_validate_subagent_stop_payload_whitespace_agent_transcript_path() {
             hook_event_name: "SubagentStop".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         stop_hook_active: true,
         agent_id: "coder".to_string(),
         agent_transcript_path: "   ".to_string(),
+        subagent_type: None,
+        last_assistant_message: None,
+        background_tasks: None,
+        session_crons: None,
     };
     let result = validate_subagent_stop_payload(&payload);
     assert!(result.is_err());
@@ -260,10 +307,17 @@ fn test_validate_subagent_stop_payload_invalid_base() {
             hook_event_name: "SubagentStop".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         stop_hook_active: true,
         agent_id: "coder".to_string(),
         agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        subagent_type: None,
+        last_assistant_message: None,
+        background_tasks: None,
+        session_crons: None,
     };
     let result = validate_subagent_stop_payload(&payload);
     assert!(result.is_err());
@@ -279,10 +333,17 @@ fn test_validate_subagent_stop_payload_agent_id_with_leading_trailing_spaces() {
             hook_event_name: "SubagentStop".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         stop_hook_active: true,
         agent_id: "  coder  ".to_string(),
         agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        subagent_type: None,
+        last_assistant_message: None,
+        background_tasks: None,
+        session_crons: None,
     };
     assert!(validate_subagent_stop_payload(&payload).is_ok());
 }
@@ -327,6 +388,9 @@ fn test_permission_request_payload_serialization() {
             hook_event_name: "PermissionRequest".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         tool_name: "Bash".to_string(),
         tool_input,
@@ -355,6 +419,9 @@ fn test_validate_permission_request_payload_valid() {
             hook_event_name: "PermissionRequest".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         tool_name: "Bash".to_string(),
         tool_input,
@@ -378,6 +445,9 @@ fn test_validate_permission_request_payload_empty_tool_name() {
             hook_event_name: "PermissionRequest".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         tool_name: String::new(),
         tool_input,
@@ -403,6 +473,9 @@ fn test_validate_permission_request_payload_whitespace_tool_name() {
             hook_event_name: "PermissionRequest".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         tool_name: "   ".to_string(),
         tool_input,
@@ -426,10 +499,13 @@ fn test_validate_subagent_start_payload_valid() {
             hook_event_name: "SubagentStart".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         agent_id: "coder".to_string(),
         subagent_type: "implementation".to_string(),
-        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        agent_transcript_path: Some("/path/to/agent/transcript".to_string()),
     };
     assert!(validate_subagent_start_payload(&payload).is_ok());
 }
@@ -443,10 +519,13 @@ fn test_validate_subagent_start_payload_empty_agent_id() {
             hook_event_name: "SubagentStart".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         agent_id: String::new(),
         subagent_type: "implementation".to_string(),
-        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        agent_transcript_path: Some("/path/to/agent/transcript".to_string()),
     };
     let result = validate_subagent_start_payload(&payload);
     assert!(result.is_err());
@@ -462,10 +541,13 @@ fn test_validate_subagent_start_payload_whitespace_agent_id() {
             hook_event_name: "SubagentStart".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         agent_id: "   ".to_string(),
         subagent_type: "implementation".to_string(),
-        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        agent_transcript_path: Some("/path/to/agent/transcript".to_string()),
     };
     let result = validate_subagent_start_payload(&payload);
     assert!(result.is_err());
@@ -481,10 +563,13 @@ fn test_validate_subagent_start_payload_empty_subagent_type() {
             hook_event_name: "SubagentStart".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         agent_id: "coder".to_string(),
         subagent_type: String::new(),
-        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        agent_transcript_path: Some("/path/to/agent/transcript".to_string()),
     };
     let result = validate_subagent_start_payload(&payload);
     assert!(result.is_err());
@@ -500,10 +585,13 @@ fn test_validate_subagent_start_payload_whitespace_subagent_type() {
             hook_event_name: "SubagentStart".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         agent_id: "coder".to_string(),
         subagent_type: "   ".to_string(),
-        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        agent_transcript_path: Some("/path/to/agent/transcript".to_string()),
     };
     let result = validate_subagent_start_payload(&payload);
     assert!(result.is_err());
@@ -519,14 +607,17 @@ fn test_validate_subagent_start_payload_empty_agent_transcript_path() {
             hook_event_name: "SubagentStart".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         agent_id: "coder".to_string(),
         subagent_type: "implementation".to_string(),
-        agent_transcript_path: String::new(),
+        agent_transcript_path: Some(String::new()),
     };
+    // agent_transcript_path is now Option<String> and is not validated when present
     let result = validate_subagent_start_payload(&payload);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "agent_transcript_path cannot be empty");
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -538,14 +629,17 @@ fn test_validate_subagent_start_payload_whitespace_agent_transcript_path() {
             hook_event_name: "SubagentStart".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         agent_id: "coder".to_string(),
         subagent_type: "implementation".to_string(),
-        agent_transcript_path: "   ".to_string(),
+        agent_transcript_path: Some("   ".to_string()),
     };
+    // agent_transcript_path is now Option<String> and is not validated when present
     let result = validate_subagent_start_payload(&payload);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "agent_transcript_path cannot be empty");
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -557,10 +651,13 @@ fn test_validate_subagent_start_payload_invalid_base() {
             hook_event_name: "SubagentStart".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         agent_id: "coder".to_string(),
         subagent_type: "implementation".to_string(),
-        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        agent_transcript_path: Some("/path/to/agent/transcript".to_string()),
     };
     let result = validate_subagent_start_payload(&payload);
     assert!(result.is_err());
@@ -576,10 +673,13 @@ fn test_validate_subagent_start_payload_agent_id_with_leading_trailing_spaces() 
             hook_event_name: "SubagentStart".to_string(),
             cwd: "/current/dir".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         agent_id: "  coder  ".to_string(),
         subagent_type: "implementation".to_string(),
-        agent_transcript_path: "/path/to/agent/transcript".to_string(),
+        agent_transcript_path: Some("/path/to/agent/transcript".to_string()),
     };
     assert!(validate_subagent_start_payload(&payload).is_ok());
 }
@@ -600,7 +700,7 @@ fn test_subagent_start_payload_deserialize_from_valid_json() {
     let payload: SubagentStartPayload = serde_json::from_str(json).unwrap();
     assert_eq!(payload.agent_id, "coder");
     assert_eq!(payload.subagent_type, "implementation");
-    assert_eq!(payload.agent_transcript_path, "/path/to/agent/transcript");
+    assert_eq!(payload.agent_transcript_path, Some("/path/to/agent/transcript".to_string()));
     assert_eq!(payload.base.session_id, "test_session");
 }
 
@@ -648,8 +748,10 @@ fn test_subagent_start_payload_deserialize_missing_agent_transcript_path() {
         "subagent_type": "implementation"
     }"#;
 
+    // agent_transcript_path is now Option<String> so missing field deserializes to None
     let result: Result<SubagentStartPayload, _> = serde_json::from_str(json);
-    assert!(result.is_err());
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap().agent_transcript_path, None);
 }
 
 #[test]
@@ -661,10 +763,13 @@ fn test_subagent_start_payload_serialization_round_trip() {
             hook_event_name: "SubagentStart".to_string(),
             cwd: "/home/user/project".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         agent_id: "coder".to_string(),
         subagent_type: "implementation".to_string(),
-        agent_transcript_path: "/tmp/coder_transcript.jsonl".to_string(),
+        agent_transcript_path: Some("/tmp/coder_transcript.jsonl".to_string()),
     };
 
     // Serialize to JSON

@@ -70,6 +70,72 @@ impl HookResult {
     }
 }
 
+/// Reasoning effort applied to the current turn.
+///
+/// Present for hooks that fire within a tool-use context (PreToolUse, PostToolUse,
+/// Stop, SubagentStop, etc.) on a model that supports the effort parameter; absent
+/// for session-lifecycle hooks and models without effort support.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EffortInfo {
+    /// Active effort level for the current turn (e.g., "low", "medium", "high", "xhigh", "max"),
+    /// after any silent downgrade for the selected model. Also exposed to hook commands and Bash
+    /// as the `CLAUDE_EFFORT` env var.
+    pub level: String,
+}
+
+/// Summary of an in-flight background task registered in the session.
+///
+/// Included in Stop/SubagentStop payloads so hooks can distinguish "session is done"
+/// from "session is paused waiting for background work to wake it".
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BackgroundTaskSummary {
+    /// Unique identifier for the background task
+    #[serde(default)]
+    pub id: String,
+    /// Friendly task-type label (e.g. "shell", "subagent", "monitor", "workflow")
+    #[serde(default, rename = "type")]
+    pub task_type: String,
+    /// Current status of the task
+    #[serde(default)]
+    pub status: String,
+    /// Free-text description of the task
+    #[serde(default)]
+    pub description: String,
+    /// Shell command line. Only present for "shell" tasks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+    /// Subagent type name. Only present for "subagent" tasks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_type: Option<String>,
+    /// MCP server name. Only present for "monitor"/"MCP task" tasks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub server: Option<String>,
+    /// MCP tool name. Only present for "monitor"/"MCP task" tasks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool: Option<String>,
+    /// Workflow name. Only present for "workflow" tasks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+/// Summary of a session-scoped cron task (CronCreate, ScheduleWakeup, /loop) that
+/// will wake this session later. Included in Stop/SubagentStop payloads.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SessionCronSummary {
+    /// Unique identifier for the cron task
+    #[serde(default)]
+    pub id: String,
+    /// Cron expression, e.g. "0 9 * * 1-5"
+    #[serde(default)]
+    pub schedule: String,
+    /// False for one-shot wakeups; true for tasks that re-fire on every match.
+    #[serde(default)]
+    pub recurring: bool,
+    /// Prompt text submitted when the cron fires.
+    #[serde(default)]
+    pub prompt: String,
+}
+
 /// Base fields present in all hook payloads
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BasePayload {
@@ -81,8 +147,19 @@ pub struct BasePayload {
     pub hook_event_name: String,
     /// Current working directory
     pub cwd: String,
-    /// Current permission mode (e.g., "default", "acceptEdits", "bypassPermissions", "plan")
+    /// Current permission mode (e.g., "default", "acceptEdits", "bypassPermissions", "plan", "dontAsk", "auto")
     pub permission_mode: Option<String>,
+    /// Subagent identifier. Present only when the hook fires from within a subagent
+    /// (e.g., a tool called by an AgentTool worker). Absent for the main thread.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
+    /// Agent type name (e.g., "general-purpose", "code-reviewer"). Present when the hook
+    /// fires from within a subagent, or on the main thread of a session started with `--agent`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_type: Option<String>,
+    /// Reasoning effort applied to the current turn (when the model supports the effort parameter).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effort: Option<EffortInfo>,
 }
 
 /// Payload for `PreToolUse` hook - fired before Claude executes a tool.
@@ -113,6 +190,9 @@ pub struct PostToolUsePayload {
     pub tool_use_id: Option<String>,
     /// Response data returned by the tool execution (can be any JSON value)
     pub tool_response: serde_json::Value,
+    /// Tool execution time in milliseconds. Excludes permission-prompt and hook time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
 }
 
 /// Payload for `PermissionRequest` hook - fired when Claude requests permission to execute a tool.
@@ -153,6 +233,16 @@ pub struct StopPayload {
     pub base: BasePayload,
     /// Whether stop hooks are currently active for this session
     pub stop_hook_active: bool,
+    /// Text content of the last assistant message before stopping. Avoids the need to
+    /// read and parse the transcript file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_assistant_message: Option<String>,
+    /// In-flight background work registered in this session. Empty when nothing is in flight.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_tasks: Option<Vec<BackgroundTaskSummary>>,
+    /// Session-scoped cron tasks that will wake this session later. Empty when none scheduled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_crons: Option<Vec<SessionCronSummary>>,
 }
 
 /// Payload for `StopFailure` hook - fired when a turn ends due to an API error.
@@ -163,8 +253,15 @@ pub struct StopFailurePayload {
     pub base: BasePayload,
     /// Whether stop hooks are currently active for this session
     pub stop_hook_active: bool,
-    /// Error message describing the API failure
+    /// Error message describing the API failure. Claude Code sends a stable error code
+    /// (e.g. "rate_limit", "overloaded", "authentication_failed").
     pub error: String,
+    /// Optional human-readable details about the API failure.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_details: Option<String>,
+    /// Text content of the last assistant message before the failure, when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_assistant_message: Option<String>,
 }
 
 /// Payload for `SubagentStart` hook - fired when a Claude subagent is launched.
@@ -178,8 +275,10 @@ pub struct SubagentStartPayload {
     /// Type of subagent being started. Claude Code sends this as `agent_type`.
     #[serde(alias = "agent_type")]
     pub subagent_type: String,
-    /// Path to the subagent's specific transcript file for conversation history
-    pub agent_transcript_path: String,
+    /// Path to the subagent's specific transcript file for conversation history.
+    /// Optional: current Claude Code SubagentStart payloads send only `agent_id` and `agent_type`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_transcript_path: Option<String>,
 }
 
 /// Payload for `SubagentStop` hook - fired when a Claude subagent terminates.
@@ -194,6 +293,18 @@ pub struct SubagentStopPayload {
     pub agent_id: String,
     /// Path to the subagent's specific transcript file containing conversation history
     pub agent_transcript_path: String,
+    /// Type of subagent that completed (e.g., "general-purpose", "code-reviewer").
+    #[serde(default, alias = "agent_type", skip_serializing_if = "Option::is_none")]
+    pub subagent_type: Option<String>,
+    /// Text content of the last assistant message before stopping.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_assistant_message: Option<String>,
+    /// In-flight background work registered in this session. Empty when nothing is in flight.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_tasks: Option<Vec<BackgroundTaskSummary>>,
+    /// Session-scoped cron tasks that will wake this session later. Empty when none scheduled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_crons: Option<Vec<SessionCronSummary>>,
 }
 
 /// Payload for `UserPromptSubmit` hook - fired when user submits input to Claude.
@@ -204,6 +315,9 @@ pub struct UserPromptSubmitPayload {
     pub base: BasePayload,
     /// The user's input prompt text (can be null if Claude Code sends no prompt)
     pub prompt: Option<String>,
+    /// Current session title, when set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_title: Option<String>,
 }
 
 /// Payload for `PreCompact` hook - fired before transcript compaction occurs.
@@ -239,6 +353,9 @@ pub struct SessionStartPayload {
     /// Model being used for the session (e.g., "claude-sonnet-4-6")
     #[serde(default)]
     pub model: Option<String>,
+    /// Current session title, when set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_title: Option<String>,
 }
 
 /// Payload for `SessionEnd` hook - fired when a Claude session terminates.
@@ -319,10 +436,8 @@ pub fn validate_subagent_start_payload(payload: &SubagentStartPayload) -> Result
         return Err("subagent_type cannot be empty".to_string());
     }
 
-    // Validate agent_transcript_path
-    if payload.agent_transcript_path.trim().is_empty() {
-        return Err("agent_transcript_path cannot be empty".to_string());
-    }
+    // agent_transcript_path is optional: current Claude Code SubagentStart payloads
+    // send only agent_id and agent_type.
 
     Ok(())
 }
@@ -365,6 +480,9 @@ pub struct PostToolUseFailurePayload {
     pub error: String,
     /// Whether the failure was due to an interrupt
     pub is_interrupt: Option<bool>,
+    /// Tool execution time in milliseconds. Excludes permission-prompt and hook time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
 }
 
 /// Payload for `TeammateIdle` hook - fired when a teammate agent becomes idle.
@@ -567,6 +685,9 @@ mod tests {
                 hook_event_name: "PreToolUse".to_string(),
                 cwd: "/current/dir".to_string(),
                 permission_mode: Some("default".to_string()),
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             tool_name: "Edit".to_string(),
             tool_input: tool_input.clone(),
@@ -585,11 +706,15 @@ mod tests {
                 hook_event_name: "PostToolUse".to_string(),
                 cwd: "/current/dir".to_string(),
                 permission_mode: Some("default".to_string()),
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             tool_name: "Edit".to_string(),
             tool_input,
             tool_use_id: Some("round-trip-id-2".to_string()),
             tool_response: serde_json::json!({"status": "success"}),
+            duration_ms: None,
         };
 
         let json = serde_json::to_string(&post_payload).unwrap();
@@ -634,8 +759,12 @@ mod tests {
                 hook_event_name: "UserPromptSubmit".to_string(),
                 cwd: "/current/dir".to_string(),
                 permission_mode: Some("default".to_string()),
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             prompt: Some("test user prompt".to_string()),
+            session_title: None,
         };
 
         let json = serde_json::to_string(&payload).unwrap();
@@ -700,8 +829,12 @@ mod tests {
                 hook_event_name: "UserPromptSubmit".to_string(),
                 cwd: "/current/dir".to_string(),
                 permission_mode: Some("default".to_string()),
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             prompt: None,
+            session_title: None,
         };
 
         let json = serde_json::to_string(&payload).unwrap();
@@ -1050,6 +1183,9 @@ mod tests {
                 hook_event_name: "TeammateIdle".to_string(),
                 cwd: "/c".to_string(),
                 permission_mode: None,
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             teammate_name: "coder".to_string(),
             team_name: "team".to_string(),
@@ -1074,6 +1210,9 @@ mod tests {
                 hook_event_name: "TaskCompleted".to_string(),
                 cwd: "/c".to_string(),
                 permission_mode: None,
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             task_id: "t1".to_string(),
             task_subject: "subject".to_string(),
@@ -1101,6 +1240,9 @@ mod tests {
                 hook_event_name: "WorktreeCreate".to_string(),
                 cwd: "/c".to_string(),
                 permission_mode: None,
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             name: "feature".to_string(),
         };
@@ -1120,6 +1262,9 @@ mod tests {
                 hook_event_name: "WorktreeRemove".to_string(),
                 cwd: "/c".to_string(),
                 permission_mode: None,
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             worktree_path: "/tmp/wt".to_string(),
         };
@@ -1153,6 +1298,9 @@ mod tests {
                 hook_event_name: "Setup".to_string(),
                 cwd: "/c".to_string(),
                 permission_mode: None,
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             trigger: "install".to_string(),
         };
@@ -1266,9 +1414,14 @@ mod tests {
                 hook_event_name: "StopFailure".to_string(),
                 cwd: "/tmp".to_string(),
                 permission_mode: None,
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             stop_hook_active: false,
             error: "auth failure".to_string(),
+            error_details: None,
+            last_assistant_message: None,
         };
         assert!(validate_stop_failure_payload(&payload).is_ok());
 
