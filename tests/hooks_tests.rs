@@ -11,6 +11,9 @@ fn create_test_base_payload() -> BasePayload {
         hook_event_name: "PreToolUse".to_string(),
         cwd: "/home/user/project".to_string(),
         permission_mode: Some("default".to_string()),
+        agent_id: None,
+        agent_type: None,
+        effort: None,
     }
 }
 
@@ -349,6 +352,9 @@ fn test_validate_base_payload_integration() {
         hook_event_name: "PreToolUse".to_string(),
         cwd: "/home/user/project".to_string(),
         permission_mode: Some("default".to_string()),
+        agent_id: None,
+        agent_type: None,
+        effort: None,
     };
     assert!(validate_base_payload(&invalid_base).is_err());
 }
@@ -925,10 +931,17 @@ fn create_subagent_stop_payload() -> SubagentStopPayload {
             hook_event_name: "SubagentStop".to_string(),
             cwd: "/home/user/project".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         stop_hook_active: true,
         agent_id: "coder".to_string(),
         agent_transcript_path: "/tmp/coder_transcript.jsonl".to_string(),
+        subagent_type: None,
+        last_assistant_message: None,
+        background_tasks: None,
+        session_crons: None,
     }
 }
 

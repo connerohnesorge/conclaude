@@ -506,10 +506,17 @@ fn test_build_subagent_env_vars() {
             hook_event_name: "SubagentStop".to_string(),
             cwd: "/home/user/project".to_string(),
             permission_mode: Some("default".to_string()),
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         stop_hook_active: true,
         agent_id: "coder".to_string(),
         agent_transcript_path: "/path/to/agent/transcript.json".to_string(),
+        subagent_type: None,
+        last_assistant_message: None,
+        background_tasks: None,
+        session_crons: None,
     };
 
     let env_vars = build_subagent_env_vars(&payload, Path::new("/test/config"), Some("coder"));
@@ -564,10 +571,17 @@ fn test_build_subagent_env_vars_all_expected_keys() {
             hook_event_name: "SubagentStop".to_string(),
             cwd: "/cwd".to_string(),
             permission_mode: None,
+            agent_id: None,
+            agent_type: None,
+            effort: None,
         },
         stop_hook_active: true,
         agent_id: "tester".to_string(),
         agent_transcript_path: "/agent/transcript".to_string(),
+        subagent_type: None,
+        last_assistant_message: None,
+        background_tasks: None,
+        session_crons: None,
     };
 
     let env_vars = build_subagent_env_vars(&payload, Path::new("."), None);
@@ -1410,8 +1424,12 @@ mod user_prompt_submit_command_tests {
                 transcript_path: "/tmp/transcript.jsonl".to_string(),
                 hook_event_name: "UserPromptSubmit".to_string(),
                 permission_mode: Some("default".to_string()),
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             prompt: Some("update the sidebar component".to_string()),
+            session_title: None,
         };
 
         let env_vars = build_user_prompt_submit_env_vars(&payload, temp_dir.path());
@@ -1609,8 +1627,12 @@ mod user_prompt_submit_command_tests {
                 transcript_path: "/tmp/transcript.jsonl".to_string(),
                 hook_event_name: "UserPromptSubmit".to_string(),
                 permission_mode: Some("default".to_string()),
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             prompt: None,
+            session_title: None,
         };
 
         let env_vars = build_user_prompt_submit_env_vars(&payload, temp_dir.path());
@@ -1635,8 +1657,12 @@ mod user_prompt_submit_command_tests {
                 transcript_path: "/tmp/transcript.jsonl".to_string(),
                 hook_event_name: "UserPromptSubmit".to_string(),
                 permission_mode: Some("default".to_string()),
+                agent_id: None,
+                agent_type: None,
+                effort: None,
             },
             prompt: Some("".to_string()),
+            session_title: None,
         };
 
         let env_vars = build_user_prompt_submit_env_vars(&payload, temp_dir.path());

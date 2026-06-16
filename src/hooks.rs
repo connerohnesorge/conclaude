@@ -2029,7 +2029,7 @@ pub async fn handle_subagent_start() -> Result<HookResult> {
     std::env::set_var("CONCLAUDE_SUBAGENT_TYPE", &payload.subagent_type);
     std::env::set_var(
         "CONCLAUDE_AGENT_TRANSCRIPT_PATH",
-        &payload.agent_transcript_path,
+        payload.agent_transcript_path.as_deref().unwrap_or(""),
     );
 
     // Load configuration and execute skill start commands if configured
@@ -2587,7 +2587,7 @@ pub(crate) fn build_skill_start_env_vars(
     env_vars.insert("CONCLAUDE_AGENT_ID".to_string(), payload.agent_id.clone());
     env_vars.insert(
         "CONCLAUDE_AGENT_TRANSCRIPT_PATH".to_string(),
-        payload.agent_transcript_path.clone(),
+        payload.agent_transcript_path.clone().unwrap_or_default(),
     );
 
     // Session-level environment variables
