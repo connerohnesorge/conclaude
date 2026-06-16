@@ -132,6 +132,288 @@
       ],
       "type": "object"
     },
+    "CwdChangedCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual cwd-changed commands with optional messages.",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_OLD_CWD, CONCLAUDE_NEW_CWD, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "CwdChangedConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for cwd-changed hooks with path-based command execution.\n\nCommands run when the working directory changes. Observational.",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/CwdChangedCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of new-cwd patterns to command configurations. Keys are glob patterns matched against the new working directory (e.g., \"*\", \"/home/**\").",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "FileChangedCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual file-changed commands with optional messages.",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_FILE_PATH, CONCLAUDE_FILE_EVENT, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "FileChangedConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for file-changed hooks with path-based command execution.\n\nCommands run when a watched file changes on disk. Observational.",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/FileChangedCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of file-path patterns to command configurations. Keys are glob patterns matched against the changed file path (e.g., \"*.rs\", \"src/**\", \"*\").",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "InstructionsLoadedCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual instructions-loaded commands with optional messages.",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_INSTRUCTIONS_FILE_PATH, CONCLAUDE_MEMORY_TYPE, CONCLAUDE_LOAD_REASON, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "InstructionsLoadedConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for instructions-loaded hooks with command execution.\n\nCommands run when Claude Code loads an instructions/memory file. Observational.",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/InstructionsLoadedCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of memory-type patterns to command configurations. Keys are glob patterns matched against the memory type (e.g., \"User\", \"Project\", \"*\").",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "NotificationsConfig": {
       "additionalProperties": false,
       "description": "Configuration for system notifications.\n\nControls desktop notifications for hook execution, errors, successes, and system events. Notifications help you stay informed about what conclaude is doing in the background.\n\n# Examples\n\n```yaml # Enable notifications for all hooks notifications: enabled: true hooks: [\"*\"] showErrors: true showSuccess: true showSystemEvents: true ```\n\n```yaml # Enable notifications only for Stop hook notifications: enabled: true hooks: [\"Stop\"] showErrors: true showSuccess: false showSystemEvents: false ```\n\n```yaml # Enable notifications for specific hooks notifications: enabled: true hooks: [\"Stop\", \"PreToolUse\"] showErrors: true showSuccess: true showSystemEvents: true ```",
@@ -201,6 +483,100 @@
       "required": [
         "default"
       ],
+      "type": "object"
+    },
+    "PostCompactCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual post-compact commands with optional messages.",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_COMPACT_TRIGGER, CONCLAUDE_COMPACT_SUMMARY, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "PostCompactConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for post-compact hooks with trigger-based command execution.\n\nCommands run after transcript compaction completes. Observational - the trigger value (\"manual\" or \"auto\") is used as the match query.",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/PostCompactCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of trigger patterns to command configurations. Keys are glob patterns matching the compaction trigger (e.g., \"manual\", \"auto\", \"*\").",
+          "type": "object"
+        }
+      },
       "type": "object"
     },
     "PreToolUseConfig": {
@@ -1185,6 +1561,39 @@
       },
       "description": "Configuration for config change hooks"
     },
+    "cwdChanged": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/CwdChangedConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for cwd-changed hooks that run when the working directory changes."
+    },
+    "fileChanged": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/FileChangedConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for file-changed hooks that run when a watched file changes."
+    },
+    "instructionsLoaded": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/InstructionsLoadedConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for instructions-loaded hooks that run when an instructions/memory file loads."
+    },
     "notifications": {
       "allOf": [
         {
@@ -1209,6 +1618,17 @@
         }
       ],
       "default": null
+    },
+    "postCompact": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/PostCompactConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for post-compact hooks that run after transcript compaction."
     },
     "preToolUse": {
       "allOf": [

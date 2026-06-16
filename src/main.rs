@@ -8,11 +8,13 @@ mod types;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use hooks::{
-    handle_config_change, handle_hook_result, handle_notification, handle_permission_request,
-    handle_post_tool_use, handle_post_tool_use_failure, handle_pre_compact, handle_pre_tool_use,
-    handle_session_end, handle_session_start, handle_setup, handle_stop, handle_stop_failure,
-    handle_subagent_start, handle_subagent_stop, handle_task_completed, handle_teammate_idle,
-    handle_user_prompt_submit, handle_worktree_create_result, handle_worktree_remove,
+    handle_config_change, handle_cwd_changed, handle_file_changed, handle_hook_result,
+    handle_instructions_loaded, handle_notification, handle_permission_request,
+    handle_post_compact, handle_post_tool_use, handle_post_tool_use_failure, handle_pre_compact,
+    handle_pre_tool_use, handle_session_end, handle_session_start, handle_setup, handle_stop,
+    handle_stop_failure, handle_subagent_start, handle_subagent_stop, handle_task_completed,
+    handle_teammate_idle, handle_user_prompt_submit, handle_worktree_create_result,
+    handle_worktree_remove,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -221,6 +223,34 @@ enum HooksCommands {
         #[clap(long)]
         agent: Option<String>,
     },
+    /// Process `PostCompact` hook - fired after transcript compaction completes
+    #[clap(name = "PostCompact")]
+    PostCompact {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `CwdChanged` hook - fired when the working directory changes
+    #[clap(name = "CwdChanged")]
+    CwdChanged {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `FileChanged` hook - fired when a watched file changes on disk
+    #[clap(name = "FileChanged")]
+    FileChanged {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `InstructionsLoaded` hook - fired when an instructions/memory file loads
+    #[clap(name = "InstructionsLoaded")]
+    InstructionsLoaded {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -310,6 +340,22 @@ async fn main() -> Result<()> {
             HooksCommands::Setup { agent } => {
                 set_agent_env(agent.as_deref());
                 handle_hook_result(handle_setup).await
+            }
+            HooksCommands::PostCompact { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_post_compact).await
+            }
+            HooksCommands::CwdChanged { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_cwd_changed).await
+            }
+            HooksCommands::FileChanged { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_file_changed).await
+            }
+            HooksCommands::InstructionsLoaded { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_instructions_loaded).await
             }
         },
         Commands::Visualize { rule, show_matches } => handle_visualize(rule, show_matches).await,
@@ -500,6 +546,10 @@ async fn handle_init(
         "WorktreeCreate",
         "WorktreeRemove",
         "Setup",
+        "PostCompact",
+        "CwdChanged",
+        "FileChanged",
+        "InstructionsLoaded",
     ];
 
     // Add hook configurations using merge logic to preserve user-defined hooks
@@ -644,6 +694,10 @@ fn generate_agent_hooks(agent_name: &str) -> serde_yaml::Value {
         ("WorktreeCreate", false),
         ("WorktreeRemove", false),
         ("Setup", true), // needs matcher (trigger)
+        ("PostCompact", true), // needs matcher (trigger)
+        ("CwdChanged", false),
+        ("FileChanged", true), // needs matcher (file_path)
+        ("InstructionsLoaded", true), // needs matcher (memory_type)
     ];
 
     let mut hooks_map = Mapping::new();
