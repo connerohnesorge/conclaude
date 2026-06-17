@@ -698,6 +698,134 @@ pub struct InstructionsLoadedConfig {
     pub commands: std::collections::HashMap<String, Vec<InstructionsLoadedCommand>>,
 }
 
+/// Configuration for individual post-tool-batch commands with optional messages.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct PostToolBatchCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_TOOL_BATCH_SIZE, CONCLAUDE_TOOL_BATCH_NAMES, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_PAYLOAD_JSON
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual permission-denied commands with optional messages.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct PermissionDeniedCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_TOOL_NAME, CONCLAUDE_DENY_REASON, CONCLAUDE_TOOL_USE_ID, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_PAYLOAD_JSON
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual user-prompt-expansion commands with optional messages.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct UserPromptExpansionCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_EXPANSION_TYPE, CONCLAUDE_COMMAND_NAME, CONCLAUDE_COMMAND_ARGS, CONCLAUDE_COMMAND_SOURCE, CONCLAUDE_EXPANDED_PROMPT, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_PAYLOAD_JSON
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for post-tool-batch hooks.
+///
+/// Commands run once after every tool call in a batch resolves. Observational.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct PostToolBatchConfig {
+    /// Commands to execute after each resolved tool batch. They run in order and are observational.
+    #[serde(default)]
+    pub commands: Vec<PostToolBatchCommand>,
+}
+
+/// Configuration for permission-denied hooks with tool-based command execution.
+///
+/// Commands run when a tool permission request is denied. Observational.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct PermissionDeniedConfig {
+    /// Map of tool-name patterns to command configurations.
+    /// Keys are glob patterns matched against the denied tool name (e.g., "Bash", "*").
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<PermissionDeniedCommand>>,
+}
+
+/// Configuration for user-prompt-expansion hooks with command-name-based command execution.
+///
+/// Commands run when a slash command or MCP prompt is expanded. Observational.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct UserPromptExpansionConfig {
+    /// Map of command-name patterns to command configurations.
+    /// Keys are glob patterns matched against the expanded command name (e.g., "commit", "*").
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<UserPromptExpansionCommand>>,
+}
+
 /// Configuration for stop hook commands that run when Claude is about to stop
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
 #[serde(deny_unknown_fields)]
@@ -1525,6 +1653,15 @@ pub struct ConclaudeConfig {
     /// Configuration for instructions-loaded hooks that run when an instructions/memory file loads.
     #[serde(default, rename = "instructionsLoaded")]
     pub instructions_loaded: InstructionsLoadedConfig,
+    /// Configuration for post-tool-batch hooks that run after each resolved tool batch.
+    #[serde(default, rename = "postToolBatch")]
+    pub post_tool_batch: PostToolBatchConfig,
+    /// Configuration for permission-denied hooks that run when a tool permission is denied.
+    #[serde(default, rename = "permissionDenied")]
+    pub permission_denied: PermissionDeniedConfig,
+    /// Configuration for user-prompt-expansion hooks that run when a command/prompt expands.
+    #[serde(default, rename = "userPromptExpansion")]
+    pub user_prompt_expansion: UserPromptExpansionConfig,
 }
 
 /// Extract the field name from an unknown field error message

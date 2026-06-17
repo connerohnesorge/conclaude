@@ -18,8 +18,10 @@ Conclaude uses YAML configuration files to define lifecycle hooks, file protecti
 | [File Changed](/conclaude/reference/config/file-changed) | Configuration for file-changed hooks with path-based command execution | `commands` |
 | [Instructions Loaded](/conclaude/reference/config/instructions-loaded) | Configuration for instructions-loaded hooks with command execution | `commands` |
 | [Notifications](/conclaude/reference/config/notifications) | Configuration for system notifications | `enabled`, `hooks`, `showErrors` |
+| [Permission Denied](/conclaude/reference/config/permission-denied) | Configuration for permission-denied hooks with tool-based command execution | `commands` |
 | [Permission Request](/conclaude/reference/config/permission-request) | Configuration for permission request hooks that control tool permission decisions | `allow`, `default`, `deny` |
 | [Post Compact](/conclaude/reference/config/post-compact) | Configuration for post-compact hooks with trigger-based command execution | `commands` |
+| [Post Tool Batch](/conclaude/reference/config/post-tool-batch) | Configuration for post-tool-batch hooks | `commands` |
 | [Pre Tool Use](/conclaude/reference/config/pre-tool-use) | Configuration for pre-tool-use hooks that run before tools are executed | `preventAdditions`, `preventRootAdditions`, `preventRootAdditionsMessage` |
 | [Setup](/conclaude/reference/config/setup) | Configuration for setup hooks with trigger-based command execution | `commands` |
 | [Skill Start](/conclaude/reference/config/skill-start) | Configuration for skill start hooks that trigger when subagents (skills) start | `commands` |
@@ -28,6 +30,7 @@ Conclaude uses YAML configuration files to define lifecycle hooks, file protecti
 | [Subagent Stop](/conclaude/reference/config/subagent-stop) | Configuration for subagent stop hooks with pattern-based command execution | `commands` |
 | [Task Completed](/conclaude/reference/config/task-completed) | Configuration for task completed hooks with pattern-based command execution | `commands` |
 | [Teammate Idle](/conclaude/reference/config/teammate-idle) | Configuration for teammate idle hooks with pattern-based command execution | `commands` |
+| [User Prompt Expansion](/conclaude/reference/config/user-prompt-expansion) | Configuration for user-prompt-expansion hooks with command-name-based command execution | `commands` |
 | [User Prompt Submit](/conclaude/reference/config/user-prompt-submit) | Configuration for user prompt submit hook with context injection rules and command execution | `commands`, `contextRules`, `slashCommands` |
 | [Worktree Create](/conclaude/reference/config/worktree-create) | Configuration for worktree create hook | `command`, `timeout` |
 
@@ -55,6 +58,10 @@ Configuration for instructions-loaded hooks with command execution.
 
 Configuration for system notifications.
 
+### [Permission Denied](/conclaude/reference/config/permission-denied)
+
+Configuration for permission-denied hooks with tool-based command execution.
+
 ### [Permission Request](/conclaude/reference/config/permission-request)
 
 Configuration for permission request hooks that control tool permission decisions.
@@ -62,6 +69,10 @@ Configuration for permission request hooks that control tool permission decision
 ### [Post Compact](/conclaude/reference/config/post-compact)
 
 Configuration for post-compact hooks with trigger-based command execution.
+
+### [Post Tool Batch](/conclaude/reference/config/post-tool-batch)
+
+Configuration for post-tool-batch hooks.
 
 ### [Pre Tool Use](/conclaude/reference/config/pre-tool-use)
 
@@ -94,6 +105,10 @@ Configuration for task completed hooks with pattern-based command execution.
 ### [Teammate Idle](/conclaude/reference/config/teammate-idle)
 
 Configuration for teammate idle hooks with pattern-based command execution.
+
+### [User Prompt Expansion](/conclaude/reference/config/user-prompt-expansion)
+
+Configuration for user-prompt-expansion hooks with command-name-based command execution.
 
 ### [User Prompt Submit](/conclaude/reference/config/user-prompt-submit)
 
