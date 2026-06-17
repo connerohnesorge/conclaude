@@ -1,15 +1,19 @@
 use crate::config::{
     extract_bash_commands, load_conclaude_config, ConclaudeConfig, ConfigChangeConfig,
-    SetupConfig, SkillStartConfig, SlashCommandConfig, SubagentStopConfig, TaskCompletedConfig,
+    CwdChangedConfig, FileChangedConfig, InstructionsLoadedConfig, PostCompactConfig, SetupConfig,
+    SkillStartConfig, SlashCommandConfig, SubagentStopConfig, TaskCompletedConfig,
     TeammateIdleConfig, UserPromptSubmitCommand,
 };
 use crate::gitignore::{find_git_root, is_path_git_ignored};
 use crate::types::{
-    validate_base_payload, validate_permission_request_payload, validate_setup_payload,
-    validate_stop_failure_payload, validate_subagent_start_payload, validate_subagent_stop_payload,
+    validate_base_payload, validate_cwd_changed_payload, validate_file_changed_payload,
+    validate_instructions_loaded_payload, validate_permission_request_payload,
+    validate_post_compact_payload, validate_setup_payload, validate_stop_failure_payload,
+    validate_subagent_start_payload, validate_subagent_stop_payload,
     validate_task_completed_payload, validate_teammate_idle_payload,
     validate_worktree_create_payload, validate_worktree_remove_payload, ConfigChangePayload,
-    ConfigChangeSource, HookResult, NotificationPayload, PermissionRequestPayload,
+    ConfigChangeSource, CwdChangedPayload, FileChangedPayload, HookResult,
+    InstructionsLoadedPayload, NotificationPayload, PermissionRequestPayload, PostCompactPayload,
     PostToolUseFailurePayload, PostToolUsePayload, PreCompactPayload, PreToolUsePayload,
     SessionEndPayload, SessionStartPayload, SetupPayload, StopFailurePayload, StopPayload,
     SubagentStartPayload, SubagentStopPayload, TaskCompletedPayload, TeammateIdlePayload,
@@ -200,6 +204,10 @@ pub(crate) fn is_system_event_hook(hook_name: &str) -> bool {
             | "WorktreeCreate"
             | "WorktreeRemove"
             | "Setup"
+            | "PostCompact"
+            | "CwdChanged"
+            | "FileChanged"
+            | "InstructionsLoaded"
     )
 }
 
@@ -4406,6 +4414,383 @@ fn build_setup_env_vars(payload: &SetupPayload, config_dir: &Path) -> HashMap<St
         env_vars.insert("CONCLAUDE_PAYLOAD_JSON".to_string(), json);
     }
     env_vars
+}
+
+/// Insert the shared base environment variables for a hook command.
+fn insert_base_env_vars<T: serde::Serialize>(
+    env_vars: &mut HashMap<String, String>,
+    base: &crate::types::BasePayload,
+    payload: &T,
+    hook_event: &str,
+    config_dir: &Path,
+) {
+    env_vars.insert("CONCLAUDE_SESSION_ID".to_string(), base.session_id.clone());
+    env_vars.insert(
+        "CONCLAUDE_TRANSCRIPT_PATH".to_string(),
+        base.transcript_path.clone(),
+    );
+    env_vars.insert("CONCLAUDE_HOOK_EVENT".to_string(), hook_event.to_string());
+    env_vars.insert("CONCLAUDE_CWD".to_string(), base.cwd.clone());
+    env_vars.insert(
+        "CONCLAUDE_CONFIG_DIR".to_string(),
+        config_dir.to_string_lossy().to_string(),
+    );
+    if let Ok(json) = serde_json::to_string(payload) {
+        env_vars.insert("CONCLAUDE_PAYLOAD_JSON".to_string(), json);
+    }
+}
+
+/// Collect commands from `PostCompactConfig` for matching patterns.
+fn collect_post_compact_commands(
+    config: &PostCompactConfig,
+    matching_patterns: &[&str],
+) -> Result<Vec<GenericCommandConfig>> {
+    let mut commands = Vec::new();
+    for pattern in matching_patterns {
+        if let Some(cmd_list) = config.commands.get(*pattern) {
+            for cmd_config in cmd_list {
+                for cmd in extract_bash_commands(&cmd_config.run)? {
+                    commands.push(GenericCommandConfig {
+                        command: cmd,
+                        message: cmd_config.message.clone(),
+                        show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                        show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                        max_output_lines: cmd_config.max_output_lines,
+                        timeout: cmd_config.timeout,
+                        show_command: cmd_config.show_command.unwrap_or(true),
+                        notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
+                    });
+                }
+            }
+        }
+    }
+    Ok(commands)
+}
+
+/// Collect commands from `CwdChangedConfig` for matching patterns.
+fn collect_cwd_changed_commands(
+    config: &CwdChangedConfig,
+    matching_patterns: &[&str],
+) -> Result<Vec<GenericCommandConfig>> {
+    let mut commands = Vec::new();
+    for pattern in matching_patterns {
+        if let Some(cmd_list) = config.commands.get(*pattern) {
+            for cmd_config in cmd_list {
+                for cmd in extract_bash_commands(&cmd_config.run)? {
+                    commands.push(GenericCommandConfig {
+                        command: cmd,
+                        message: cmd_config.message.clone(),
+                        show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                        show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                        max_output_lines: cmd_config.max_output_lines,
+                        timeout: cmd_config.timeout,
+                        show_command: cmd_config.show_command.unwrap_or(true),
+                        notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
+                    });
+                }
+            }
+        }
+    }
+    Ok(commands)
+}
+
+/// Collect commands from `FileChangedConfig` for matching patterns.
+fn collect_file_changed_commands(
+    config: &FileChangedConfig,
+    matching_patterns: &[&str],
+) -> Result<Vec<GenericCommandConfig>> {
+    let mut commands = Vec::new();
+    for pattern in matching_patterns {
+        if let Some(cmd_list) = config.commands.get(*pattern) {
+            for cmd_config in cmd_list {
+                for cmd in extract_bash_commands(&cmd_config.run)? {
+                    commands.push(GenericCommandConfig {
+                        command: cmd,
+                        message: cmd_config.message.clone(),
+                        show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                        show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                        max_output_lines: cmd_config.max_output_lines,
+                        timeout: cmd_config.timeout,
+                        show_command: cmd_config.show_command.unwrap_or(true),
+                        notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
+                    });
+                }
+            }
+        }
+    }
+    Ok(commands)
+}
+
+/// Collect commands from `InstructionsLoadedConfig` for matching patterns.
+fn collect_instructions_loaded_commands(
+    config: &InstructionsLoadedConfig,
+    matching_patterns: &[&str],
+) -> Result<Vec<GenericCommandConfig>> {
+    let mut commands = Vec::new();
+    for pattern in matching_patterns {
+        if let Some(cmd_list) = config.commands.get(*pattern) {
+            for cmd_config in cmd_list {
+                for cmd in extract_bash_commands(&cmd_config.run)? {
+                    commands.push(GenericCommandConfig {
+                        command: cmd,
+                        message: cmd_config.message.clone(),
+                        show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                        show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                        max_output_lines: cmd_config.max_output_lines,
+                        timeout: cmd_config.timeout,
+                        show_command: cmd_config.show_command.unwrap_or(true),
+                        notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
+                    });
+                }
+            }
+        }
+    }
+    Ok(commands)
+}
+
+/// Handles `PostCompact` hook events fired after transcript compaction completes.
+/// Observational - it cannot block.
+///
+/// # Errors
+///
+/// Returns an error if payload reading or validation fails.
+pub async fn handle_post_compact() -> Result<HookResult> {
+    let payload: PostCompactPayload = read_payload_from_stdin()?;
+    validate_post_compact_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    let trigger_str = payload.trigger.to_string();
+    println!(
+        "Processing PostCompact hook: session_id={}, trigger={}",
+        payload.base.session_id, trigger_str
+    );
+
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+    std::env::set_var("CONCLAUDE_COMPACT_TRIGGER", &trigger_str);
+    std::env::set_var("CONCLAUDE_COMPACT_SUMMARY", &payload.compact_summary);
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    if !config.post_compact.commands.is_empty() {
+        let matching_patterns =
+            match_generic_patterns(&trigger_str, &config.post_compact.commands)?;
+        if !matching_patterns.is_empty() {
+            let commands =
+                collect_post_compact_commands(&config.post_compact, &matching_patterns)?;
+            if !commands.is_empty() {
+                let mut env_vars = HashMap::new();
+                env_vars.insert("CONCLAUDE_COMPACT_TRIGGER".to_string(), trigger_str.clone());
+                env_vars.insert(
+                    "CONCLAUDE_COMPACT_SUMMARY".to_string(),
+                    payload.compact_summary.clone(),
+                );
+                insert_base_env_vars(
+                    &mut env_vars,
+                    &payload.base,
+                    &payload,
+                    "PostCompact",
+                    config_dir,
+                );
+                // Observational: run commands but never block.
+                let _ =
+                    execute_generic_commands(&commands, &env_vars, config_dir, "PostCompact").await;
+            }
+        }
+    }
+
+    send_notification(
+        "PostCompact",
+        "success",
+        Some(&format!("Compaction completed: trigger={trigger_str}")),
+    );
+    Ok(HookResult::success())
+}
+
+/// Handles `CwdChanged` hook events fired when the working directory changes.
+/// Observational - it cannot block.
+///
+/// # Errors
+///
+/// Returns an error if payload reading or validation fails.
+pub async fn handle_cwd_changed() -> Result<HookResult> {
+    let payload: CwdChangedPayload = read_payload_from_stdin()?;
+    validate_cwd_changed_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    println!(
+        "Processing CwdChanged hook: session_id={}, old_cwd={}, new_cwd={}",
+        payload.base.session_id, payload.old_cwd, payload.new_cwd
+    );
+
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+    std::env::set_var("CONCLAUDE_OLD_CWD", &payload.old_cwd);
+    std::env::set_var("CONCLAUDE_NEW_CWD", &payload.new_cwd);
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    if !config.cwd_changed.commands.is_empty() {
+        let matching_patterns =
+            match_generic_patterns(&payload.new_cwd, &config.cwd_changed.commands)?;
+        if !matching_patterns.is_empty() {
+            let commands = collect_cwd_changed_commands(&config.cwd_changed, &matching_patterns)?;
+            if !commands.is_empty() {
+                let mut env_vars = HashMap::new();
+                env_vars.insert("CONCLAUDE_OLD_CWD".to_string(), payload.old_cwd.clone());
+                env_vars.insert("CONCLAUDE_NEW_CWD".to_string(), payload.new_cwd.clone());
+                insert_base_env_vars(
+                    &mut env_vars,
+                    &payload.base,
+                    &payload,
+                    "CwdChanged",
+                    config_dir,
+                );
+                let _ =
+                    execute_generic_commands(&commands, &env_vars, config_dir, "CwdChanged").await;
+            }
+        }
+    }
+
+    send_notification(
+        "CwdChanged",
+        "success",
+        Some(&format!("Working directory changed to {}", payload.new_cwd)),
+    );
+    Ok(HookResult::success())
+}
+
+/// Handles `FileChanged` hook events fired when a watched file changes on disk.
+/// Observational - it cannot block.
+///
+/// # Errors
+///
+/// Returns an error if payload reading or validation fails.
+pub async fn handle_file_changed() -> Result<HookResult> {
+    let payload: FileChangedPayload = read_payload_from_stdin()?;
+    validate_file_changed_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    let event_str = payload.event.to_string();
+    println!(
+        "Processing FileChanged hook: session_id={}, file_path={}, event={}",
+        payload.base.session_id, payload.file_path, event_str
+    );
+
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+    std::env::set_var("CONCLAUDE_FILE_PATH", &payload.file_path);
+    std::env::set_var("CONCLAUDE_FILE_EVENT", &event_str);
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    if !config.file_changed.commands.is_empty() {
+        let matching_patterns =
+            match_generic_patterns(&payload.file_path, &config.file_changed.commands)?;
+        if !matching_patterns.is_empty() {
+            let commands = collect_file_changed_commands(&config.file_changed, &matching_patterns)?;
+            if !commands.is_empty() {
+                let mut env_vars = HashMap::new();
+                env_vars.insert("CONCLAUDE_FILE_PATH".to_string(), payload.file_path.clone());
+                env_vars.insert("CONCLAUDE_FILE_EVENT".to_string(), event_str.clone());
+                insert_base_env_vars(
+                    &mut env_vars,
+                    &payload.base,
+                    &payload,
+                    "FileChanged",
+                    config_dir,
+                );
+                let _ =
+                    execute_generic_commands(&commands, &env_vars, config_dir, "FileChanged").await;
+            }
+        }
+    }
+
+    send_notification(
+        "FileChanged",
+        "success",
+        Some(&format!("File {} ({})", payload.file_path, event_str)),
+    );
+    Ok(HookResult::success())
+}
+
+/// Handles `InstructionsLoaded` hook events fired when an instructions/memory file loads.
+/// Observational - it cannot block.
+///
+/// # Errors
+///
+/// Returns an error if payload reading or validation fails.
+pub async fn handle_instructions_loaded() -> Result<HookResult> {
+    let payload: InstructionsLoadedPayload = read_payload_from_stdin()?;
+    validate_instructions_loaded_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    let memory_type_str = payload.memory_type.to_string();
+    let load_reason_str = payload.load_reason.to_string();
+    println!(
+        "Processing InstructionsLoaded hook: session_id={}, file_path={}, memory_type={}, load_reason={}",
+        payload.base.session_id, payload.file_path, memory_type_str, load_reason_str
+    );
+
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+    std::env::set_var("CONCLAUDE_INSTRUCTIONS_FILE_PATH", &payload.file_path);
+    std::env::set_var("CONCLAUDE_MEMORY_TYPE", &memory_type_str);
+    std::env::set_var("CONCLAUDE_LOAD_REASON", &load_reason_str);
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    if !config.instructions_loaded.commands.is_empty() {
+        let matching_patterns =
+            match_generic_patterns(&memory_type_str, &config.instructions_loaded.commands)?;
+        if !matching_patterns.is_empty() {
+            let commands = collect_instructions_loaded_commands(
+                &config.instructions_loaded,
+                &matching_patterns,
+            )?;
+            if !commands.is_empty() {
+                let mut env_vars = HashMap::new();
+                env_vars.insert(
+                    "CONCLAUDE_INSTRUCTIONS_FILE_PATH".to_string(),
+                    payload.file_path.clone(),
+                );
+                env_vars.insert("CONCLAUDE_MEMORY_TYPE".to_string(), memory_type_str.clone());
+                env_vars.insert("CONCLAUDE_LOAD_REASON".to_string(), load_reason_str.clone());
+                insert_base_env_vars(
+                    &mut env_vars,
+                    &payload.base,
+                    &payload,
+                    "InstructionsLoaded",
+                    config_dir,
+                );
+                let _ = execute_generic_commands(
+                    &commands,
+                    &env_vars,
+                    config_dir,
+                    "InstructionsLoaded",
+                )
+                .await;
+            }
+        }
+    }
+
+    send_notification(
+        "InstructionsLoaded",
+        "success",
+        Some(&format!(
+            "Instructions loaded: {} ({memory_type_str})",
+            payload.file_path
+        )),
+    );
+    Ok(HookResult::success())
 }
 
 /// Handles `WorktreeCreate` hook events when a git worktree needs to be created.

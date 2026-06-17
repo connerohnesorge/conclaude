@@ -14,8 +14,12 @@ Conclaude uses YAML configuration files to define lifecycle hooks, file protecti
 | Section | Description | Key Options |
 |---------|-------------|-------------|
 | [Config Change](/conclaude/reference/config/config-change) | Configuration for config change hooks with source-based command execution | `commands` |
+| [Cwd Changed](/conclaude/reference/config/cwd-changed) | Configuration for cwd-changed hooks with path-based command execution | `commands` |
+| [File Changed](/conclaude/reference/config/file-changed) | Configuration for file-changed hooks with path-based command execution | `commands` |
+| [Instructions Loaded](/conclaude/reference/config/instructions-loaded) | Configuration for instructions-loaded hooks with command execution | `commands` |
 | [Notifications](/conclaude/reference/config/notifications) | Configuration for system notifications | `enabled`, `hooks`, `showErrors` |
 | [Permission Request](/conclaude/reference/config/permission-request) | Configuration for permission request hooks that control tool permission decisions | `allow`, `default`, `deny` |
+| [Post Compact](/conclaude/reference/config/post-compact) | Configuration for post-compact hooks with trigger-based command execution | `commands` |
 | [Pre Tool Use](/conclaude/reference/config/pre-tool-use) | Configuration for pre-tool-use hooks that run before tools are executed | `preventAdditions`, `preventRootAdditions`, `preventRootAdditionsMessage` |
 | [Setup](/conclaude/reference/config/setup) | Configuration for setup hooks with trigger-based command execution | `commands` |
 | [Skill Start](/conclaude/reference/config/skill-start) | Configuration for skill start hooks that trigger when subagents (skills) start | `commands` |
@@ -35,6 +39,18 @@ Detailed documentation for each configuration section:
 
 Configuration for config change hooks with source-based command execution.
 
+### [Cwd Changed](/conclaude/reference/config/cwd-changed)
+
+Configuration for cwd-changed hooks with path-based command execution.
+
+### [File Changed](/conclaude/reference/config/file-changed)
+
+Configuration for file-changed hooks with path-based command execution.
+
+### [Instructions Loaded](/conclaude/reference/config/instructions-loaded)
+
+Configuration for instructions-loaded hooks with command execution.
+
 ### [Notifications](/conclaude/reference/config/notifications)
 
 Configuration for system notifications.
@@ -42,6 +58,10 @@ Configuration for system notifications.
 ### [Permission Request](/conclaude/reference/config/permission-request)
 
 Configuration for permission request hooks that control tool permission decisions.
+
+### [Post Compact](/conclaude/reference/config/post-compact)
+
+Configuration for post-compact hooks with trigger-based command execution.
 
 ### [Pre Tool Use](/conclaude/reference/config/pre-tool-use)
 

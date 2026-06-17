@@ -525,6 +525,179 @@ pub struct SetupConfig {
     pub commands: std::collections::HashMap<String, Vec<SetupCommand>>,
 }
 
+/// Configuration for individual post-compact commands with optional messages.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct PostCompactCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_COMPACT_TRIGGER, CONCLAUDE_COMPACT_SUMMARY, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual cwd-changed commands with optional messages.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct CwdChangedCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_OLD_CWD, CONCLAUDE_NEW_CWD, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual file-changed commands with optional messages.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct FileChangedCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_FILE_PATH, CONCLAUDE_FILE_EVENT, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual instructions-loaded commands with optional messages.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct InstructionsLoadedCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_INSTRUCTIONS_FILE_PATH, CONCLAUDE_MEMORY_TYPE, CONCLAUDE_LOAD_REASON, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for post-compact hooks with trigger-based command execution.
+///
+/// Commands run after transcript compaction completes. Observational - the
+/// trigger value ("manual" or "auto") is used as the match query.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct PostCompactConfig {
+    /// Map of trigger patterns to command configurations.
+    /// Keys are glob patterns matching the compaction trigger (e.g., "manual", "auto", "*").
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<PostCompactCommand>>,
+}
+
+/// Configuration for cwd-changed hooks with path-based command execution.
+///
+/// Commands run when the working directory changes. Observational.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct CwdChangedConfig {
+    /// Map of new-cwd patterns to command configurations.
+    /// Keys are glob patterns matched against the new working directory (e.g., "*", "/home/**").
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<CwdChangedCommand>>,
+}
+
+/// Configuration for file-changed hooks with path-based command execution.
+///
+/// Commands run when a watched file changes on disk. Observational.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct FileChangedConfig {
+    /// Map of file-path patterns to command configurations.
+    /// Keys are glob patterns matched against the changed file path (e.g., "*.rs", "src/**", "*").
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<FileChangedCommand>>,
+}
+
+/// Configuration for instructions-loaded hooks with command execution.
+///
+/// Commands run when Claude Code loads an instructions/memory file. Observational.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct InstructionsLoadedConfig {
+    /// Map of memory-type patterns to command configurations.
+    /// Keys are glob patterns matched against the memory type (e.g., "User", "Project", "*").
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<InstructionsLoadedCommand>>,
+}
+
 /// Configuration for stop hook commands that run when Claude is about to stop
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
 #[serde(deny_unknown_fields)]
@@ -1340,6 +1513,18 @@ pub struct ConclaudeConfig {
     /// ```
     #[serde(default)]
     pub setup: SetupConfig,
+    /// Configuration for post-compact hooks that run after transcript compaction.
+    #[serde(default, rename = "postCompact")]
+    pub post_compact: PostCompactConfig,
+    /// Configuration for cwd-changed hooks that run when the working directory changes.
+    #[serde(default, rename = "cwdChanged")]
+    pub cwd_changed: CwdChangedConfig,
+    /// Configuration for file-changed hooks that run when a watched file changes.
+    #[serde(default, rename = "fileChanged")]
+    pub file_changed: FileChangedConfig,
+    /// Configuration for instructions-loaded hooks that run when an instructions/memory file loads.
+    #[serde(default, rename = "instructionsLoaded")]
+    pub instructions_loaded: InstructionsLoadedConfig,
 }
 
 /// Extract the field name from an unknown field error message

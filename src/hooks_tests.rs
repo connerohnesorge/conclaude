@@ -29,6 +29,10 @@ fn test_is_system_event_hook_new_hooks() {
     assert!(is_system_event_hook("ConfigChange"));
     assert!(is_system_event_hook("WorktreeCreate"));
     assert!(is_system_event_hook("WorktreeRemove"));
+    assert!(is_system_event_hook("PostCompact"));
+    assert!(is_system_event_hook("CwdChanged"));
+    assert!(is_system_event_hook("FileChanged"));
+    assert!(is_system_event_hook("InstructionsLoaded"));
 
     // PostToolUseFailure is NOT a system event hook
     assert!(!is_system_event_hook("PostToolUseFailure"));

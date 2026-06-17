@@ -332,11 +332,20 @@ pub struct PreCompactPayload {
     pub custom_instructions: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum CompactTrigger {
     Manual,
     Auto,
+}
+
+impl std::fmt::Display for CompactTrigger {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CompactTrigger::Manual => write!(f, "manual"),
+            CompactTrigger::Auto => write!(f, "auto"),
+        }
+    }
 }
 
 /// Payload for `SessionStart` hook - fired when a new Claude session begins.
@@ -627,6 +636,165 @@ pub fn validate_worktree_remove_payload(payload: &WorktreeRemovePayload) -> Resu
     validate_base_payload(&payload.base)?;
     if payload.worktree_path.trim().is_empty() {
         return Err("worktree_path cannot be empty".to_string());
+    }
+    Ok(())
+}
+
+/// Payload for `PostCompact` hook - fired after transcript compaction completes.
+/// Observational; exposes the produced conversation summary.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostCompactPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Whether compaction was triggered manually by user or automatically by system
+    pub trigger: CompactTrigger,
+    /// The conversation summary produced by compaction
+    pub compact_summary: String,
+}
+
+/// Payload for `CwdChanged` hook - fired when the working directory changes.
+/// Observational; allows reacting to directory switches (e.g. re-priming watches).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CwdChangedPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// The previous working directory
+    pub old_cwd: String,
+    /// The new working directory
+    pub new_cwd: String,
+}
+
+/// Filesystem event type reported by the `FileChanged` hook.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum FileChangeEvent {
+    /// An existing file was modified
+    Change,
+    /// A new file was created
+    Add,
+    /// A file was removed
+    Unlink,
+}
+
+impl std::fmt::Display for FileChangeEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FileChangeEvent::Change => write!(f, "change"),
+            FileChangeEvent::Add => write!(f, "add"),
+            FileChangeEvent::Unlink => write!(f, "unlink"),
+        }
+    }
+}
+
+/// Payload for `FileChanged` hook - fired when a watched file changes on disk.
+/// Observational; allows reacting to external file modifications.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileChangedPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Path to the file that changed
+    pub file_path: String,
+    /// The kind of filesystem event that occurred
+    pub event: FileChangeEvent,
+}
+
+/// Source tier of an instructions/memory file loaded by Claude Code.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum MemoryType {
+    User,
+    Project,
+    Local,
+    Managed,
+}
+
+impl std::fmt::Display for MemoryType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MemoryType::User => write!(f, "User"),
+            MemoryType::Project => write!(f, "Project"),
+            MemoryType::Local => write!(f, "Local"),
+            MemoryType::Managed => write!(f, "Managed"),
+        }
+    }
+}
+
+/// Reason an instructions/memory file was loaded.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum LoadReason {
+    SessionStart,
+    NestedTraversal,
+    PathGlobMatch,
+    Include,
+    Compact,
+}
+
+impl std::fmt::Display for LoadReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoadReason::SessionStart => write!(f, "session_start"),
+            LoadReason::NestedTraversal => write!(f, "nested_traversal"),
+            LoadReason::PathGlobMatch => write!(f, "path_glob_match"),
+            LoadReason::Include => write!(f, "include"),
+            LoadReason::Compact => write!(f, "compact"),
+        }
+    }
+}
+
+/// Payload for `InstructionsLoaded` hook - fired when Claude Code loads an
+/// instructions/memory file (e.g. CLAUDE.md). Observational.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InstructionsLoadedPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Path to the instructions file that was loaded
+    pub file_path: String,
+    /// Source tier of the loaded file
+    pub memory_type: MemoryType,
+    /// Why the file was loaded
+    pub load_reason: LoadReason,
+    /// Glob patterns that triggered a path-glob-match load, when applicable
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub globs: Option<Vec<String>>,
+    /// Path of the file whose access triggered the load, when applicable
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trigger_file_path: Option<String>,
+    /// Path of the parent file that included this one, when applicable
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_file_path: Option<String>,
+}
+
+/// Validates that a `PostCompactPayload` contains all required fields.
+pub fn validate_post_compact_payload(payload: &PostCompactPayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    Ok(())
+}
+
+/// Validates that a `CwdChangedPayload` contains all required fields.
+pub fn validate_cwd_changed_payload(payload: &CwdChangedPayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.new_cwd.trim().is_empty() {
+        return Err("new_cwd cannot be empty".to_string());
+    }
+    Ok(())
+}
+
+/// Validates that a `FileChangedPayload` contains all required fields.
+pub fn validate_file_changed_payload(payload: &FileChangedPayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.file_path.trim().is_empty() {
+        return Err("file_path cannot be empty".to_string());
+    }
+    Ok(())
+}
+
+/// Validates that an `InstructionsLoadedPayload` contains all required fields.
+pub fn validate_instructions_loaded_payload(
+    payload: &InstructionsLoadedPayload,
+) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.file_path.trim().is_empty() {
+        return Err("file_path cannot be empty".to_string());
     }
     Ok(())
 }
@@ -1430,5 +1598,117 @@ mod tests {
             ..payload.clone()
         };
         assert!(validate_stop_failure_payload(&empty_error).is_err());
+    }
+
+    #[test]
+    fn test_post_compact_payload_deserialization() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "PostCompact",
+            "cwd": "/c",
+            "trigger": "auto",
+            "compact_summary": "Summarized the conversation."
+        }"#;
+        let payload: PostCompactPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.trigger, CompactTrigger::Auto);
+        assert_eq!(payload.compact_summary, "Summarized the conversation.");
+        assert!(validate_post_compact_payload(&payload).is_ok());
+    }
+
+    #[test]
+    fn test_cwd_changed_payload_deserialization() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "CwdChanged",
+            "cwd": "/c",
+            "old_cwd": "/home/a",
+            "new_cwd": "/home/b"
+        }"#;
+        let payload: CwdChangedPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.old_cwd, "/home/a");
+        assert_eq!(payload.new_cwd, "/home/b");
+        assert!(validate_cwd_changed_payload(&payload).is_ok());
+    }
+
+    #[test]
+    fn test_cwd_changed_payload_validation_empty_new_cwd() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "CwdChanged",
+            "cwd": "/c",
+            "old_cwd": "/home/a",
+            "new_cwd": ""
+        }"#;
+        let payload: CwdChangedPayload = serde_json::from_str(json).unwrap();
+        assert!(validate_cwd_changed_payload(&payload).is_err());
+    }
+
+    #[test]
+    fn test_file_changed_payload_deserialization() {
+        for (raw, expected) in [
+            ("change", FileChangeEvent::Change),
+            ("add", FileChangeEvent::Add),
+            ("unlink", FileChangeEvent::Unlink),
+        ] {
+            let json = format!(
+                r#"{{
+                    "session_id": "s",
+                    "transcript_path": "/t",
+                    "hook_event_name": "FileChanged",
+                    "cwd": "/c",
+                    "file_path": "src/main.rs",
+                    "event": "{raw}"
+                }}"#
+            );
+            let payload: FileChangedPayload = serde_json::from_str(&json).unwrap();
+            assert_eq!(payload.event, expected);
+            assert_eq!(payload.event.to_string(), raw);
+            assert!(validate_file_changed_payload(&payload).is_ok());
+        }
+    }
+
+    #[test]
+    fn test_instructions_loaded_payload_deserialization() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "InstructionsLoaded",
+            "cwd": "/c",
+            "file_path": "/home/user/CLAUDE.md",
+            "memory_type": "User",
+            "load_reason": "session_start"
+        }"#;
+        let payload: InstructionsLoadedPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.memory_type, MemoryType::User);
+        assert_eq!(payload.load_reason, LoadReason::SessionStart);
+        assert_eq!(payload.memory_type.to_string(), "User");
+        assert_eq!(payload.load_reason.to_string(), "session_start");
+        assert_eq!(payload.globs, None);
+        assert!(validate_instructions_loaded_payload(&payload).is_ok());
+    }
+
+    #[test]
+    fn test_instructions_loaded_payload_with_optional_fields() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "InstructionsLoaded",
+            "cwd": "/c",
+            "file_path": "/repo/sub/CLAUDE.md",
+            "memory_type": "Project",
+            "load_reason": "path_glob_match",
+            "globs": ["**/*.rs"],
+            "trigger_file_path": "/repo/sub/lib.rs",
+            "parent_file_path": "/repo/CLAUDE.md"
+        }"#;
+        let payload: InstructionsLoadedPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.memory_type, MemoryType::Project);
+        assert_eq!(payload.load_reason, LoadReason::PathGlobMatch);
+        assert_eq!(payload.globs, Some(vec!["**/*.rs".to_string()]));
+        assert_eq!(payload.trigger_file_path, Some("/repo/sub/lib.rs".to_string()));
+        assert_eq!(payload.parent_file_path, Some("/repo/CLAUDE.md".to_string()));
     }
 }
