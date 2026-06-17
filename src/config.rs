@@ -826,6 +826,183 @@ pub struct UserPromptExpansionConfig {
     pub commands: std::collections::HashMap<String, Vec<UserPromptExpansionCommand>>,
 }
 
+/// Configuration for individual task-created commands with optional messages.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct TaskCreatedCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_TASK_ID, CONCLAUDE_TASK_SUBJECT, CONCLAUDE_TASK_DESCRIPTION, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual elicitation commands with optional messages.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct ElicitationCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_MCP_SERVER_NAME, CONCLAUDE_ELICITATION_MESSAGE, CONCLAUDE_ELICITATION_MODE, CONCLAUDE_ELICITATION_ID, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual elicitation-result commands with optional messages.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct ElicitationResultCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_MCP_SERVER_NAME, CONCLAUDE_ELICITATION_ACTION, CONCLAUDE_ELICITATION_MODE, CONCLAUDE_ELICITATION_ID, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for individual message-display commands with optional messages.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct MessageDisplayCommand {
+    /// The shell command to execute. Environment variables are available: CONCLAUDE_MESSAGE_ID, CONCLAUDE_TURN_ID, CONCLAUDE_MESSAGE_INDEX, CONCLAUDE_MESSAGE_FINAL, CONCLAUDE_MESSAGE_DELTA, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR
+    pub run: String,
+    /// Custom error message to display when the command fails (exits with non-zero status)
+    #[serde(default)]
+    pub message: Option<String>,
+    /// Whether to show the command being executed to the user and Claude. Default: true
+    #[serde(default = "default_option_true", rename = "showCommand")]
+    pub show_command: Option<bool>,
+    /// Whether to show the command's standard output to the user and Claude. Default: false
+    #[serde(default, rename = "showStdout")]
+    pub show_stdout: Option<bool>,
+    /// Whether to show the command's standard error output to the user and Claude. Default: false
+    #[serde(default, rename = "showStderr")]
+    pub show_stderr: Option<bool>,
+    /// Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000
+    #[serde(default, rename = "maxOutputLines")]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_output_lines: Option<u32>,
+    /// Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 3600))]
+    pub timeout: Option<u64>,
+    /// Whether to send individual notifications for this command. Default: false
+    #[serde(default, rename = "notifyPerCommand")]
+    pub notify_per_command: Option<bool>,
+}
+
+/// Configuration for task-created hooks with subject-based command execution.
+///
+/// Commands run when a task is created. Observational.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct TaskCreatedConfig {
+    /// Map of task-subject patterns to command configurations.
+    /// Keys are glob patterns matched against the task subject.
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<TaskCreatedCommand>>,
+}
+
+/// Configuration for elicitation hooks with MCP-server-based command execution.
+///
+/// Commands run when an MCP server requests user input. Observational.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct ElicitationConfig {
+    /// Map of MCP-server-name patterns to command configurations.
+    /// Keys are glob patterns matched against the MCP server name (e.g., "my-server", "*").
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<ElicitationCommand>>,
+}
+
+/// Configuration for elicitation-result hooks with MCP-server-based command execution.
+///
+/// Commands run after a user responds to an MCP elicitation. Observational.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct ElicitationResultConfig {
+    /// Map of MCP-server-name patterns to command configurations.
+    /// Keys are glob patterns matched against the MCP server name (e.g., "my-server", "*").
+    #[serde(default)]
+    pub commands: std::collections::HashMap<String, Vec<ElicitationResultCommand>>,
+}
+
+/// Configuration for message-display hooks.
+///
+/// `MessageDisplay` fires per streamed line-batch (potentially many times per
+/// message), so by default commands run only on the final flush of each message.
+/// Observational.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
+#[serde(deny_unknown_fields)]
+pub struct MessageDisplayConfig {
+    /// Commands to execute on a message-display event. Observational.
+    #[serde(default)]
+    pub commands: Vec<MessageDisplayCommand>,
+    /// Run commands only on the final flush of each message (recommended; avoids
+    /// running per streamed line-batch). Default: true
+    #[serde(default = "default_true", rename = "onlyFinal")]
+    pub only_final: bool,
+}
+
 /// Configuration for stop hook commands that run when Claude is about to stop
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, FieldList)]
 #[serde(deny_unknown_fields)]
@@ -1662,6 +1839,18 @@ pub struct ConclaudeConfig {
     /// Configuration for user-prompt-expansion hooks that run when a command/prompt expands.
     #[serde(default, rename = "userPromptExpansion")]
     pub user_prompt_expansion: UserPromptExpansionConfig,
+    /// Configuration for task-created hooks that run when a task is created.
+    #[serde(default, rename = "taskCreated")]
+    pub task_created: TaskCreatedConfig,
+    /// Configuration for elicitation hooks that run when an MCP server requests user input.
+    #[serde(default)]
+    pub elicitation: ElicitationConfig,
+    /// Configuration for elicitation-result hooks that run after a user responds to an elicitation.
+    #[serde(default, rename = "elicitationResult")]
+    pub elicitation_result: ElicitationResultConfig,
+    /// Configuration for message-display hooks that run as assistant messages stream.
+    #[serde(default, rename = "messageDisplay")]
+    pub message_display: MessageDisplayConfig,
 }
 
 /// Extract the field name from an unknown field error message

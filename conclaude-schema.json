@@ -226,6 +226,194 @@
       },
       "type": "object"
     },
+    "ElicitationCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual elicitation commands with optional messages.",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_MCP_SERVER_NAME, CONCLAUDE_ELICITATION_MESSAGE, CONCLAUDE_ELICITATION_MODE, CONCLAUDE_ELICITATION_ID, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "ElicitationConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for elicitation hooks with MCP-server-based command execution.\n\nCommands run when an MCP server requests user input. Observational.",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/ElicitationCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of MCP-server-name patterns to command configurations. Keys are glob patterns matched against the MCP server name (e.g., \"my-server\", \"*\").",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "ElicitationResultCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual elicitation-result commands with optional messages.",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_MCP_SERVER_NAME, CONCLAUDE_ELICITATION_ACTION, CONCLAUDE_ELICITATION_MODE, CONCLAUDE_ELICITATION_ID, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "ElicitationResultConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for elicitation-result hooks with MCP-server-based command execution.\n\nCommands run after a user responds to an MCP elicitation. Observational.",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/ElicitationResultCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of MCP-server-name patterns to command configurations. Keys are glob patterns matched against the MCP server name (e.g., \"my-server\", \"*\").",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "FileChangedCommand": {
       "additionalProperties": false,
       "description": "Configuration for individual file-changed commands with optional messages.",
@@ -410,6 +598,102 @@
           "default": {},
           "description": "Map of memory-type patterns to command configurations. Keys are glob patterns matched against the memory type (e.g., \"User\", \"Project\", \"*\").",
           "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "MessageDisplayCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual message-display commands with optional messages.",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_MESSAGE_ID, CONCLAUDE_TURN_ID, CONCLAUDE_MESSAGE_INDEX, CONCLAUDE_MESSAGE_FINAL, CONCLAUDE_MESSAGE_DELTA, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "MessageDisplayConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for message-display hooks.\n\n`MessageDisplay` fires per streamed line-batch (potentially many times per message), so by default commands run only on the final flush of each message. Observational.",
+      "properties": {
+        "commands": {
+          "default": [],
+          "description": "Commands to execute on a message-display event. Observational.",
+          "items": {
+            "$ref": "#/definitions/MessageDisplayCommand"
+          },
+          "type": "array"
+        },
+        "onlyFinal": {
+          "default": true,
+          "description": "Run commands only on the final flush of each message (recommended; avoids running per streamed line-batch). Default: true",
+          "type": "boolean"
         }
       },
       "type": "object"
@@ -1402,6 +1686,100 @@
       },
       "type": "object"
     },
+    "TaskCreatedCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual task-created commands with optional messages.",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_TASK_ID, CONCLAUDE_TASK_SUBJECT, CONCLAUDE_TASK_DESCRIPTION, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "TaskCreatedConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for task-created hooks with subject-based command execution.\n\nCommands run when a task is created. Observational.",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/TaskCreatedCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of task-subject patterns to command configurations. Keys are glob patterns matched against the task subject.",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "TeammateIdleCommand": {
       "additionalProperties": false,
       "description": "Configuration for individual teammate idle commands with optional messages",
@@ -1851,6 +2229,28 @@
       },
       "description": "Configuration for cwd-changed hooks that run when the working directory changes."
     },
+    "elicitation": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ElicitationConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for elicitation hooks that run when an MCP server requests user input."
+    },
+    "elicitationResult": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ElicitationResultConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for elicitation-result hooks that run after a user responds to an elicitation."
+    },
     "fileChanged": {
       "allOf": [
         {
@@ -1872,6 +2272,18 @@
         "commands": {}
       },
       "description": "Configuration for instructions-loaded hooks that run when an instructions/memory file loads."
+    },
+    "messageDisplay": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/MessageDisplayConfig"
+        }
+      ],
+      "default": {
+        "commands": [],
+        "onlyFinal": false
+      },
+      "description": "Configuration for message-display hooks that run as assistant messages stream."
     },
     "notifications": {
       "allOf": [
@@ -2011,6 +2423,17 @@
         "commands": {}
       },
       "description": "Configuration for task completed hooks"
+    },
+    "taskCreated": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/TaskCreatedConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for task-created hooks that run when a task is created."
     },
     "teammateIdle": {
       "allOf": [
