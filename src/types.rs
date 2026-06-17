@@ -901,6 +901,168 @@ pub fn validate_user_prompt_expansion_payload(
     Ok(())
 }
 
+/// Payload for `TaskCreated` hook - fired when a task is created.
+/// Mirror of `TaskCompleted`; observational.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskCreatedPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Unique identifier for the created task
+    pub task_id: String,
+    /// Subject/title of the created task
+    pub task_subject: String,
+    /// Optional detailed description of the task
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_description: Option<String>,
+    /// Optional name of the teammate that owns the task
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub teammate_name: Option<String>,
+    /// Optional name of the team (deprecated upstream; carries the session-derived team name)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub team_name: Option<String>,
+}
+
+/// Elicitation mode: structured form input or browser-based URL flow.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ElicitationMode {
+    Form,
+    Url,
+}
+
+impl std::fmt::Display for ElicitationMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ElicitationMode::Form => write!(f, "form"),
+            ElicitationMode::Url => write!(f, "url"),
+        }
+    }
+}
+
+/// Action taken in response to an MCP elicitation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ElicitationAction {
+    Accept,
+    Decline,
+    Cancel,
+}
+
+impl std::fmt::Display for ElicitationAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ElicitationAction::Accept => write!(f, "accept"),
+            ElicitationAction::Decline => write!(f, "decline"),
+            ElicitationAction::Cancel => write!(f, "cancel"),
+        }
+    }
+}
+
+/// Payload for `Elicitation` hook - fired when an MCP server requests user input.
+/// Observational.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ElicitationPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Name of the MCP server requesting input
+    pub mcp_server_name: String,
+    /// Message displayed to the user
+    pub message: String,
+    /// Elicitation mode (form or url), when provided
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<ElicitationMode>,
+    /// URL to open (only for url mode)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    /// Identifier correlating url elicitations with completion
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub elicitation_id: Option<String>,
+    /// JSON Schema for the requested input (only for form mode)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requested_schema: Option<serde_json::Value>,
+}
+
+/// Payload for `ElicitationResult` hook - fired after a user responds to an MCP elicitation.
+/// Observational.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ElicitationResultPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Name of the MCP server that requested input
+    pub mcp_server_name: String,
+    /// Identifier correlating url elicitations with completion
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub elicitation_id: Option<String>,
+    /// Elicitation mode (form or url), when provided
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<ElicitationMode>,
+    /// The action the user took
+    pub action: ElicitationAction,
+    /// The content the user provided, when applicable
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<serde_json::Value>,
+}
+
+/// Payload for `MessageDisplay` hook - fired with each batch of newly completed lines
+/// while an assistant message streams. Display-only / observational.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessageDisplayPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// UUID of the current turn
+    pub turn_id: String,
+    /// UUID of the assistant message being displayed (stable across flushes)
+    pub message_id: String,
+    /// Zero-based index of this delta within the message
+    pub index: u64,
+    /// True on the message's last flush
+    #[serde(rename = "final")]
+    pub final_flush: bool,
+    /// The newly completed lines since the prior flush
+    pub delta: String,
+}
+
+/// Validates that a `TaskCreatedPayload` contains all required fields.
+pub fn validate_task_created_payload(payload: &TaskCreatedPayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.task_id.trim().is_empty() {
+        return Err("task_id cannot be empty".to_string());
+    }
+    if payload.task_subject.trim().is_empty() {
+        return Err("task_subject cannot be empty".to_string());
+    }
+    Ok(())
+}
+
+/// Validates that an `ElicitationPayload` contains all required fields.
+pub fn validate_elicitation_payload(payload: &ElicitationPayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.mcp_server_name.trim().is_empty() {
+        return Err("mcp_server_name cannot be empty".to_string());
+    }
+    Ok(())
+}
+
+/// Validates that an `ElicitationResultPayload` contains all required fields.
+pub fn validate_elicitation_result_payload(
+    payload: &ElicitationResultPayload,
+) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.mcp_server_name.trim().is_empty() {
+        return Err("mcp_server_name cannot be empty".to_string());
+    }
+    Ok(())
+}
+
+/// Validates that a `MessageDisplayPayload` contains all required fields.
+pub fn validate_message_display_payload(payload: &MessageDisplayPayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.message_id.trim().is_empty() {
+        return Err("message_id cannot be empty".to_string());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1896,5 +2058,119 @@ mod tests {
         let payload: UserPromptExpansionPayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.expansion_type, ExpansionType::McpPrompt);
         assert_eq!(payload.command_source, Some("my-mcp-server".to_string()));
+    }
+
+    #[test]
+    fn test_task_created_payload_deserialization() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "TaskCreated",
+            "cwd": "/c",
+            "task_id": "t-1",
+            "task_subject": "Implement feature",
+            "task_description": "details",
+            "teammate_name": "coder"
+        }"#;
+        let payload: TaskCreatedPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.task_id, "t-1");
+        assert_eq!(payload.task_subject, "Implement feature");
+        assert_eq!(payload.task_description, Some("details".to_string()));
+        assert_eq!(payload.teammate_name, Some("coder".to_string()));
+        assert!(validate_task_created_payload(&payload).is_ok());
+
+        let mut empty = payload.clone();
+        empty.task_id = "  ".to_string();
+        assert!(validate_task_created_payload(&empty).is_err());
+    }
+
+    #[test]
+    fn test_elicitation_payload_deserialization() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "Elicitation",
+            "cwd": "/c",
+            "mcp_server_name": "my-server",
+            "message": "Please authenticate",
+            "mode": "url",
+            "url": "https://example.com/auth",
+            "elicitation_id": "el-1"
+        }"#;
+        let payload: ElicitationPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.mcp_server_name, "my-server");
+        assert_eq!(payload.mode, Some(ElicitationMode::Url));
+        assert_eq!(payload.mode.as_ref().unwrap().to_string(), "url");
+        assert_eq!(payload.url, Some("https://example.com/auth".to_string()));
+        assert_eq!(payload.elicitation_id, Some("el-1".to_string()));
+        assert!(validate_elicitation_payload(&payload).is_ok());
+    }
+
+    #[test]
+    fn test_elicitation_result_payload_deserialization() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "ElicitationResult",
+            "cwd": "/c",
+            "mcp_server_name": "my-server",
+            "mode": "form",
+            "action": "accept",
+            "content": {"name": "value"}
+        }"#;
+        let payload: ElicitationResultPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.action, ElicitationAction::Accept);
+        assert_eq!(payload.action.to_string(), "accept");
+        assert_eq!(payload.mode, Some(ElicitationMode::Form));
+        assert!(payload.content.is_some());
+        assert!(validate_elicitation_result_payload(&payload).is_ok());
+    }
+
+    #[test]
+    fn test_message_display_payload_deserialization() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "MessageDisplay",
+            "cwd": "/c",
+            "turn_id": "turn-1",
+            "message_id": "msg-1",
+            "index": 3,
+            "final": true,
+            "delta": "the last line"
+        }"#;
+        let payload: MessageDisplayPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.turn_id, "turn-1");
+        assert_eq!(payload.message_id, "msg-1");
+        assert_eq!(payload.index, 3);
+        assert!(payload.final_flush);
+        assert_eq!(payload.delta, "the last line");
+        assert!(validate_message_display_payload(&payload).is_ok());
+    }
+
+    #[test]
+    fn test_message_display_payload_final_round_trip() {
+        // Ensure the `final` keyword field round-trips through the "final" wire name.
+        let payload = MessageDisplayPayload {
+            base: BasePayload {
+                session_id: "s".to_string(),
+                transcript_path: "/t".to_string(),
+                hook_event_name: "MessageDisplay".to_string(),
+                cwd: "/c".to_string(),
+                permission_mode: None,
+                agent_id: None,
+                agent_type: None,
+                effort: None,
+            },
+            turn_id: "turn-1".to_string(),
+            message_id: "msg-1".to_string(),
+            index: 0,
+            final_flush: false,
+            delta: "partial".to_string(),
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("\"final\":false"));
+        let back: MessageDisplayPayload = serde_json::from_str(&json).unwrap();
+        assert!(!back.final_flush);
     }
 }

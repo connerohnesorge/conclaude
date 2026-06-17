@@ -36,6 +36,10 @@ fn test_is_system_event_hook_new_hooks() {
     assert!(is_system_event_hook("PostToolBatch"));
     assert!(is_system_event_hook("PermissionDenied"));
     assert!(is_system_event_hook("UserPromptExpansion"));
+    assert!(is_system_event_hook("TaskCreated"));
+    assert!(is_system_event_hook("Elicitation"));
+    assert!(is_system_event_hook("ElicitationResult"));
+    assert!(is_system_event_hook("MessageDisplay"));
 
     // PostToolUseFailure is NOT a system event hook
     assert!(!is_system_event_hook("PostToolUseFailure"));

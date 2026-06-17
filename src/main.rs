@@ -8,12 +8,13 @@ mod types;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use hooks::{
-    handle_config_change, handle_cwd_changed, handle_file_changed, handle_hook_result,
-    handle_instructions_loaded, handle_notification, handle_permission_denied,
-    handle_permission_request, handle_post_compact, handle_post_tool_batch, handle_post_tool_use,
-    handle_post_tool_use_failure, handle_pre_compact, handle_pre_tool_use, handle_session_end,
-    handle_session_start, handle_setup, handle_stop, handle_stop_failure, handle_subagent_start,
-    handle_subagent_stop, handle_task_completed, handle_teammate_idle, handle_user_prompt_expansion,
+    handle_config_change, handle_cwd_changed, handle_elicitation, handle_elicitation_result,
+    handle_file_changed, handle_hook_result, handle_instructions_loaded, handle_message_display,
+    handle_notification, handle_permission_denied, handle_permission_request, handle_post_compact,
+    handle_post_tool_batch, handle_post_tool_use, handle_post_tool_use_failure, handle_pre_compact,
+    handle_pre_tool_use, handle_session_end, handle_session_start, handle_setup, handle_stop,
+    handle_stop_failure, handle_subagent_start, handle_subagent_stop, handle_task_completed,
+    handle_task_created, handle_teammate_idle, handle_user_prompt_expansion,
     handle_user_prompt_submit, handle_worktree_create_result, handle_worktree_remove,
 };
 use std::fs;
@@ -272,6 +273,34 @@ enum HooksCommands {
         #[clap(long)]
         agent: Option<String>,
     },
+    /// Process `TaskCreated` hook - fired when a task is created
+    #[clap(name = "TaskCreated")]
+    TaskCreated {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `Elicitation` hook - fired when an MCP server requests user input
+    #[clap(name = "Elicitation")]
+    Elicitation {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `ElicitationResult` hook - fired after a user responds to an elicitation
+    #[clap(name = "ElicitationResult")]
+    ElicitationResult {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `MessageDisplay` hook - fired as assistant messages stream
+    #[clap(name = "MessageDisplay")]
+    MessageDisplay {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -389,6 +418,22 @@ async fn main() -> Result<()> {
             HooksCommands::UserPromptExpansion { agent } => {
                 set_agent_env(agent.as_deref());
                 handle_hook_result(handle_user_prompt_expansion).await
+            }
+            HooksCommands::TaskCreated { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_task_created).await
+            }
+            HooksCommands::Elicitation { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_elicitation).await
+            }
+            HooksCommands::ElicitationResult { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_elicitation_result).await
+            }
+            HooksCommands::MessageDisplay { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_message_display).await
             }
         },
         Commands::Visualize { rule, show_matches } => handle_visualize(rule, show_matches).await,
@@ -586,6 +631,10 @@ async fn handle_init(
         "PostToolBatch",
         "PermissionDenied",
         "UserPromptExpansion",
+        "TaskCreated",
+        "Elicitation",
+        "ElicitationResult",
+        "MessageDisplay",
     ];
 
     // Add hook configurations using merge logic to preserve user-defined hooks
@@ -737,6 +786,10 @@ fn generate_agent_hooks(agent_name: &str) -> serde_yaml::Value {
         ("PostToolBatch", false),
         ("PermissionDenied", true), // needs matcher (tool_name)
         ("UserPromptExpansion", true), // needs matcher (command_name)
+        ("TaskCreated", false),
+        ("Elicitation", true), // needs matcher (mcp_server_name)
+        ("ElicitationResult", true), // needs matcher (mcp_server_name)
+        ("MessageDisplay", false),
     ];
 
     let mut hooks_map = Mapping::new();

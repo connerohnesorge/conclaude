@@ -1,25 +1,28 @@
 use crate::config::{
     extract_bash_commands, load_conclaude_config, ConclaudeConfig, ConfigChangeConfig,
-    CwdChangedConfig, FileChangedConfig, InstructionsLoadedConfig, PermissionDeniedConfig,
-    PostCompactConfig, PostToolBatchConfig, SetupConfig, SkillStartConfig, SlashCommandConfig,
-    SubagentStopConfig, TaskCompletedConfig, TeammateIdleConfig, UserPromptExpansionConfig,
+    CwdChangedConfig, ElicitationConfig, ElicitationResultConfig, FileChangedConfig,
+    InstructionsLoadedConfig, MessageDisplayConfig, PermissionDeniedConfig, PostCompactConfig,
+    PostToolBatchConfig, SetupConfig, SkillStartConfig, SlashCommandConfig, SubagentStopConfig,
+    TaskCompletedConfig, TaskCreatedConfig, TeammateIdleConfig, UserPromptExpansionConfig,
     UserPromptSubmitCommand,
 };
 use crate::gitignore::{find_git_root, is_path_git_ignored};
 use crate::types::{
-    validate_base_payload, validate_cwd_changed_payload, validate_file_changed_payload,
-    validate_instructions_loaded_payload, validate_permission_denied_payload,
-    validate_permission_request_payload, validate_post_compact_payload,
-    validate_post_tool_batch_payload, validate_setup_payload, validate_stop_failure_payload,
-    validate_subagent_start_payload, validate_subagent_stop_payload,
-    validate_task_completed_payload, validate_teammate_idle_payload,
+    validate_base_payload, validate_cwd_changed_payload, validate_elicitation_payload,
+    validate_elicitation_result_payload, validate_file_changed_payload,
+    validate_instructions_loaded_payload, validate_message_display_payload,
+    validate_permission_denied_payload, validate_permission_request_payload,
+    validate_post_compact_payload, validate_post_tool_batch_payload, validate_setup_payload,
+    validate_stop_failure_payload, validate_subagent_start_payload, validate_subagent_stop_payload,
+    validate_task_completed_payload, validate_task_created_payload, validate_teammate_idle_payload,
     validate_user_prompt_expansion_payload, validate_worktree_create_payload,
     validate_worktree_remove_payload, ConfigChangePayload, ConfigChangeSource, CwdChangedPayload,
-    FileChangedPayload, HookResult, InstructionsLoadedPayload, NotificationPayload,
-    PermissionDeniedPayload, PermissionRequestPayload, PostCompactPayload, PostToolBatchPayload,
-    PostToolUseFailurePayload, PostToolUsePayload, PreCompactPayload, PreToolUsePayload,
-    SessionEndPayload, SessionStartPayload, SetupPayload, StopFailurePayload, StopPayload,
-    SubagentStartPayload, SubagentStopPayload, TaskCompletedPayload, TeammateIdlePayload,
+    ElicitationPayload, ElicitationResultPayload, FileChangedPayload, HookResult,
+    InstructionsLoadedPayload, MessageDisplayPayload, NotificationPayload, PermissionDeniedPayload,
+    PermissionRequestPayload, PostCompactPayload, PostToolBatchPayload, PostToolUseFailurePayload,
+    PostToolUsePayload, PreCompactPayload, PreToolUsePayload, SessionEndPayload,
+    SessionStartPayload, SetupPayload, StopFailurePayload, StopPayload, SubagentStartPayload,
+    SubagentStopPayload, TaskCompletedPayload, TaskCreatedPayload, TeammateIdlePayload,
     UserPromptExpansionPayload, UserPromptSubmitPayload, WorktreeCreatePayload, WorktreeRemovePayload,
 };
 use anyhow::{Context, Result};
@@ -214,6 +217,10 @@ pub(crate) fn is_system_event_hook(hook_name: &str) -> bool {
             | "PostToolBatch"
             | "PermissionDenied"
             | "UserPromptExpansion"
+            | "TaskCreated"
+            | "Elicitation"
+            | "ElicitationResult"
+            | "MessageDisplay"
     )
 }
 
@@ -5070,6 +5077,369 @@ pub async fn handle_user_prompt_expansion() -> Result<HookResult> {
                 )
                 .await;
             }
+        }
+    }
+
+    Ok(HookResult::success())
+}
+
+/// Collect commands from `TaskCreatedConfig` for matching patterns.
+fn collect_task_created_commands(
+    config: &TaskCreatedConfig,
+    matching_patterns: &[&str],
+) -> Result<Vec<GenericCommandConfig>> {
+    let mut commands = Vec::new();
+    for pattern in matching_patterns {
+        if let Some(cmd_list) = config.commands.get(*pattern) {
+            for cmd_config in cmd_list {
+                for cmd in extract_bash_commands(&cmd_config.run)? {
+                    commands.push(GenericCommandConfig {
+                        command: cmd,
+                        message: cmd_config.message.clone(),
+                        show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                        show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                        max_output_lines: cmd_config.max_output_lines,
+                        timeout: cmd_config.timeout,
+                        show_command: cmd_config.show_command.unwrap_or(true),
+                        notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
+                    });
+                }
+            }
+        }
+    }
+    Ok(commands)
+}
+
+/// Collect commands from `ElicitationConfig` for matching patterns.
+fn collect_elicitation_commands(
+    config: &ElicitationConfig,
+    matching_patterns: &[&str],
+) -> Result<Vec<GenericCommandConfig>> {
+    let mut commands = Vec::new();
+    for pattern in matching_patterns {
+        if let Some(cmd_list) = config.commands.get(*pattern) {
+            for cmd_config in cmd_list {
+                for cmd in extract_bash_commands(&cmd_config.run)? {
+                    commands.push(GenericCommandConfig {
+                        command: cmd,
+                        message: cmd_config.message.clone(),
+                        show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                        show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                        max_output_lines: cmd_config.max_output_lines,
+                        timeout: cmd_config.timeout,
+                        show_command: cmd_config.show_command.unwrap_or(true),
+                        notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
+                    });
+                }
+            }
+        }
+    }
+    Ok(commands)
+}
+
+/// Collect commands from `ElicitationResultConfig` for matching patterns.
+fn collect_elicitation_result_commands(
+    config: &ElicitationResultConfig,
+    matching_patterns: &[&str],
+) -> Result<Vec<GenericCommandConfig>> {
+    let mut commands = Vec::new();
+    for pattern in matching_patterns {
+        if let Some(cmd_list) = config.commands.get(*pattern) {
+            for cmd_config in cmd_list {
+                for cmd in extract_bash_commands(&cmd_config.run)? {
+                    commands.push(GenericCommandConfig {
+                        command: cmd,
+                        message: cmd_config.message.clone(),
+                        show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                        show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                        max_output_lines: cmd_config.max_output_lines,
+                        timeout: cmd_config.timeout,
+                        show_command: cmd_config.show_command.unwrap_or(true),
+                        notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
+                    });
+                }
+            }
+        }
+    }
+    Ok(commands)
+}
+
+/// Collect commands from `MessageDisplayConfig` (flat command list).
+fn collect_message_display_commands(
+    config: &MessageDisplayConfig,
+) -> Result<Vec<GenericCommandConfig>> {
+    let mut commands = Vec::new();
+    for cmd_config in &config.commands {
+        for cmd in extract_bash_commands(&cmd_config.run)? {
+            commands.push(GenericCommandConfig {
+                command: cmd,
+                message: cmd_config.message.clone(),
+                show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                max_output_lines: cmd_config.max_output_lines,
+                timeout: cmd_config.timeout,
+                show_command: cmd_config.show_command.unwrap_or(true),
+                notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
+            });
+        }
+    }
+    Ok(commands)
+}
+
+/// Handles `TaskCreated` hook events fired when a task is created. Observational.
+///
+/// # Errors
+///
+/// Returns an error if payload reading or validation fails.
+pub async fn handle_task_created() -> Result<HookResult> {
+    let payload: TaskCreatedPayload = read_payload_from_stdin()?;
+    validate_task_created_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    println!(
+        "Processing TaskCreated hook: session_id={}, task_id={}, task_subject={}",
+        payload.base.session_id, payload.task_id, payload.task_subject
+    );
+
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+    std::env::set_var("CONCLAUDE_TASK_ID", &payload.task_id);
+    std::env::set_var("CONCLAUDE_TASK_SUBJECT", &payload.task_subject);
+    std::env::set_var(
+        "CONCLAUDE_TASK_DESCRIPTION",
+        payload.task_description.as_deref().unwrap_or(""),
+    );
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    if !config.task_created.commands.is_empty() {
+        let matching_patterns =
+            match_generic_patterns(&payload.task_subject, &config.task_created.commands)?;
+        if !matching_patterns.is_empty() {
+            let commands = collect_task_created_commands(&config.task_created, &matching_patterns)?;
+            if !commands.is_empty() {
+                let mut env_vars = HashMap::new();
+                env_vars.insert("CONCLAUDE_TASK_ID".to_string(), payload.task_id.clone());
+                env_vars.insert(
+                    "CONCLAUDE_TASK_SUBJECT".to_string(),
+                    payload.task_subject.clone(),
+                );
+                env_vars.insert(
+                    "CONCLAUDE_TASK_DESCRIPTION".to_string(),
+                    payload.task_description.clone().unwrap_or_default(),
+                );
+                insert_base_env_vars(
+                    &mut env_vars,
+                    &payload.base,
+                    &payload,
+                    "TaskCreated",
+                    config_dir,
+                );
+                let _ =
+                    execute_generic_commands(&commands, &env_vars, config_dir, "TaskCreated").await;
+            }
+        }
+    }
+
+    send_notification(
+        "TaskCreated",
+        "success",
+        Some(&format!("Task '{}' created", payload.task_subject)),
+    );
+    Ok(HookResult::success())
+}
+
+/// Handles `Elicitation` hook events fired when an MCP server requests user input.
+/// Observational.
+///
+/// # Errors
+///
+/// Returns an error if payload reading or validation fails.
+pub async fn handle_elicitation() -> Result<HookResult> {
+    let payload: ElicitationPayload = read_payload_from_stdin()?;
+    validate_elicitation_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    let mode_str = payload.mode.as_ref().map(ToString::to_string).unwrap_or_default();
+    println!(
+        "Processing Elicitation hook: session_id={}, mcp_server_name={}, mode={}",
+        payload.base.session_id, payload.mcp_server_name, mode_str
+    );
+
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+    std::env::set_var("CONCLAUDE_MCP_SERVER_NAME", &payload.mcp_server_name);
+    std::env::set_var("CONCLAUDE_ELICITATION_MESSAGE", &payload.message);
+    std::env::set_var("CONCLAUDE_ELICITATION_MODE", &mode_str);
+    std::env::set_var(
+        "CONCLAUDE_ELICITATION_ID",
+        payload.elicitation_id.as_deref().unwrap_or(""),
+    );
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    if !config.elicitation.commands.is_empty() {
+        let matching_patterns =
+            match_generic_patterns(&payload.mcp_server_name, &config.elicitation.commands)?;
+        if !matching_patterns.is_empty() {
+            let commands = collect_elicitation_commands(&config.elicitation, &matching_patterns)?;
+            if !commands.is_empty() {
+                let mut env_vars = HashMap::new();
+                env_vars.insert(
+                    "CONCLAUDE_MCP_SERVER_NAME".to_string(),
+                    payload.mcp_server_name.clone(),
+                );
+                env_vars.insert(
+                    "CONCLAUDE_ELICITATION_MESSAGE".to_string(),
+                    payload.message.clone(),
+                );
+                env_vars.insert("CONCLAUDE_ELICITATION_MODE".to_string(), mode_str.clone());
+                env_vars.insert(
+                    "CONCLAUDE_ELICITATION_ID".to_string(),
+                    payload.elicitation_id.clone().unwrap_or_default(),
+                );
+                insert_base_env_vars(
+                    &mut env_vars,
+                    &payload.base,
+                    &payload,
+                    "Elicitation",
+                    config_dir,
+                );
+                let _ =
+                    execute_generic_commands(&commands, &env_vars, config_dir, "Elicitation").await;
+            }
+        }
+    }
+
+    Ok(HookResult::success())
+}
+
+/// Handles `ElicitationResult` hook events fired after a user responds to an MCP elicitation.
+/// Observational.
+///
+/// # Errors
+///
+/// Returns an error if payload reading or validation fails.
+pub async fn handle_elicitation_result() -> Result<HookResult> {
+    let payload: ElicitationResultPayload = read_payload_from_stdin()?;
+    validate_elicitation_result_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    let action_str = payload.action.to_string();
+    let mode_str = payload.mode.as_ref().map(ToString::to_string).unwrap_or_default();
+    println!(
+        "Processing ElicitationResult hook: session_id={}, mcp_server_name={}, action={}",
+        payload.base.session_id, payload.mcp_server_name, action_str
+    );
+
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+    std::env::set_var("CONCLAUDE_MCP_SERVER_NAME", &payload.mcp_server_name);
+    std::env::set_var("CONCLAUDE_ELICITATION_ACTION", &action_str);
+    std::env::set_var("CONCLAUDE_ELICITATION_MODE", &mode_str);
+    std::env::set_var(
+        "CONCLAUDE_ELICITATION_ID",
+        payload.elicitation_id.as_deref().unwrap_or(""),
+    );
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    if !config.elicitation_result.commands.is_empty() {
+        let matching_patterns =
+            match_generic_patterns(&payload.mcp_server_name, &config.elicitation_result.commands)?;
+        if !matching_patterns.is_empty() {
+            let commands = collect_elicitation_result_commands(
+                &config.elicitation_result,
+                &matching_patterns,
+            )?;
+            if !commands.is_empty() {
+                let mut env_vars = HashMap::new();
+                env_vars.insert(
+                    "CONCLAUDE_MCP_SERVER_NAME".to_string(),
+                    payload.mcp_server_name.clone(),
+                );
+                env_vars.insert(
+                    "CONCLAUDE_ELICITATION_ACTION".to_string(),
+                    action_str.clone(),
+                );
+                env_vars.insert("CONCLAUDE_ELICITATION_MODE".to_string(), mode_str.clone());
+                env_vars.insert(
+                    "CONCLAUDE_ELICITATION_ID".to_string(),
+                    payload.elicitation_id.clone().unwrap_or_default(),
+                );
+                insert_base_env_vars(
+                    &mut env_vars,
+                    &payload.base,
+                    &payload,
+                    "ElicitationResult",
+                    config_dir,
+                );
+                let _ = execute_generic_commands(
+                    &commands,
+                    &env_vars,
+                    config_dir,
+                    "ElicitationResult",
+                )
+                .await;
+            }
+        }
+    }
+
+    Ok(HookResult::success())
+}
+
+/// Handles `MessageDisplay` hook events fired as assistant messages stream.
+/// Observational and high-frequency; by default only acts on the final flush.
+///
+/// # Errors
+///
+/// Returns an error if payload reading or validation fails.
+pub async fn handle_message_display() -> Result<HookResult> {
+    let payload: MessageDisplayPayload = read_payload_from_stdin()?;
+    validate_message_display_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    // High-frequency hook: skip command execution unless there is a configured command,
+    // and (by default) only run on the final flush of each message.
+    if !config.message_display.commands.is_empty()
+        && (!config.message_display.only_final || payload.final_flush)
+    {
+        let commands = collect_message_display_commands(&config.message_display)?;
+        if !commands.is_empty() {
+            let mut env_vars = HashMap::new();
+            env_vars.insert("CONCLAUDE_MESSAGE_ID".to_string(), payload.message_id.clone());
+            env_vars.insert("CONCLAUDE_TURN_ID".to_string(), payload.turn_id.clone());
+            env_vars.insert(
+                "CONCLAUDE_MESSAGE_INDEX".to_string(),
+                payload.index.to_string(),
+            );
+            env_vars.insert(
+                "CONCLAUDE_MESSAGE_FINAL".to_string(),
+                payload.final_flush.to_string(),
+            );
+            env_vars.insert("CONCLAUDE_MESSAGE_DELTA".to_string(), payload.delta.clone());
+            insert_base_env_vars(
+                &mut env_vars,
+                &payload.base,
+                &payload,
+                "MessageDisplay",
+                config_dir,
+            );
+            let _ =
+                execute_generic_commands(&commands, &env_vars, config_dir, "MessageDisplay").await;
         }
     }
 
