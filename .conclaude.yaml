@@ -29,16 +29,21 @@ stop:
       showStdout: true
       showStderr: true
       message: "Docs build (cd docs && bun run build) failed - please fix errors"
-    - run: "generate-docs"
+    # Regenerate the config schema, then the docs (generate-docs reads
+    # conclaude-schema.json from disk, so schema MUST run first). Use the repo's
+    # cargo binaries via the flake dev shell -- matching the lint/tests steps --
+    # so output always reflects the current code, instead of any stale,
+    # globally-installed generate-schema/generate-docs binary.
+    - run: "nix develop -c cargo run --quiet --bin generate-schema"
       showStdout: false
       showStderr: false
       showCommand: true
-      message: "Docs build (generate-docs) failed - please fix errors via individual delegation."
-    - run: "generate-schema"
+      message: "Schema generation (cargo run --bin generate-schema) failed - please fix errors via individual delegation."
+    - run: "nix develop -c cargo run --quiet --bin generate-docs"
       showStdout: false
       showStderr: false
       showCommand: true
-      message: "Docs build (generate-schema) failed - please fix errors via individual delegation."
+      message: "Docs generation (cargo run --bin generate-docs) failed - please fix errors via individual delegation."
   # Examples:
   # commands:
   #   - run: "echo 'Starting build...'"
