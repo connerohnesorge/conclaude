@@ -449,6 +449,100 @@
       },
       "type": "object"
     },
+    "PermissionDeniedCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual permission-denied commands with optional messages.",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_TOOL_NAME, CONCLAUDE_DENY_REASON, CONCLAUDE_TOOL_USE_ID, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_PAYLOAD_JSON",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "PermissionDeniedConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for permission-denied hooks with tool-based command execution.\n\nCommands run when a tool permission request is denied. Observational.",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/PermissionDeniedCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of tool-name patterns to command configurations. Keys are glob patterns matched against the denied tool name (e.g., \"Bash\", \"*\").",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "PermissionRequestConfig": {
       "additionalProperties": false,
       "description": "Configuration for permission request hooks that control tool permission decisions.\n\nThis hook is fired when Claude requests permission to use a tool. Use this to automatically approve or deny tool usage based on configurable rules.\n\n# Pattern Matching\n\nBoth `allow` and `deny` fields support glob patterns for flexible tool matching: - `\"Bash\"` - Exact match (only \"Bash\") - `\"*\"` - Wildcard (matches any tool) - `\"Edit*\"` - Prefix match (matches \"Edit\", \"EditFile\", etc.) - `\"*Read\"` - Suffix match (matches \"Read\", \"FileRead\", etc.)\n\n**Important**: Deny patterns take precedence over allow patterns.\n\n# Security Recommendations\n\n- **Whitelist approach (recommended)**: Set `default: \"deny\"` and explicitly list allowed tools - **Blacklist approach (more permissive)**: Set `default: \"allow\"` and explicitly list denied tools\n\n# Examples\n\n## Whitelist approach (recommended for security)\n\n```yaml permissionRequest: default: deny allow: - \"Read\"       # Allow reading files - \"Glob\"       # Allow file pattern matching - \"Grep\"       # Allow content search - \"Edit\"       # Allow file editing - \"Write\"      # Allow file writing - \"Task\"       # Allow subagent tasks - \"Bash\"       # Allow bash commands ```\n\n## Blacklist approach (more permissive)\n\n```yaml permissionRequest: default: allow deny: - \"BashOutput\"   # Block reading background process output - \"KillShell\"    # Block terminating background shells ```\n\n## Mixed approach with patterns\n\n```yaml permissionRequest: default: deny allow: - \"Read\" - \"Write\" - \"Edit*\"      # Allow all Edit-based tools deny: - \"Bash\"       # Explicitly deny even though default is deny ```",
@@ -575,6 +669,97 @@
           "default": {},
           "description": "Map of trigger patterns to command configurations. Keys are glob patterns matching the compaction trigger (e.g., \"manual\", \"auto\", \"*\").",
           "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "PostToolBatchCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual post-tool-batch commands with optional messages.",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_TOOL_BATCH_SIZE, CONCLAUDE_TOOL_BATCH_NAMES, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_PAYLOAD_JSON",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "PostToolBatchConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for post-tool-batch hooks.\n\nCommands run once after every tool call in a batch resolves. Observational.",
+      "properties": {
+        "commands": {
+          "default": [],
+          "description": "Commands to execute after each resolved tool batch. They run in order and are observational.",
+          "items": {
+            "$ref": "#/definitions/PostToolBatchCommand"
+          },
+          "type": "array"
         }
       },
       "type": "object"
@@ -1402,6 +1587,100 @@
       ],
       "description": "Configuration for an uneditable file rule.\n\nFiles that Claude cannot edit, using glob patterns. Supports various glob patterns for flexible file protection.\n\n# Formats\n\nTwo formats are supported for backward compatibility:\n\n1. **Simple string patterns**: `\"*.lock\"` - Just the glob pattern as a string - Uses a generic error message when blocking\n\n2. **Detailed objects with custom messages**: `{pattern: \"*.lock\", message: \"...\"}` - Allows specifying a custom error message - More descriptive feedback when files are blocked\n\n# Examples\n\n```yaml uneditableFiles: # Simple patterns (backward compatible) - \"./package.json\"      # specific file - \"*.md\"                # file extension - \"src/**/*.ts\"         # nested patterns - \"docs/**\"             # entire directories\n\n# Detailed patterns with custom error messages - pattern: \"*.lock\" message: \"Lock files are automatically created. Run 'npm install' to update.\" - pattern: \".env*\" message: \"Environment files contain secrets. Use .env.example instead.\" - pattern: \"{package,tsconfig}.json\" message: \"Configuration files require team review before changes.\"\n\n# Agent-scoped patterns (only applied to specific agents) - pattern: \"src/**/*.test.ts\" agent: \"coder\" message: \"The coder agent should not modify test files.\" - pattern: \"dist/**\" agent: \"test*\" message: \"Test agents should not modify build output.\" ```\n\nThe `#[serde(untagged)]` attribute allows serde to automatically handle both plain string patterns and detailed object configurations."
     },
+    "UserPromptExpansionCommand": {
+      "additionalProperties": false,
+      "description": "Configuration for individual user-prompt-expansion commands with optional messages.",
+      "properties": {
+        "maxOutputLines": {
+          "default": null,
+          "description": "Maximum number of output lines to display (limits both stdout and stderr). Range: 1-10000",
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "message": {
+          "default": null,
+          "description": "Custom error message to display when the command fails (exits with non-zero status)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notifyPerCommand": {
+          "default": null,
+          "description": "Whether to send individual notifications for this command. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "The shell command to execute. Environment variables are available: CONCLAUDE_EXPANSION_TYPE, CONCLAUDE_COMMAND_NAME, CONCLAUDE_COMMAND_ARGS, CONCLAUDE_COMMAND_SOURCE, CONCLAUDE_EXPANDED_PROMPT, CONCLAUDE_SESSION_ID, CONCLAUDE_TRANSCRIPT_PATH, CONCLAUDE_HOOK_EVENT, CONCLAUDE_CWD, CONCLAUDE_CONFIG_DIR, CONCLAUDE_PAYLOAD_JSON",
+          "type": "string"
+        },
+        "showCommand": {
+          "default": true,
+          "description": "Whether to show the command being executed to the user and Claude. Default: true",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStderr": {
+          "default": null,
+          "description": "Whether to show the command's standard error output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "showStdout": {
+          "default": null,
+          "description": "Whether to show the command's standard output to the user and Claude. Default: false",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout": {
+          "default": null,
+          "description": "Optional command timeout in seconds. Range: 1-3600 (1 second to 1 hour).",
+          "format": "uint64",
+          "maximum": 3600.0,
+          "minimum": 1.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "type": "object"
+    },
+    "UserPromptExpansionConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for user-prompt-expansion hooks with command-name-based command execution.\n\nCommands run when a slash command or MCP prompt is expanded. Observational.",
+      "properties": {
+        "commands": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/UserPromptExpansionCommand"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Map of command-name patterns to command configurations. Keys are glob patterns matched against the expanded command name (e.g., \"commit\", \"*\").",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "UserPromptSubmitCommand": {
       "additionalProperties": false,
       "description": "Configuration for individual user prompt submit commands.\n\nThese commands run when a user submits a prompt to Claude. Commands are observational (read-only) and cannot block prompt processing.\n\n# Environment Variables\n\nThe following environment variables are available in commands: - `CONCLAUDE_USER_PROMPT` - The user's input text - `CONCLAUDE_SESSION_ID` - Current session ID - `CONCLAUDE_CWD` - Current working directory - `CONCLAUDE_CONFIG_DIR` - Directory containing .conclaude.yaml - `CONCLAUDE_HOOK_EVENT` - Always \"UserPromptSubmit\"\n\n# Examples\n\n```yaml userPromptSubmit: commands: # Run for all prompts - run: \".claude/scripts/log-prompt.sh\"\n\n# Run only for prompts matching pattern (regex) - pattern: \"deploy|release\" run: \".claude/scripts/notify-deploy.sh\"\n\n# Run with output display options - pattern: \"test\" run: \".claude/scripts/pre-test-check.sh\" showStdout: true ```",
@@ -1608,6 +1887,17 @@
         "showSystemEvents": false
       }
     },
+    "permissionDenied": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/PermissionDeniedConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for permission-denied hooks that run when a tool permission is denied."
+    },
     "permissionRequest": {
       "anyOf": [
         {
@@ -1629,6 +1919,17 @@
         "commands": {}
       },
       "description": "Configuration for post-compact hooks that run after transcript compaction."
+    },
+    "postToolBatch": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/PostToolBatchConfig"
+        }
+      ],
+      "default": {
+        "commands": []
+      },
+      "description": "Configuration for post-tool-batch hooks that run after each resolved tool batch."
     },
     "preToolUse": {
       "allOf": [
@@ -1721,6 +2022,17 @@
         "commands": {}
       },
       "description": "Configuration for teammate idle hooks"
+    },
+    "userPromptExpansion": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/UserPromptExpansionConfig"
+        }
+      ],
+      "default": {
+        "commands": {}
+      },
+      "description": "Configuration for user-prompt-expansion hooks that run when a command/prompt expands."
     },
     "userPromptSubmit": {
       "allOf": [

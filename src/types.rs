@@ -799,6 +799,108 @@ pub fn validate_instructions_loaded_payload(
     Ok(())
 }
 
+/// A single tool call within a `PostToolBatch` event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostToolBatchToolCall {
+    /// Name of the tool that was executed
+    pub tool_name: String,
+    /// Input parameters that were passed to the tool
+    pub tool_input: serde_json::Value,
+    /// Unique identifier for this tool invocation
+    pub tool_use_id: String,
+    /// Response data returned by the tool execution, when available
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_response: Option<serde_json::Value>,
+}
+
+/// Payload for `PostToolBatch` hook - fired once after every tool call in a batch
+/// has resolved, before the next model request. Observational.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostToolBatchPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// All tool calls that resolved in this batch
+    pub tool_calls: Vec<PostToolBatchToolCall>,
+}
+
+/// Payload for `PermissionDenied` hook - fired when a tool permission request is denied.
+/// Observational.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PermissionDeniedPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Name of the tool whose permission was denied
+    pub tool_name: String,
+    /// Input parameters for the denied tool
+    pub tool_input: serde_json::Value,
+    /// Unique identifier for the denied tool invocation
+    pub tool_use_id: String,
+    /// Reason the permission was denied
+    pub reason: String,
+}
+
+/// Type of expansion that produced a `UserPromptExpansion` event.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpansionType {
+    SlashCommand,
+    McpPrompt,
+}
+
+impl std::fmt::Display for ExpansionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExpansionType::SlashCommand => write!(f, "slash_command"),
+            ExpansionType::McpPrompt => write!(f, "mcp_prompt"),
+        }
+    }
+}
+
+/// Payload for `UserPromptExpansion` hook - fired when a slash command or MCP prompt
+/// is expanded into prompt text. Observational.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserPromptExpansionPayload {
+    #[serde(flatten)]
+    pub base: BasePayload,
+    /// Whether the expansion came from a slash command or an MCP prompt
+    pub expansion_type: ExpansionType,
+    /// Name of the command/prompt being expanded
+    pub command_name: String,
+    /// Arguments passed to the command/prompt
+    pub command_args: String,
+    /// Source of the command, when available (e.g. plugin or file origin)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command_source: Option<String>,
+    /// The expanded prompt text
+    pub prompt: String,
+}
+
+/// Validates that a `PostToolBatchPayload` contains all required fields.
+pub fn validate_post_tool_batch_payload(payload: &PostToolBatchPayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    Ok(())
+}
+
+/// Validates that a `PermissionDeniedPayload` contains all required fields.
+pub fn validate_permission_denied_payload(payload: &PermissionDeniedPayload) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.tool_name.trim().is_empty() {
+        return Err("tool_name cannot be empty".to_string());
+    }
+    Ok(())
+}
+
+/// Validates that a `UserPromptExpansionPayload` contains all required fields.
+pub fn validate_user_prompt_expansion_payload(
+    payload: &UserPromptExpansionPayload,
+) -> Result<(), String> {
+    validate_base_payload(&payload.base)?;
+    if payload.command_name.trim().is_empty() {
+        return Err("command_name cannot be empty".to_string());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1710,5 +1812,89 @@ mod tests {
         assert_eq!(payload.globs, Some(vec!["**/*.rs".to_string()]));
         assert_eq!(payload.trigger_file_path, Some("/repo/sub/lib.rs".to_string()));
         assert_eq!(payload.parent_file_path, Some("/repo/CLAUDE.md".to_string()));
+    }
+
+    #[test]
+    fn test_post_tool_batch_payload_deserialization() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "PostToolBatch",
+            "cwd": "/c",
+            "tool_calls": [
+                {"tool_name": "Read", "tool_input": {"file_path": "a.rs"}, "tool_use_id": "tu_1", "tool_response": {"ok": true}},
+                {"tool_name": "Bash", "tool_input": {"command": "ls"}, "tool_use_id": "tu_2"}
+            ]
+        }"#;
+        let payload: PostToolBatchPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.tool_calls.len(), 2);
+        assert_eq!(payload.tool_calls[0].tool_name, "Read");
+        assert_eq!(payload.tool_calls[0].tool_use_id, "tu_1");
+        assert!(payload.tool_calls[0].tool_response.is_some());
+        assert_eq!(payload.tool_calls[1].tool_name, "Bash");
+        assert!(payload.tool_calls[1].tool_response.is_none());
+        assert!(validate_post_tool_batch_payload(&payload).is_ok());
+    }
+
+    #[test]
+    fn test_permission_denied_payload_deserialization() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "PermissionDenied",
+            "cwd": "/c",
+            "tool_name": "Bash",
+            "tool_input": {"command": "rm -rf /"},
+            "tool_use_id": "tu_9",
+            "reason": "destructive command blocked by policy"
+        }"#;
+        let payload: PermissionDeniedPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.tool_name, "Bash");
+        assert_eq!(payload.tool_use_id, "tu_9");
+        assert_eq!(payload.reason, "destructive command blocked by policy");
+        assert!(validate_permission_denied_payload(&payload).is_ok());
+
+        let mut empty_tool = payload.clone();
+        empty_tool.tool_name = "  ".to_string();
+        assert!(validate_permission_denied_payload(&empty_tool).is_err());
+    }
+
+    #[test]
+    fn test_user_prompt_expansion_payload_deserialization() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "UserPromptExpansion",
+            "cwd": "/c",
+            "expansion_type": "slash_command",
+            "command_name": "commit",
+            "command_args": "--amend",
+            "prompt": "Create a git commit"
+        }"#;
+        let payload: UserPromptExpansionPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.expansion_type, ExpansionType::SlashCommand);
+        assert_eq!(payload.expansion_type.to_string(), "slash_command");
+        assert_eq!(payload.command_name, "commit");
+        assert_eq!(payload.command_args, "--amend");
+        assert_eq!(payload.command_source, None);
+        assert!(validate_user_prompt_expansion_payload(&payload).is_ok());
+    }
+
+    #[test]
+    fn test_user_prompt_expansion_payload_mcp_prompt() {
+        let json = r#"{
+            "session_id": "s",
+            "transcript_path": "/t",
+            "hook_event_name": "UserPromptExpansion",
+            "cwd": "/c",
+            "expansion_type": "mcp_prompt",
+            "command_name": "summarize",
+            "command_args": "",
+            "command_source": "my-mcp-server",
+            "prompt": "Summarize the doc"
+        }"#;
+        let payload: UserPromptExpansionPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.expansion_type, ExpansionType::McpPrompt);
+        assert_eq!(payload.command_source, Some("my-mcp-server".to_string()));
     }
 }

@@ -9,12 +9,12 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use hooks::{
     handle_config_change, handle_cwd_changed, handle_file_changed, handle_hook_result,
-    handle_instructions_loaded, handle_notification, handle_permission_request,
-    handle_post_compact, handle_post_tool_use, handle_post_tool_use_failure, handle_pre_compact,
-    handle_pre_tool_use, handle_session_end, handle_session_start, handle_setup, handle_stop,
-    handle_stop_failure, handle_subagent_start, handle_subagent_stop, handle_task_completed,
-    handle_teammate_idle, handle_user_prompt_submit, handle_worktree_create_result,
-    handle_worktree_remove,
+    handle_instructions_loaded, handle_notification, handle_permission_denied,
+    handle_permission_request, handle_post_compact, handle_post_tool_batch, handle_post_tool_use,
+    handle_post_tool_use_failure, handle_pre_compact, handle_pre_tool_use, handle_session_end,
+    handle_session_start, handle_setup, handle_stop, handle_stop_failure, handle_subagent_start,
+    handle_subagent_stop, handle_task_completed, handle_teammate_idle, handle_user_prompt_expansion,
+    handle_user_prompt_submit, handle_worktree_create_result, handle_worktree_remove,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -251,6 +251,27 @@ enum HooksCommands {
         #[clap(long)]
         agent: Option<String>,
     },
+    /// Process `PostToolBatch` hook - fired once after a batch of tool calls resolves
+    #[clap(name = "PostToolBatch")]
+    PostToolBatch {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `PermissionDenied` hook - fired when a tool permission request is denied
+    #[clap(name = "PermissionDenied")]
+    PermissionDenied {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
+    /// Process `UserPromptExpansion` hook - fired when a slash command or MCP prompt expands
+    #[clap(name = "UserPromptExpansion")]
+    UserPromptExpansion {
+        /// Optional agent name for context-aware hook execution
+        #[clap(long)]
+        agent: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -356,6 +377,18 @@ async fn main() -> Result<()> {
             HooksCommands::InstructionsLoaded { agent } => {
                 set_agent_env(agent.as_deref());
                 handle_hook_result(handle_instructions_loaded).await
+            }
+            HooksCommands::PostToolBatch { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_post_tool_batch).await
+            }
+            HooksCommands::PermissionDenied { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_permission_denied).await
+            }
+            HooksCommands::UserPromptExpansion { agent } => {
+                set_agent_env(agent.as_deref());
+                handle_hook_result(handle_user_prompt_expansion).await
             }
         },
         Commands::Visualize { rule, show_matches } => handle_visualize(rule, show_matches).await,
@@ -550,6 +583,9 @@ async fn handle_init(
         "CwdChanged",
         "FileChanged",
         "InstructionsLoaded",
+        "PostToolBatch",
+        "PermissionDenied",
+        "UserPromptExpansion",
     ];
 
     // Add hook configurations using merge logic to preserve user-defined hooks
@@ -698,6 +734,9 @@ fn generate_agent_hooks(agent_name: &str) -> serde_yaml::Value {
         ("CwdChanged", false),
         ("FileChanged", true), // needs matcher (file_path)
         ("InstructionsLoaded", true), // needs matcher (memory_type)
+        ("PostToolBatch", false),
+        ("PermissionDenied", true), // needs matcher (tool_name)
+        ("UserPromptExpansion", true), // needs matcher (command_name)
     ];
 
     let mut hooks_map = Mapping::new();

@@ -33,6 +33,9 @@ fn test_is_system_event_hook_new_hooks() {
     assert!(is_system_event_hook("CwdChanged"));
     assert!(is_system_event_hook("FileChanged"));
     assert!(is_system_event_hook("InstructionsLoaded"));
+    assert!(is_system_event_hook("PostToolBatch"));
+    assert!(is_system_event_hook("PermissionDenied"));
+    assert!(is_system_event_hook("UserPromptExpansion"));
 
     // PostToolUseFailure is NOT a system event hook
     assert!(!is_system_event_hook("PostToolUseFailure"));

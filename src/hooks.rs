@@ -1,23 +1,26 @@
 use crate::config::{
     extract_bash_commands, load_conclaude_config, ConclaudeConfig, ConfigChangeConfig,
-    CwdChangedConfig, FileChangedConfig, InstructionsLoadedConfig, PostCompactConfig, SetupConfig,
-    SkillStartConfig, SlashCommandConfig, SubagentStopConfig, TaskCompletedConfig,
-    TeammateIdleConfig, UserPromptSubmitCommand,
+    CwdChangedConfig, FileChangedConfig, InstructionsLoadedConfig, PermissionDeniedConfig,
+    PostCompactConfig, PostToolBatchConfig, SetupConfig, SkillStartConfig, SlashCommandConfig,
+    SubagentStopConfig, TaskCompletedConfig, TeammateIdleConfig, UserPromptExpansionConfig,
+    UserPromptSubmitCommand,
 };
 use crate::gitignore::{find_git_root, is_path_git_ignored};
 use crate::types::{
     validate_base_payload, validate_cwd_changed_payload, validate_file_changed_payload,
-    validate_instructions_loaded_payload, validate_permission_request_payload,
-    validate_post_compact_payload, validate_setup_payload, validate_stop_failure_payload,
+    validate_instructions_loaded_payload, validate_permission_denied_payload,
+    validate_permission_request_payload, validate_post_compact_payload,
+    validate_post_tool_batch_payload, validate_setup_payload, validate_stop_failure_payload,
     validate_subagent_start_payload, validate_subagent_stop_payload,
     validate_task_completed_payload, validate_teammate_idle_payload,
-    validate_worktree_create_payload, validate_worktree_remove_payload, ConfigChangePayload,
-    ConfigChangeSource, CwdChangedPayload, FileChangedPayload, HookResult,
-    InstructionsLoadedPayload, NotificationPayload, PermissionRequestPayload, PostCompactPayload,
+    validate_user_prompt_expansion_payload, validate_worktree_create_payload,
+    validate_worktree_remove_payload, ConfigChangePayload, ConfigChangeSource, CwdChangedPayload,
+    FileChangedPayload, HookResult, InstructionsLoadedPayload, NotificationPayload,
+    PermissionDeniedPayload, PermissionRequestPayload, PostCompactPayload, PostToolBatchPayload,
     PostToolUseFailurePayload, PostToolUsePayload, PreCompactPayload, PreToolUsePayload,
     SessionEndPayload, SessionStartPayload, SetupPayload, StopFailurePayload, StopPayload,
     SubagentStartPayload, SubagentStopPayload, TaskCompletedPayload, TeammateIdlePayload,
-    UserPromptSubmitPayload, WorktreeCreatePayload, WorktreeRemovePayload,
+    UserPromptExpansionPayload, UserPromptSubmitPayload, WorktreeCreatePayload, WorktreeRemovePayload,
 };
 use anyhow::{Context, Result};
 use glob::Pattern;
@@ -208,6 +211,9 @@ pub(crate) fn is_system_event_hook(hook_name: &str) -> bool {
             | "CwdChanged"
             | "FileChanged"
             | "InstructionsLoaded"
+            | "PostToolBatch"
+            | "PermissionDenied"
+            | "UserPromptExpansion"
     )
 }
 
@@ -4790,6 +4796,283 @@ pub async fn handle_instructions_loaded() -> Result<HookResult> {
             payload.file_path
         )),
     );
+    Ok(HookResult::success())
+}
+
+/// Collect commands from `PostToolBatchConfig` (flat command list).
+fn collect_post_tool_batch_commands(
+    config: &PostToolBatchConfig,
+) -> Result<Vec<GenericCommandConfig>> {
+    let mut commands = Vec::new();
+    for cmd_config in &config.commands {
+        for cmd in extract_bash_commands(&cmd_config.run)? {
+            commands.push(GenericCommandConfig {
+                command: cmd,
+                message: cmd_config.message.clone(),
+                show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                max_output_lines: cmd_config.max_output_lines,
+                timeout: cmd_config.timeout,
+                show_command: cmd_config.show_command.unwrap_or(true),
+                notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
+            });
+        }
+    }
+    Ok(commands)
+}
+
+/// Collect commands from `PermissionDeniedConfig` for matching patterns.
+fn collect_permission_denied_commands(
+    config: &PermissionDeniedConfig,
+    matching_patterns: &[&str],
+) -> Result<Vec<GenericCommandConfig>> {
+    let mut commands = Vec::new();
+    for pattern in matching_patterns {
+        if let Some(cmd_list) = config.commands.get(*pattern) {
+            for cmd_config in cmd_list {
+                for cmd in extract_bash_commands(&cmd_config.run)? {
+                    commands.push(GenericCommandConfig {
+                        command: cmd,
+                        message: cmd_config.message.clone(),
+                        show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                        show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                        max_output_lines: cmd_config.max_output_lines,
+                        timeout: cmd_config.timeout,
+                        show_command: cmd_config.show_command.unwrap_or(true),
+                        notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
+                    });
+                }
+            }
+        }
+    }
+    Ok(commands)
+}
+
+/// Collect commands from `UserPromptExpansionConfig` for matching patterns.
+fn collect_user_prompt_expansion_commands(
+    config: &UserPromptExpansionConfig,
+    matching_patterns: &[&str],
+) -> Result<Vec<GenericCommandConfig>> {
+    let mut commands = Vec::new();
+    for pattern in matching_patterns {
+        if let Some(cmd_list) = config.commands.get(*pattern) {
+            for cmd_config in cmd_list {
+                for cmd in extract_bash_commands(&cmd_config.run)? {
+                    commands.push(GenericCommandConfig {
+                        command: cmd,
+                        message: cmd_config.message.clone(),
+                        show_stdout: cmd_config.show_stdout.unwrap_or(false),
+                        show_stderr: cmd_config.show_stderr.unwrap_or(false),
+                        max_output_lines: cmd_config.max_output_lines,
+                        timeout: cmd_config.timeout,
+                        show_command: cmd_config.show_command.unwrap_or(true),
+                        notify_per_command: cmd_config.notify_per_command.unwrap_or(false),
+                    });
+                }
+            }
+        }
+    }
+    Ok(commands)
+}
+
+/// Handles `PostToolBatch` hook events fired once after a batch of tool calls resolves.
+/// Observational - it cannot block.
+///
+/// # Errors
+///
+/// Returns an error if payload reading or validation fails.
+pub async fn handle_post_tool_batch() -> Result<HookResult> {
+    let payload: PostToolBatchPayload = read_payload_from_stdin()?;
+    validate_post_tool_batch_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    let batch_size = payload.tool_calls.len();
+    let tool_names: Vec<&str> = payload
+        .tool_calls
+        .iter()
+        .map(|tc| tc.tool_name.as_str())
+        .collect();
+    let names_csv = tool_names.join(",");
+    println!(
+        "Processing PostToolBatch hook: session_id={}, batch_size={}, tools=[{}]",
+        payload.base.session_id, batch_size, names_csv
+    );
+
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+    std::env::set_var("CONCLAUDE_TOOL_BATCH_SIZE", batch_size.to_string());
+    std::env::set_var("CONCLAUDE_TOOL_BATCH_NAMES", &names_csv);
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    if !config.post_tool_batch.commands.is_empty() {
+        let commands = collect_post_tool_batch_commands(&config.post_tool_batch)?;
+        if !commands.is_empty() {
+            let mut env_vars = HashMap::new();
+            env_vars.insert(
+                "CONCLAUDE_TOOL_BATCH_SIZE".to_string(),
+                batch_size.to_string(),
+            );
+            env_vars.insert("CONCLAUDE_TOOL_BATCH_NAMES".to_string(), names_csv.clone());
+            insert_base_env_vars(
+                &mut env_vars,
+                &payload.base,
+                &payload,
+                "PostToolBatch",
+                config_dir,
+            );
+            let _ =
+                execute_generic_commands(&commands, &env_vars, config_dir, "PostToolBatch").await;
+        }
+    }
+
+    Ok(HookResult::success())
+}
+
+/// Handles `PermissionDenied` hook events fired when a tool permission request is denied.
+/// Observational - it cannot block.
+///
+/// # Errors
+///
+/// Returns an error if payload reading or validation fails.
+pub async fn handle_permission_denied() -> Result<HookResult> {
+    let payload: PermissionDeniedPayload = read_payload_from_stdin()?;
+    validate_permission_denied_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    println!(
+        "Processing PermissionDenied hook: session_id={}, tool_name={}, reason={}",
+        payload.base.session_id, payload.tool_name, payload.reason
+    );
+
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+    std::env::set_var("CONCLAUDE_TOOL_NAME", &payload.tool_name);
+    std::env::set_var("CONCLAUDE_DENY_REASON", &payload.reason);
+    std::env::set_var("CONCLAUDE_TOOL_USE_ID", &payload.tool_use_id);
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    if !config.permission_denied.commands.is_empty() {
+        let matching_patterns =
+            match_generic_patterns(&payload.tool_name, &config.permission_denied.commands)?;
+        if !matching_patterns.is_empty() {
+            let commands =
+                collect_permission_denied_commands(&config.permission_denied, &matching_patterns)?;
+            if !commands.is_empty() {
+                let mut env_vars = HashMap::new();
+                env_vars.insert("CONCLAUDE_TOOL_NAME".to_string(), payload.tool_name.clone());
+                env_vars.insert("CONCLAUDE_DENY_REASON".to_string(), payload.reason.clone());
+                env_vars.insert(
+                    "CONCLAUDE_TOOL_USE_ID".to_string(),
+                    payload.tool_use_id.clone(),
+                );
+                insert_base_env_vars(
+                    &mut env_vars,
+                    &payload.base,
+                    &payload,
+                    "PermissionDenied",
+                    config_dir,
+                );
+                let _ =
+                    execute_generic_commands(&commands, &env_vars, config_dir, "PermissionDenied")
+                        .await;
+            }
+        }
+    }
+
+    send_notification(
+        "PermissionDenied",
+        "warning",
+        Some(&format!(
+            "Permission denied for '{}': {}",
+            payload.tool_name, payload.reason
+        )),
+    );
+    Ok(HookResult::success())
+}
+
+/// Handles `UserPromptExpansion` hook events fired when a slash command or MCP prompt expands.
+/// Observational - it cannot block.
+///
+/// # Errors
+///
+/// Returns an error if payload reading or validation fails.
+pub async fn handle_user_prompt_expansion() -> Result<HookResult> {
+    let payload: UserPromptExpansionPayload = read_payload_from_stdin()?;
+    validate_user_prompt_expansion_payload(&payload).map_err(|e| anyhow::anyhow!(e))?;
+
+    let expansion_type_str = payload.expansion_type.to_string();
+    println!(
+        "Processing UserPromptExpansion hook: session_id={}, expansion_type={}, command_name={}",
+        payload.base.session_id, expansion_type_str, payload.command_name
+    );
+
+    let agent_name = std::env::var(AGENT_ENV_VAR).ok();
+    if let Some(ref name) = agent_name {
+        std::env::set_var("CONCLAUDE_AGENT_NAME", name);
+    }
+    std::env::set_var("CONCLAUDE_EXPANSION_TYPE", &expansion_type_str);
+    std::env::set_var("CONCLAUDE_COMMAND_NAME", &payload.command_name);
+    std::env::set_var("CONCLAUDE_COMMAND_ARGS", &payload.command_args);
+    std::env::set_var(
+        "CONCLAUDE_COMMAND_SOURCE",
+        payload.command_source.as_deref().unwrap_or(""),
+    );
+    std::env::set_var("CONCLAUDE_EXPANDED_PROMPT", &payload.prompt);
+
+    let (config, config_path) = get_config().await?;
+    let config_dir = get_config_dir(config_path);
+
+    if !config.user_prompt_expansion.commands.is_empty() {
+        let matching_patterns =
+            match_generic_patterns(&payload.command_name, &config.user_prompt_expansion.commands)?;
+        if !matching_patterns.is_empty() {
+            let commands = collect_user_prompt_expansion_commands(
+                &config.user_prompt_expansion,
+                &matching_patterns,
+            )?;
+            if !commands.is_empty() {
+                let mut env_vars = HashMap::new();
+                env_vars.insert(
+                    "CONCLAUDE_EXPANSION_TYPE".to_string(),
+                    expansion_type_str.clone(),
+                );
+                env_vars.insert(
+                    "CONCLAUDE_COMMAND_NAME".to_string(),
+                    payload.command_name.clone(),
+                );
+                env_vars.insert(
+                    "CONCLAUDE_COMMAND_ARGS".to_string(),
+                    payload.command_args.clone(),
+                );
+                env_vars.insert(
+                    "CONCLAUDE_COMMAND_SOURCE".to_string(),
+                    payload.command_source.clone().unwrap_or_default(),
+                );
+                env_vars.insert("CONCLAUDE_EXPANDED_PROMPT".to_string(), payload.prompt.clone());
+                insert_base_env_vars(
+                    &mut env_vars,
+                    &payload.base,
+                    &payload,
+                    "UserPromptExpansion",
+                    config_dir,
+                );
+                let _ = execute_generic_commands(
+                    &commands,
+                    &env_vars,
+                    config_dir,
+                    "UserPromptExpansion",
+                )
+                .await;
+            }
+        }
+    }
+
     Ok(HookResult::success())
 }
 
