@@ -7,11 +7,62 @@ description: |
   DO NOT USE when you have the spectr binary available.
 compatibility:
   requirements:
-    - jq (JSON processor)
+  - jq (JSON processor)
   platforms:
-    - Linux
-    - macOS
-    - Unix-like systems with bash
+  - Linux
+  - macOS
+  - Unix-like systems with bash
+hooks:
+  PreToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PreToolUse --skill spectr-accept-wo-spectr-bin
+      timeout: 600
+  PostToolUse:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PostToolUse --skill spectr-accept-wo-spectr-bin
+      timeout: 600
+  Stop:
+  - hooks:
+    - type: command
+      command: conclaude Hooks Stop --skill spectr-accept-wo-spectr-bin
+      timeout: 600
+  SessionStart:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionStart --skill spectr-accept-wo-spectr-bin
+      timeout: 600
+  SessionEnd:
+  - hooks:
+    - type: command
+      command: conclaude Hooks SessionEnd --skill spectr-accept-wo-spectr-bin
+      timeout: 600
+  Notification:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks Notification --skill spectr-accept-wo-spectr-bin
+      timeout: 600
+  PreCompact:
+  - hooks:
+    - type: command
+      command: conclaude Hooks PreCompact --skill spectr-accept-wo-spectr-bin
+      timeout: 600
+  PermissionRequest:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks PermissionRequest --skill spectr-accept-wo-spectr-bin
+      timeout: 600
+  UserPromptSubmit:
+  - matcher: ''
+    hooks:
+    - type: command
+      command: conclaude Hooks UserPromptSubmit --skill spectr-accept-wo-spectr-bin
+      timeout: 600
 ---
 
 # Spectr Accept (Without Binary)
